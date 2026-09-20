@@ -48,6 +48,13 @@ const PORT = Number(optional("DASHBOARD_PORT", "7080"));
 const LEDGER = optional("DASHBOARD_LEDGER_URL", "http://127.0.0.1:7070");
 const ISSUER = optional("DASHBOARD_ISSUER_URL", "http://127.0.0.1:9099");
 const SUBJECT = optional("DASHBOARD_SUBJECT", userInfo().username);
+/**
+ * 深いリンクの行き先。**画面はこれを組み立てない** —— 台帳が返すのは `objectKey` と
+ * `lastJob.id` だけで、どこで開くかは配備の事実。1 か所で決めて `/healthz` で配る。
+ */
+const REPLAY = optional("DASHBOARD_REPLAY_URL", "http://127.0.0.1:8899");
+const WINDMILL = optional("DASHBOARD_WINDMILL_URL", "http://127.0.0.1:8000");
+const WORKSPACE = optional("DASHBOARD_WINDMILL_WORKSPACE", "crawler");
 const ORGANIZATIONS = optional("DASHBOARD_ORGANIZATIONS", "acme")
   .split(",")
   .map((org) => org.trim())
@@ -118,9 +125,20 @@ const failed = (reply, err) => {
 const server = createServer((request, reply) => {
   const url = request.url ?? "/";
 
+  // 生存と、画面が要る設定。**`/api/` の下には置かない** —— あちらは台帳へ素通しする
+  // 場所で、こちらの答えを混ぜると「どちらが答えたのか」が読めなくなる。
   if (url === "/healthz") {
     reply.writeHead(200, { "content-type": "application/json; charset=utf-8" });
-    reply.end(JSON.stringify({ ok: true, subject: SUBJECT, organizations: ORGANIZATIONS }));
+    reply.end(
+      JSON.stringify({
+        ok: true,
+        subject: SUBJECT,
+        organizations: ORGANIZATIONS,
+        replayOrigin: REPLAY,
+        windmillOrigin: WINDMILL,
+        windmillWorkspace: WORKSPACE,
+      }),
+    );
     return;
   }
 
