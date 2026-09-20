@@ -1,0 +1,167 @@
+#!/usr/bin/env node
+/**
+ * crawler の開発用の画面を配り、台帳の API を中継する。
+ *
+ *   pnpm run dev        # http://127.0.0.1:7000/
+ *
+ * ## この repo は秘密を持たない
+ *
+ * 台帳へ名乗るトークンは、開発用 issuer の `POST /token` からその場で取る
+ * （capture-ledger の `pnpm run oidc:token` が中でやっているのと同じこと）。
+ * `.env` に書くのは「誰として見るか」だけで、鍵も token も置き場が無い ——
+ * **漏れる物が無いので、漏らさない工夫も要らない。**
+ *
+ * **そのぶん、これは境界ではない。** 開発用 issuer は頼まれれば誰の名前でも
+ * トークンを出すので、ここの「名乗り」は便利さであって、守りではない。画面は
+ * それを隠さずに書く（capture-ledger の picker が同じ理由で同じことをしている）。
+ *
+ * ## なぜ中継するのか
+ *
+ * 台帳は CORS を返さない（`OPTIONS /api/archives` は 404。実測）。ブラウザから
+ * 直に叩く道は塞がっているので、同一オリジンにするために通す。**ここに画面の
+ * ロジックは置かない** —— 置いた瞬間に「台帳が知っていることの写し」が生まれる。
+ *
+ * ## 7080 であって 7000 ではない
+ *
+ * macOS の ControlCenter (AirPlay Receiver) が `*:7000` を握っている（実測）。
+ * `127.0.0.1:7000` に bind すること自体はできてしまうが、**`localhost:7000` が
+ * `::1` へ解決されると AirPlay に当たる** し、port から持ち主を引く道具
+ * (capture-ledger の `dev:status` / `dev:down`) は毎回「別のものが握っている」と
+ * 言い続けることになる。空いている隣 (台帳が 7070) を取る。
+ *
+ * ## http・loopback・公開しない
+ *
+ * https のページから `127.0.0.1` を叩くと Chrome の Private Network Access が
+ * 止める（seaweedfs の `scripts/ui.sh` に実測の記録がある）。だから画面自身を
+ * loopback の http で配る。外に出さない。
+ */
+import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { userInfo } from "node:os";
+
+import { contentType, optional, safePath } from "./lib.mjs";
+
+const PUBLIC = fileURLToPath(new URL("../public", import.meta.url));
+
+const PORT = Number(optional("DASHBOARD_PORT", "7080"));
+const LEDGER = optional("DASHBOARD_LEDGER_URL", "http://127.0.0.1:7070");
+const ISSUER = optional("DASHBOARD_ISSUER_URL", "http://127.0.0.1:9099");
+const SUBJECT = optional("DASHBOARD_SUBJECT", userInfo().username);
+const ORGANIZATIONS = optional("DASHBOARD_ORGANIZATIONS", "acme")
+  .split(",")
+  .map((org) => org.trim())
+  .filter((org) => org !== "");
+
+/** 名乗り。取れたら覚えておくが、**寿命は数えない**（下の理由）。 */
+let token;
+
+const HOW_TO_START_ISSUER = "capture-ledger で pnpm run oidc:issuer は動いているか?";
+
+const mint = async () => {
+  let res;
+  try {
+    res = await fetch(`${ISSUER}/token`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ subject: SUBJECT, organizations: ORGANIZATIONS }),
+    });
+  } catch (err) {
+    // **届かないのと、断られたのは別。** 素の `fetch failed` はどちらも同じ顔で出る
+    // ので、立っていないほうを名指しする（反証で実際にこの顔を踏んだ）。
+    throw new Error(
+      `${ISSUER} に届かない (${err instanceof Error ? err.message : String(err)})。` +
+        HOW_TO_START_ISSUER,
+    );
+  }
+  if (!res.ok) {
+    throw new Error(`${ISSUER} が名乗りを断った (${String(res.status)})。` + HOW_TO_START_ISSUER);
+  }
+  token = (await res.json()).access_token;
+};
+
+/**
+ * 台帳へ中継する。
+ *
+ * **時計で測らず、401 で取り直す。** 寿命（既定 1 時間）を数える形にすると、
+ * issuer を起こし直した日に落ちる —— 起動のたびに鍵が変わるので、まだ有効なはずの
+ * トークンが静かに通らなくなる。401 は、その両方（期限切れ・鍵替わり）を同じ形で言う。
+ */
+const toLedger = async (path) => {
+  if (token === undefined) await mint();
+  const send = async () => {
+    try {
+      return await fetch(LEDGER + path, { headers: { authorization: `Bearer ${token}` } });
+    } catch (err) {
+      // **何が居ないかを言う。** 素の `fetch failed` は、台帳が落ちているのか
+      // 宛先を間違えているのかを区別しない。
+      throw new Error(
+        `${LEDGER} に届かない (${err instanceof Error ? err.message : String(err)})。` +
+          "capture-ledger で pnpm run api は動いているか?",
+      );
+    }
+  };
+  let res = await send();
+  if (res.status === 401) {
+    await mint();
+    res = await send();
+  }
+  return res;
+};
+
+/** 失敗は、**何が居ないか**を言う。「見えない」と「立っていない」を混ぜない。 */
+const failed = (reply, err) => {
+  reply.writeHead(502, { "content-type": "application/json; charset=utf-8" });
+  reply.end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }));
+};
+
+const server = createServer((request, reply) => {
+  const url = request.url ?? "/";
+
+  if (url === "/healthz") {
+    reply.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+    reply.end(JSON.stringify({ ok: true, subject: SUBJECT, organizations: ORGANIZATIONS }));
+    return;
+  }
+
+  if (url.startsWith("/api/")) {
+    void toLedger(url)
+      .then(async (res) => {
+        reply.writeHead(res.status, {
+          "content-type": res.headers.get("content-type") ?? "application/json; charset=utf-8",
+        });
+        reply.end(await res.text());
+      })
+      .catch((err) => {
+        failed(reply, err);
+      });
+    return;
+  }
+
+  const path = safePath(PUBLIC, url);
+  const type = path === undefined ? undefined : contentType(path);
+  if (path === undefined || type === undefined) {
+    reply.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+    reply.end("not found\n");
+    return;
+  }
+  void readFile(path)
+    .then((body) => {
+      reply.writeHead(200, { "content-type": type });
+      reply.end(body);
+    })
+    .catch(() => {
+      reply.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+      reply.end("not found\n");
+    });
+});
+
+// **loopback にだけ bind する。** この画面は台帳のトークンを持つので、
+// 届く相手はこの機械の中だけでよい。
+server.listen(PORT, "127.0.0.1", () => {
+  process.stdout.write(
+    `dashboard http://127.0.0.1:${String(PORT)}/  ` +
+      `台帳: ${LEDGER}  名乗り: ${SUBJECT} (${ORGANIZATIONS.join(", ")})\n` +
+      "開発用の名乗りです —— issuer は頼まれれば誰の名前でもトークンを出します。\n",
+  );
+});

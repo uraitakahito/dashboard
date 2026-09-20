@@ -1,0 +1,35 @@
+name: ci
+
+# この repo は依存を持たない。**だから pnpm も lockfile も audit も無い** ——
+# 在るのは node の http サーバ 1 本と、ブラウザで素のまま走る JS だけで、
+# 監査する依存木が存在しない (capture-scripts と同じ判断)。
+#
+# 見ているのは `npm run check` の 2 つ: JS として読めるか / 外と話さない部分が
+# 約束どおりか。**中継と名乗りはここでは見ない** —— あれは台帳と issuer が
+# 立っていないと確かめられないので、証拠は手で当てて PR に貼る。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Check
+        run: npm run check

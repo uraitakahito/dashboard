@@ -1,0 +1,21 @@
+{
+  "name": "dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "crawler の開発用の画面。台帳の API を 1 枚に畳んで見る",
+  "//": [
+    "package.json にコメントを書く方法の議論:",
+    "https://stackoverflow.com/questions/14221579/how-do-i-add-comments-to-package-json-for-npm-install"
+  ],
+  "//dependencies": "無い。**依存を持たないことが、この repo の性質の一部。** ここに在るのは node の http サーバ 1 本と、ブラウザで素のまま走る JS だけ。bundler も framework も通さないので、pnpm も lockfile も audit も要らない (capture-scripts と同じ判断)。分割したくなるほど育ったら、そのとき入れる —— capture-ledger の picker が @fastify/static について言っているのと同じ。",
+  "//secrets": "**この repo は秘密を持たない。** 台帳へ名乗るトークンは開発用 issuer の POST /token からその場で取る (pnpm run oidc:token が中でやっているのと同じこと)。.env に書くのは「誰として見るか」だけで、鍵の置き場が無い。",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --env-file-if-exists=.env.local src/server.mjs",
+    "test": "node --test",
+    "check": "node --check src/server.mjs && node --check src/lib.mjs && node --test"
+  }
+}
