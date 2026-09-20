@@ -4,11 +4,88 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>crawler — dashboard</title>
+    <link rel="stylesheet" href="/app.css" />
   </head>
   <body>
-    <h1>crawler dashboard</h1>
-    <!-- 画面は次の段で。いまは器が立っていることだけを見せる。 -->
-    <p id="who">名乗りを確かめています…</p>
+    <header>
+      <h1>crawler</h1>
+      <nav id="tabs">
+        <button type="button" id="tab-crawls" class="on" data-face="crawls">クロール</button>
+        <button type="button" id="tab-archives" data-face="archives">アーカイブ</button>
+        <button type="button" id="tab-scripts" data-face="scripts">目録</button>
+      </nav>
+      <p id="who" class="who">名乗りを確かめています…</p>
+    </header>
+
+    <!--
+      失敗は消さずに残す。**画面が空なのと、取りに行けないのは別。**
+      台帳が落ちていれば、そう言ったまま最後の表を残す。
+    -->
+    <p id="trouble" class="trouble" hidden></p>
+
+    <main>
+      <section id="face-crawls">
+        <table>
+          <thead>
+            <tr>
+              <th>状態</th>
+              <th>id</th>
+              <th>起こした人</th>
+              <th>種</th>
+              <th class="num">撮れた</th>
+              <th class="num">見つけた</th>
+              <th class="num">WACZ</th>
+              <th class="num">かかった</th>
+              <th>行き先</th>
+            </tr>
+          </thead>
+          <tbody id="crawls"></tbody>
+        </table>
+        <p id="crawls-empty" class="empty" hidden>クロールがまだ 1 本もありません。</p>
+      </section>
+
+      <section id="face-archives" hidden>
+        <table>
+          <thead>
+            <tr>
+              <th>撮れたもの</th>
+              <th>ラベル</th>
+              <th>撮った時刻</th>
+              <th>完全か</th>
+              <th>行き先</th>
+            </tr>
+          </thead>
+          <tbody id="archives"></tbody>
+        </table>
+        <p id="archives-empty" class="empty" hidden>見えるアーカイブがありません。</p>
+      </section>
+
+      <section id="face-scripts" hidden>
+        <table>
+          <thead>
+            <tr>
+              <th>走らせるもの</th>
+              <th>版</th>
+              <th>口</th>
+              <th>sha256</th>
+            </tr>
+          </thead>
+          <tbody id="scripts"></tbody>
+        </table>
+        <!--
+          空は「異常ではないが、たいてい間違い」。BrowserHive は顔ぶれを持たないので、
+          目録が空だとページの中で何も走らない —— それでも取り込みは成功する。
+        -->
+        <p id="scripts-empty" class="empty bad" hidden>
+          目録が空です。クロールはページの中で何も走らせません（スクロールも遅延読み込みも
+          起きないまま、成功したアーカイブが出ます）。
+          <code>cd ../capture-ledger &amp;&amp; pnpm run scripts import .upstream/capture-scripts</code>
+        </p>
+      </section>
+    </main>
+
+    <footer id="pulse">読み込み中…</footer>
+
     <script type="module" src="/app.js"></script>
   </body>
 </html>
