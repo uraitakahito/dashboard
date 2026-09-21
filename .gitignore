@@ -1,3 +1,9 @@
 node_modules/
 .env
 .env.local
+
+# **lockfile は置かない。** この repo は依存を持たないので、守るものが無い
+# (README の「依存を持たない」)。それでも `pnpm run dev` を打つと pnpm が
+# 空の lockfile を作るので、間違って commit しないよう無視する。
+pnpm-lock.yaml
+package-lock.json
