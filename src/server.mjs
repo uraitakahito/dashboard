@@ -36,7 +36,9 @@
  * loopback の http で配る。外に出さない。
  */
 import { createServer } from "node:http";
+import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { userInfo } from "node:os";
 
@@ -172,6 +174,52 @@ const server = createServer((request, reply) => {
       reply.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
       reply.end("not found\n");
     });
+});
+
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
+
+const run = (cmd, args) => {
+  const result = spawnSync(cmd, args, { encoding: "utf8" });
+  return result.status === 0 ? (result.stdout ?? "").trim() : "";
+};
+
+/**
+ * 港が塞がっていたら、**誰が握っているかを言ってから**終わる。
+ *
+ * 素の `EADDRINUSE` は node の stack trace で出るだけで、`dev:up` が起こした
+ * この画面自身が握っているのか、無関係なものなのかを言わない —— 実際に
+ * 2026-09-21 にそれで止まった（`container-compose down` はホストのプロセスを
+ * 消さないので、スタックを落とした後も画面だけが残る）。
+ *
+ * **自分と同じものが握っているなら、それは失敗ではない。** 開けばよい。
+ */
+const portTaken = () => {
+  const pid = run("lsof", ["-nP", `-iTCP:${String(PORT)}`, "-sTCP:LISTEN", "-t"]).split("\n")[0];
+  const command = pid === "" ? "" : run("ps", ["-p", pid, "-o", "command="]);
+  const cwd =
+    pid === ""
+      ? ""
+      : (run("lsof", ["-a", "-d", "cwd", "-p", pid, "-Fn"])
+          .split("\n")
+          .find((line) => line.startsWith("n")) ?? "").slice(1);
+  const mine = command.includes("src/server.mjs") && cwd !== "" && resolve(cwd) === resolve(ROOT);
+
+  process.stderr.write(
+    mine
+      ? `127.0.0.1:${String(PORT)} は、既に動いているこの画面です (pid ${pid})。\n` +
+          `  開くだけ: open http://127.0.0.1:${String(PORT)}/\n` +
+          "  起こし直すなら: cd ../capture-ledger && pnpm run dev:up --from dashboard\n"
+      : `127.0.0.1:${String(PORT)} は別のものが握っています${pid === "" ? "" : ` (pid ${pid})`}。\n` +
+          (command === "" ? "" : `  ${command}\n`) +
+          "  何が立っているか: cd ../capture-ledger && pnpm run dev:status\n" +
+          "  片付け:           cd ../capture-ledger && pnpm run dev:down\n",
+  );
+  process.exit(1);
+};
+
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") portTaken();
+  throw err;
 });
 
 // **loopback にだけ bind する。** この画面は台帳のトークンを持つので、
