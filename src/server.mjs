@@ -2,7 +2,7 @@
 /**
  * crawler の開発用の画面を配り、台帳の API を中継する。
  *
- *   pnpm run dev        # http://127.0.0.1:7000/
+ *   pnpm run dev        # http://127.0.0.1:7080/
  *
  * ## この repo は秘密を持たない
  *
@@ -35,15 +35,17 @@
  * 止める（seaweedfs の `scripts/ui.sh` に実測の記録がある）。だから画面自身を
  * loopback の http で配る。外に出さない。
  */
-import { Buffer } from "node:buffer";
 import { createServer } from "node:http";
 import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { userInfo } from "node:os";
 
 import { contentType, optional, safePath } from "./lib.mjs";
+import { BadRequest, paramsFor, parseWaczRoute, viaSignedUrl } from "./wacz.mjs";
 
 const PUBLIC = fileURLToPath(new URL("../public", import.meta.url));
 
@@ -124,21 +126,56 @@ const toLedger = async (path, method = "GET") => {
   return res;
 };
 
-/** 受け取った JSON。**大きさに上限を置く** —— 受け口は誰でも叩けるので。 */
-const readJson = async (request) => {
-  const chunks = [];
-  let size = 0;
-  for await (const chunk of request) {
-    size += chunk.length;
-    if (size > 64 * 1024) throw new Error("request body is too large");
-    chunks.push(chunk);
+/**
+ * daemon に POST する。**鍵ではなく URL を渡す**ので、向こうは何も持たない。
+ * 届かなければ、何が居ないかを名指しする。
+ */
+const toDaemon = async (path, body) => {
+  try {
+    return await fetch(`${VALIDATOR}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    throw new Error(
+      `${VALIDATOR} に届かない (${err instanceof Error ? err.message : String(err)})。` +
+        "capture-ledger で pnpm run dev:up --from validator は済んでいるか?",
+    );
   }
-  return chunks.length === 0 ? {} : JSON.parse(Buffer.concat(chunks).toString("utf8"));
+};
+
+/**
+ * 上流の答えを流す。通すヘッダは allowlist —— daemon の `date` や `connection` を
+ * 画面の応答に混ぜない。画像の実体（`/record/body`）は bytes のまま、印
+ * （`nosniff` · `sandbox` · `no-store`）ごと通す。
+ */
+const PASS_HEADERS = ["content-type", "content-length", "x-content-type-options", "content-security-policy", "cache-control"];
+
+const pass = async (reply, upstream) => {
+  const headers = {};
+  for (const name of PASS_HEADERS) {
+    const value = upstream.headers.get(name);
+    if (value !== null) headers[name] = value;
+  }
+  headers["content-type"] ??= "application/json; charset=utf-8";
+  reply.writeHead(upstream.status, headers);
+  if (upstream.body === null) {
+    reply.end();
+    return;
+  }
+  await pipeline(Readable.fromWeb(upstream.body), reply);
 };
 
 /** 失敗は、**何が居ないか**を言う。「見えない」と「立っていない」を混ぜない。 */
 const failed = (reply, err) => {
-  reply.writeHead(502, { "content-type": "application/json; charset=utf-8" });
+  // 流している途中で切れたら、もう頭は書けない。閉じるだけ。
+  if (reply.headersSent) {
+    reply.destroy();
+    return;
+  }
+  const status = err instanceof BadRequest ? 400 : 502;
+  reply.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   reply.end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }));
 };
 
@@ -163,49 +200,34 @@ const server = createServer((request, reply) => {
   }
 
   /**
-   * WACZ を 1 本検証する。
+   * WACZ の中身へ行く口（検証・行の窓・1 行・レコードの一覧・1 レコード・画像の実体）。
    *
    * **署名付き URL をここから外に出さない。** 応答にもログにも載せない ——
    * 載せると認可で閉じた意味が消える（期限内なら、URL を持つ者は誰でも読める）。
+   * 署名は範囲ごとに取り直す（1 本 7 ms・実測）。取っておくと、この画面が
+   * 300 秒有効な鍵を持つことになる。
    *
    * 順番に意味がある: 先に台帳へ訊くので、**見てよい archive でなければ
    * daemon まで行かない**。絞るのは認可を持っている側。
    */
-  if (url === "/api/validate" && request.method === "POST") {
+  const route = parseWaczRoute(url);
+  if (route !== undefined) {
+    const expected = route.op === "validate" ? "POST" : "GET";
+    if (request.method !== expected) {
+      reply.writeHead(405, { allow: expected, "content-type": "text/plain; charset=utf-8" });
+      reply.end(`${expected} だけ\n`);
+      return;
+    }
     void (async () => {
-      const { archiveId } = await readJson(request);
-      if (typeof archiveId !== "string" || archiveId === "") {
-        reply.writeHead(400, { "content-type": "application/json; charset=utf-8" });
-        reply.end(JSON.stringify({ error: "archiveId is required" }));
-        return;
-      }
-
-      // ① 署名をもらう。見えない archive なら、ここで 404 が返る。
-      const signed = await toLedger(`/api/archives/${encodeURIComponent(archiveId)}/url`, "POST");
-      if (!signed.ok) {
-        reply.writeHead(signed.status, {
-          "content-type": signed.headers.get("content-type") ?? "application/json; charset=utf-8",
-        });
-        reply.end(await signed.text());
-        return;
-      }
-      const { url: href } = await signed.json();
-
-      // ② daemon に渡す。鍵ではなく URL を渡すので、向こうは何も持たない。
-      const report = await fetch(`${VALIDATOR}/validate`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ source: { kind: "uri", uri: href }, locale: "ja" }),
-      }).catch((err) => {
-        throw new Error(
-          `${VALIDATOR} に届かない (${err instanceof Error ? err.message : String(err)})。` +
-            "capture-ledger で pnpm run dev:up --from validator は済んでいるか?",
-        );
-      });
-      reply.writeHead(report.status, {
-        "content-type": report.headers.get("content-type") ?? "application/json; charset=utf-8",
-      });
-      reply.end(await report.text());
+      const params = paramsFor(route.op, route.params); // 壊れた引数は署名をもらう前に 400
+      const upstream = await viaSignedUrl(
+        {
+          toLedger,
+          call: (href) => toDaemon(`/${route.op}`, { source: { kind: "uri", uri: href }, ...params }),
+        },
+        route.archiveId,
+      );
+      await pass(reply, upstream);
     })().catch((err) => {
       failed(reply, err);
     });
