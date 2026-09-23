@@ -35,6 +35,7 @@
  * 止める（seaweedfs の `scripts/ui.sh` に実測の記録がある）。だから画面自身を
  * loopback の http で配る。外に出さない。
  */
+import { Buffer } from "node:buffer";
 import { createServer } from "node:http";
 import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
@@ -57,6 +58,8 @@ const SUBJECT = optional("DASHBOARD_SUBJECT", userInfo().username);
 const REPLAY = optional("DASHBOARD_REPLAY_URL", "http://127.0.0.1:8899");
 const WINDMILL = optional("DASHBOARD_WINDMILL_URL", "http://127.0.0.1:8000");
 const WORKSPACE = optional("DASHBOARD_WINDMILL_WORKSPACE", "crawler");
+/** WACZ を検証する daemon。**鍵を持たない** —— 台帳が署名した URL だけを読む。 */
+const VALIDATOR = optional("DASHBOARD_VALIDATOR_URL", "http://127.0.0.1:7180");
 const ORGANIZATIONS = optional("DASHBOARD_ORGANIZATIONS", "acme")
   .split(",")
   .map((org) => org.trim())
@@ -96,11 +99,14 @@ const mint = async () => {
  * issuer を起こし直した日に落ちる —— 起動のたびに鍵が変わるので、まだ有効なはずの
  * トークンが静かに通らなくなる。401 は、その両方（期限切れ・鍵替わり）を同じ形で言う。
  */
-const toLedger = async (path) => {
+const toLedger = async (path, method = "GET") => {
   if (token === undefined) await mint();
   const send = async () => {
     try {
-      return await fetch(LEDGER + path, { headers: { authorization: `Bearer ${token}` } });
+      return await fetch(LEDGER + path, {
+        method,
+        headers: { authorization: `Bearer ${token}` },
+      });
     } catch (err) {
       // **何が居ないかを言う。** 素の `fetch failed` は、台帳が落ちているのか
       // 宛先を間違えているのかを区別しない。
@@ -116,6 +122,18 @@ const toLedger = async (path) => {
     res = await send();
   }
   return res;
+};
+
+/** 受け取った JSON。**大きさに上限を置く** —— 受け口は誰でも叩けるので。 */
+const readJson = async (request) => {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size > 64 * 1024) throw new Error("request body is too large");
+    chunks.push(chunk);
+  }
+  return chunks.length === 0 ? {} : JSON.parse(Buffer.concat(chunks).toString("utf8"));
 };
 
 /** 失敗は、**何が居ないか**を言う。「見えない」と「立っていない」を混ぜない。 */
@@ -141,6 +159,56 @@ const server = createServer((request, reply) => {
         windmillWorkspace: WORKSPACE,
       }),
     );
+    return;
+  }
+
+  /**
+   * WACZ を 1 本検証する。
+   *
+   * **署名付き URL をここから外に出さない。** 応答にもログにも載せない ——
+   * 載せると認可で閉じた意味が消える（期限内なら、URL を持つ者は誰でも読める）。
+   *
+   * 順番に意味がある: 先に台帳へ訊くので、**見てよい archive でなければ
+   * daemon まで行かない**。絞るのは認可を持っている側。
+   */
+  if (url === "/api/validate" && request.method === "POST") {
+    void (async () => {
+      const { archiveId } = await readJson(request);
+      if (typeof archiveId !== "string" || archiveId === "") {
+        reply.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+        reply.end(JSON.stringify({ error: "archiveId is required" }));
+        return;
+      }
+
+      // ① 署名をもらう。見えない archive なら、ここで 404 が返る。
+      const signed = await toLedger(`/api/archives/${encodeURIComponent(archiveId)}/url`, "POST");
+      if (!signed.ok) {
+        reply.writeHead(signed.status, {
+          "content-type": signed.headers.get("content-type") ?? "application/json; charset=utf-8",
+        });
+        reply.end(await signed.text());
+        return;
+      }
+      const { url: href } = await signed.json();
+
+      // ② daemon に渡す。鍵ではなく URL を渡すので、向こうは何も持たない。
+      const report = await fetch(`${VALIDATOR}/validate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ source: { kind: "uri", uri: href }, locale: "ja" }),
+      }).catch((err) => {
+        throw new Error(
+          `${VALIDATOR} に届かない (${err instanceof Error ? err.message : String(err)})。` +
+            "capture-ledger で pnpm run dev:up --from validator は済んでいるか?",
+        );
+      });
+      reply.writeHead(report.status, {
+        "content-type": report.headers.get("content-type") ?? "application/json; charset=utf-8",
+      });
+      reply.end(await report.text());
+    })().catch((err) => {
+      failed(reply, err);
+    });
     return;
   }
 
