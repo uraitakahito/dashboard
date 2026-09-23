@@ -13,6 +13,7 @@
         <button type="button" id="tab-crawls" class="on" data-face="crawls">クロール</button>
         <button type="button" id="tab-archives" data-face="archives">アーカイブ</button>
         <button type="button" id="tab-scripts" data-face="scripts">目録</button>
+        <button type="button" id="tab-wacz" data-face="wacz" hidden>中身</button>
       </nav>
       <p id="who" class="who">名乗りを確かめています…</p>
     </header>
@@ -54,6 +55,7 @@
               <th>完全か</th>
               <th>仕様どおりか</th>
               <th></th>
+              <th>中身</th>
               <th>行き先</th>
             </tr>
           </thead>
@@ -83,6 +85,22 @@
           起きないまま、成功したアーカイブが出ます）。
           <code>cd ../capture-ledger &amp;&amp; pnpm run scripts import .upstream/capture-scripts</code>
         </p>
+      </section>
+
+      <!--
+        WACZ 1 本の中身。左に木（検証の報告の entries から。waxlens と同じ入力・同じ罫線）、
+        右に選んだ entry の詳細と中身（行の窓・1 行・レコードの一覧・1 レコード）。
+        撮った中身は他人が書いたもの —— 文字は textContent、画像は raster だけを <img> で。
+      -->
+      <section id="face-wacz" hidden>
+        <div id="wacz-bar" class="vbar"></div>
+        <div class="vgrid">
+          <pre id="wacz-tree" class="vtree"></pre>
+          <div class="vmain">
+            <div id="wacz-head" class="vhead"></div>
+            <div id="wacz-content"></div>
+          </div>
+        </div>
       </section>
     </main>
 
