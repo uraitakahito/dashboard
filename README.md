@@ -33,7 +33,7 @@ OpenFGA の id のように「走らせてみないと決まらない値」を�
 | 面           | 何が並ぶか                                                              |
 | ------------ | ----------------------------------------------------------------------- |
 | クロール     | 1 行 = 1 本。状態・撮れた数・見つけた数・WACZ の数・run と replay への行き先 |
-| アーカイブ   | 見えている WACZ。行から replay へ                                       |
+| アーカイブ   | 見えている WACZ。行から **検証**（下）と replay へ                      |
 | 目録         | ページの中で走らせるもの。**空なら赤で言う**                            |
 
 行をクリックすると、取れなかった URL と理由が出る（そのときだけ `/api/crawls/:id` を引く）。
@@ -45,6 +45,23 @@ completed` が 4、そして **`succeeded` なのに `stopReason` が `failed` �
 `state` だけを描くと 42 本を取り違えるので、完走と打ち切りを分けて言い、知らない
 `stopReason` は括弧に入れてそのまま見せる。規則は `public/format.js` に切り出して
 試験で固定してある（ブラウザが読むのと**同じファイル**なので、写しが腐らない）。
+
+### 撮れたものが仕様どおりか
+
+アーカイブの行の「検証」で、[wacz-validator](https://github.com/uraitakahito/wacz-validator)
+の報告が開く。合格・警告・失敗の数、rule ごとの指摘（仕様へのリンクつき）、
+ZIP の entry の一覧。結果は行にも残る。
+
+**鍵はどこにも増えない。** 渡すのは台帳が署名した URL 1 本で、検証する daemon は
+store の資格情報を持たない。順番にも意味があって、**先に台帳へ訊く** ——
+見てよい archive でなければ 404 になり、daemon までは行かない。絞るのは認可を
+持っている側。
+
+署名付き URL は**ここから外に出さない**（応答にもログにも載せない）。報告に載る
+`source` は daemon が query を落とした identity なので、そのまま返してよい。
+
+**文は 1 つも持たない。** message も日本語も spec の節も daemon が解決して返す ——
+画面がルールを言い換えると、検証器が言い始めたことと静かにずれる。
 
 ### 走っている間だけ速く引く
 
@@ -79,6 +96,8 @@ pnpm も lockfile も audit も要らない（[capture-scripts](https://github.c
 中継するだけで、**画面のロジックはサーバに置かない** —— 置いた瞬間に「台帳が
 知っていることの写し」が生まれる。読んでいるのは
 `GET /api/crawls`・`GET /api/crawls/:id`・`GET /api/archives`・`GET /api/scripts`・`GET /api/me`。
+検証だけは 2 か所を継ぐ —— 台帳の `POST /api/archives/:id/url` で署名をもらい、
+その URL を daemon の `POST /validate` に渡す（`POST /api/validate`）。
 
 中継するのは、台帳が CORS を返さないため（`OPTIONS /api/archives` は 404）。
 ブラウザから直に叩く道が塞がっているので、同一オリジンにする。
