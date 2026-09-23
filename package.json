@@ -16,6 +16,6 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env --env-file-if-exists=.env.local src/server.mjs",
     "test": "node --test",
-    "check": "node --check src/server.mjs && node --check src/lib.mjs && node --test"
+    "check": "node --check src/server.mjs && node --check src/lib.mjs && node --check src/wacz.mjs && node --test"
   }
 }

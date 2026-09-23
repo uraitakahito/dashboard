@@ -194,11 +194,7 @@ const validate = async (archive, after, verdictCell) => {
   row.append(td);
   after.after(row);
   try {
-    const res = await fetch("/api/validate", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ archiveId: archive.id }),
-    });
+    const res = await fetch(`/wacz/${encodeURIComponent(archive.id)}/validate`, { method: "POST" });
     const body = await res.json();
     if (!res.ok) throw new Error(body.error ?? body.message ?? `検証できません (${res.status})`);
     drawReport(td, body);

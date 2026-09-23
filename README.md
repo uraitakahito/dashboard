@@ -88,16 +88,30 @@ pnpm も lockfile も audit も要らない（[capture-scripts](https://github.c
 
 | 打つもの         | 何をするか                                                  |
 | ---------------- | ----------------------------------------------------------- |
-| `pnpm run dev`   | 画面を配り、`/api/*` を台帳へ中継する                       |
+| `pnpm run dev`   | 画面を配り、`/api/*` を台帳へ、`/wacz/*` を daemon へ中継する |
 | `pnpm run check` | JS として読めるか ＋ 外と話さない部分の試験（`node --test`） |
 
 ## 台帳の口を、そのまま使う
 
 中継するだけで、**画面のロジックはサーバに置かない** —— 置いた瞬間に「台帳が
-知っていることの写し」が生まれる。読んでいるのは
+知っていることの写し」が生まれる。`/api/*` は台帳へそのまま通す。読んでいるのは
 `GET /api/crawls`・`GET /api/crawls/:id`・`GET /api/archives`・`GET /api/scripts`・`GET /api/me`。
-検証だけは 2 か所を継ぐ —— 台帳の `POST /api/archives/:id/url` で署名をもらい、
-その URL を daemon の `POST /validate` に渡す（`POST /api/validate`）。
+
+WACZ の中身へ行く口は `/wacz/<archiveId>/…` に集めてある（`src/wacz.mjs`）。6 本とも
+同じ 2 段 —— 台帳の `POST /api/archives/:id/url` で署名をもらい、その URL を daemon に
+渡す。画面が呼ぶのは GET（`<img src>` も GET）で、daemon へは POST に組み替える。
+
+| 画面が呼ぶ                                        | daemon へ           | 返す                                    |
+| ------------------------------------------------- | ------------------- | --------------------------------------- |
+| `POST /wacz/:id/validate`                         | `POST /validate`    | 検証の報告                              |
+| `GET /wacz/:id/lines?path=&from=&count=`          | `POST /lines`       | 行の窓（1 行 2 KiB まで・500 行まで）    |
+| `GET /wacz/:id/line?path=&n=`                     | `POST /line`        | 1 行を丸ごと（4 MiB まで）と、割った fields |
+| `GET /wacz/:id/records?path=&from=&count=`        | `POST /records`     | WARC を頭から歩いたレコードの一覧       |
+| `GET /wacz/:id/record?path=&offset=&length=`      | `POST /record`      | 1 レコード（見出し・HTTP・本文）        |
+| `GET /wacz/:id/record/body?path=&offset=&length=` | `POST /record/body` | 画像の実体。raster だけ、`nosniff` と `sandbox` つき。他は 415 |
+
+通すヘッダは allowlist（`content-type`・`content-length`・`x-content-type-options`・
+`content-security-policy`・`cache-control`）。daemon の `date` や `connection` は混ぜない。
 
 中継するのは、台帳が CORS を返さないため（`OPTIONS /api/archives` は 404）。
 ブラウザから直に叩く道が塞がっているので、同一オリジンにする。
