@@ -41,3 +41,26 @@ export const took = (crawl, now = Date.now()) => {
   if (seconds < 90) return `${String(seconds)}s`;
   return `${String(Math.floor(seconds / 60))}m ${String(seconds % 60)}s`;
 };
+
+/**
+ * issue の severity を、画面の色に写す。
+ *
+ * **知らない severity を「問題なし」に倒さない。** 増えたものを黙って緑で出すと、
+ * 検証器が新しく言い始めたことが画面から消える。
+ */
+export const severityKind = (severity) => {
+  if (severity === "error") return "bad";
+  if (severity === "warning") return "warn";
+  if (severity === "info") return "muted";
+  return "warn";
+};
+
+/**
+ * 検証の結果を 1 行で。**合格だけを見せない** —— 警告 0 と警告 3 は別の状態で、
+ * どちらも「失敗 0」だから。
+ */
+export const verdict = (summary) => {
+  if (summary.failed > 0) return { text: `失敗 ${summary.failed}`, kind: "bad" };
+  if (summary.warnings > 0) return { text: `警告 ${summary.warnings}`, kind: "warn" };
+  return { text: "問題なし", kind: "ok" };
+};

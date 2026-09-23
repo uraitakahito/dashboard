@@ -4,7 +4,7 @@
  * 読むのは台帳の口だけ。ここで畳むのは「どの面を出すか」と「どう描くか」で、
  * 何が起きたかは全部向こうが知っている。
  */
-import { stateOf, took } from "/format.js";
+import { severityKind, stateOf, took, verdict } from "/format.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -110,6 +110,108 @@ const drawCrawls = () => {
   }
 };
 
+// ── 検証 ───────────────────────────────────────────────────────────
+/**
+ * 1 本の報告を描く。**文は 1 つも持たない** —— message も日本語も spec の節も、
+ * daemon が解決して返したものをそのまま出す (`renderJson(report, locale)`)。
+ * ここで言い換えると、検証器が言い始めたことと画面がずれていく。
+ */
+const drawReport = (td, report) => {
+  td.replaceChildren();
+  const s = report.summary;
+  const bar = document.createElement("div");
+  bar.className = "bar";
+  const v = verdict(s);
+  bar.append(
+    tag("span", `合格 ${String(s.passed)}`, "big"),
+    tag("span", v.text, `big state ${v.kind}`),
+    tag(
+      "span",
+      `profile: ${report.profile.name} ／ ${String(s.durationMs)} ms` +
+        ` ／ WARC ${String(report.stats.warcRecordCount)} レコード` +
+        ` ／ ${(report.stats.hosts ?? []).join(", ")}`,
+      "mono muted",
+    ),
+  );
+  td.append(bar);
+
+  for (const issue of report.issues) {
+    const line = document.createElement("div");
+    line.className = "line";
+    line.append(
+      tag("span", issue.severity, `state ${severityKind(issue.severity)}`),
+      tag("span", issue.rule, "mono"),
+      tag("span", issue.message),
+    );
+    // **spec へのリンクも daemon が持っている。** 画面が URL を組み立てない。
+    if (issue.specUrl) {
+      const a = document.createElement("a");
+      a.href = issue.specUrl;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = "仕様 ↗";
+      a.className = "mono";
+      line.append(a);
+    }
+    td.append(line);
+  }
+
+  for (const entry of report.entries) {
+    const line = document.createElement("div");
+    line.className = "line";
+    line.append(
+      tag("span", entry.present ? "entry" : "無い", entry.present ? "muted" : "state warn"),
+      tag("span", entry.path, "mono"),
+      tag(
+        "span",
+        entry.present ? `${String(entry.uncompressedSize ?? 0)} B` : "（上の指摘の実体）",
+        "mono muted",
+      ),
+    );
+    td.append(line);
+  }
+};
+
+const tag = (name, text, className) => {
+  const el = document.createElement(name);
+  el.textContent = text;
+  if (className !== undefined) el.className = className;
+  return el;
+};
+
+/**
+ * 押されたら 1 本検証する。**押すまで走らせない** —— 一覧を開くだけで走らせない。
+ *
+ * 結果は行にも残す。閉じたあとに「この 1 本はどうだったか」が消えると、
+ * 何本か見たときに**もう一度押さないと思い出せない**。
+ */
+const validate = async (archive, after, verdictCell) => {
+  const row = document.createElement("tr");
+  row.className = "detail";
+  const td = document.createElement("td");
+  td.colSpan = 6;
+  td.textContent = "検証しています…";
+  row.append(td);
+  after.after(row);
+  try {
+    const res = await fetch("/api/validate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ archiveId: archive.id }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error ?? body.message ?? `検証できません (${res.status})`);
+    drawReport(td, body);
+    if (verdictCell) {
+      const v = verdict(body.summary);
+      verdictCell.replaceChildren(tag("span", v.text, `state ${v.kind}`));
+    }
+  } catch (err) {
+    td.textContent = err instanceof Error ? err.message : String(err);
+    if (verdictCell) verdictCell.replaceChildren(tag("span", "検証できず", "state bad"));
+  }
+};
+
 // ── アーカイブ ─────────────────────────────────────────────────────
 const drawArchives = (archives) => {
   const body = $("archives");
@@ -124,6 +226,21 @@ const drawArchives = (archives) => {
     row.append(
       cell(archive.waczComplete === null ? "—" : archive.waczComplete ? "完全" : "欠けあり"),
     );
+    const check = document.createElement("td");
+    const verdictCell = document.createElement("td");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "検証";
+    let open = false;
+    button.onclick = () => {
+      const next = row.nextElementSibling;
+      if (open && next?.classList.contains("detail")) next.remove();
+      else void validate(archive, row, verdictCell);
+      open = !open;
+    };
+    check.append(button);
+    row.append(verdictCell);
+    row.append(check);
     row.append(
       linkCell(
         `${settings.replayOrigin}/?source=/wacz/${encodeURIComponent(archive.objectKey)}`,
