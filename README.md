@@ -28,15 +28,38 @@ OpenFGA の id のように「走らせてみないと決まらない値」を�
 握っているため（実測）。`127.0.0.1:7000` に bind できてしまうので気づきにくいが、
 `localhost:7000` が `::1` へ解決されると AirPlay に当たる。
 
-## 3 つの面
+## 4 つの面
 
 | 面           | 何が並ぶか                                                              |
 | ------------ | ----------------------------------------------------------------------- |
 | クロール     | 1 行 = 1 本。状態・撮れた数・見つけた数・WACZ の数・run と replay への行き先 |
-| アーカイブ   | 見えている WACZ。行から **検証**（下）と replay へ                      |
+| アーカイブ   | 見えている WACZ。行から **検証**（下）、**中身**（下）、replay へ       |
 | 目録         | ページの中で走らせるもの。**空なら赤で言う**                            |
+| 中身         | WACZ 1 本の中。木・行・1 行・WARC のレコード。アーカイブの行の「開く」で入る |
 
 行をクリックすると、取れなかった URL と理由が出る（そのときだけ `/api/crawls/:id` を引く）。
+
+### WACZ の中身
+
+アーカイブの行の「開く」で、その 1 本の面に入る（`#wacz/<archiveId>`。選んだ entry と行まで
+URL に載るので、`#wacz/…/indexes%2Findex.cdxj:66` のように指せる）。
+
+開くと検証が走り、左の木は報告の `entries` から組む —— waxlens（wacz-validator の tui）と
+**同じ入力・同じ罫線**。右は選んだ entry の詳細（大きさ・STORE / DEFLATE・なぜ要るか・
+その entry への指摘）と中身:
+
+- **行**: 200 行ずつの窓。長い行は横で切る。`next` があれば「続きを読む」
+- **1 行**: 行を押すと丸ごと（4 MiB まで）。CDXJ と JSONL は daemon が field に割って返す
+  （`readLine` の `fields`。**画面は割り方を持たない**）。索引の行なら「このレコードを開く」
+- **レコードの一覧**: `.warc.gz` を選ぶとこちら。WARC を頭から歩いた 1 件 1 行で、
+  種別で絞れる。▪ は索引（CDXJ）が指すレコード、▫ は索引に無いもの —— BrowserHive が
+  残す「撮らなかった・撮れなかった」記録（`WARC-Type: metadata`）はここでしか見えない
+- **1 レコード**: WARC の見出し・HTTP の状態行と見出し・本文。本文は文字か、raster の画像
+  （PNG / JPEG / GIF / WebP / AVIF）か、大きさだけ
+
+**撮った中身は他人が書いたもの。** 文字は `textContent`、画像は raster だけを `<img>` で
+（daemon が `nosniff` と `sandbox` を付け、SVG と HTML は 415 で断る）。生の HTML を
+差し込む API はこの画面に無く、`pnpm run check` が見張る。
 
 ### state だけでは足りない
 
@@ -88,16 +111,30 @@ pnpm も lockfile も audit も要らない（[capture-scripts](https://github.c
 
 | 打つもの         | 何をするか                                                  |
 | ---------------- | ----------------------------------------------------------- |
-| `pnpm run dev`   | 画面を配り、`/api/*` を台帳へ中継する                       |
+| `pnpm run dev`   | 画面を配り、`/api/*` を台帳へ、`/wacz/*` を daemon へ中継する |
 | `pnpm run check` | JS として読めるか ＋ 外と話さない部分の試験（`node --test`） |
 
 ## 台帳の口を、そのまま使う
 
 中継するだけで、**画面のロジックはサーバに置かない** —— 置いた瞬間に「台帳が
-知っていることの写し」が生まれる。読んでいるのは
+知っていることの写し」が生まれる。`/api/*` は台帳へそのまま通す。読んでいるのは
 `GET /api/crawls`・`GET /api/crawls/:id`・`GET /api/archives`・`GET /api/scripts`・`GET /api/me`。
-検証だけは 2 か所を継ぐ —— 台帳の `POST /api/archives/:id/url` で署名をもらい、
-その URL を daemon の `POST /validate` に渡す（`POST /api/validate`）。
+
+WACZ の中身へ行く口は `/wacz/<archiveId>/…` に集めてある（`src/wacz.mjs`）。6 本とも
+同じ 2 段 —— 台帳の `POST /api/archives/:id/url` で署名をもらい、その URL を daemon に
+渡す。画面が呼ぶのは GET（`<img src>` も GET）で、daemon へは POST に組み替える。
+
+| 画面が呼ぶ                                        | daemon へ           | 返す                                    |
+| ------------------------------------------------- | ------------------- | --------------------------------------- |
+| `POST /wacz/:id/validate`                         | `POST /validate`    | 検証の報告                              |
+| `GET /wacz/:id/lines?path=&from=&count=`          | `POST /lines`       | 行の窓（1 行 2 KiB まで・500 行まで）    |
+| `GET /wacz/:id/line?path=&n=`                     | `POST /line`        | 1 行を丸ごと（4 MiB まで）と、割った fields |
+| `GET /wacz/:id/records?path=&from=&count=`        | `POST /records`     | WARC を頭から歩いたレコードの一覧       |
+| `GET /wacz/:id/record?path=&offset=&length=`      | `POST /record`      | 1 レコード（見出し・HTTP・本文）        |
+| `GET /wacz/:id/record/body?path=&offset=&length=` | `POST /record/body` | 画像の実体。raster だけ、`nosniff` と `sandbox` つき。他は 415 |
+
+通すヘッダは allowlist（`content-type`・`content-length`・`x-content-type-options`・
+`content-security-policy`・`cache-control`）。daemon の `date` や `connection` は混ぜない。
 
 中継するのは、台帳が CORS を返さないため（`OPTIONS /api/archives` は 404）。
 ブラウザから直に叩く道が塞がっているので、同一オリジンにする。
