@@ -49,3 +49,25 @@ test("90 秒を超えたら分で言う", () => {
     "2m 5s",
   );
 });
+
+/**
+ * 検証の結果の描き方。
+ *
+ * **失敗 0 を「問題なし」と言い切らない。** 実機の WACZ は 21 passed / 1 warning で、
+ * 失敗は 0 —— そこを緑 1 色にすると、警告が画面から消える。
+ */
+test("失敗が無くても、警告があれば緑にしない", async () => {
+  const { verdict } = await import("../public/format.js");
+  assert.deepEqual(verdict({ failed: 0, warnings: 1 }), { text: "警告 1", kind: "warn" });
+  assert.deepEqual(verdict({ failed: 0, warnings: 0 }), { text: "問題なし", kind: "ok" });
+  assert.equal(verdict({ failed: 2, warnings: 9 }).kind, "bad");
+});
+
+test("知らない severity を「問題なし」に倒さない", async () => {
+  const { severityKind } = await import("../public/format.js");
+  assert.equal(severityKind("error"), "bad");
+  assert.equal(severityKind("warning"), "warn");
+  assert.equal(severityKind("info"), "muted");
+  // 検証器が新しく言い始めたことを、黙って緑にしない。
+  assert.notEqual(severityKind("なにか新しい severity"), "ok");
+});
