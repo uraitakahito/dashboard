@@ -248,3 +248,222 @@ button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* ── 中身の面 ─────────────────────────────────────────────────── */
+.vbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  align-items: baseline;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.vgrid {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 0 24px;
+  min-width: 760px;
+}
+
+/* 木。罫線は文字なので pre。行はクリックできる */
+.vtree {
+  margin: 0;
+  padding: 12px 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.8;
+  border-right: 1px solid var(--line);
+}
+
+.vtree .trow.file {
+  cursor: pointer;
+}
+
+.vtree .trow.file:hover {
+  color: var(--accent);
+}
+
+.vtree .sel {
+  background: var(--accent);
+  color: var(--surface);
+  border-radius: 2px;
+}
+
+.vtree .sel .sz {
+  color: var(--surface);
+}
+
+.vtree .sz {
+  color: var(--muted);
+}
+
+.vtree .mark.error {
+  color: var(--bad);
+}
+
+.vtree .mark.warning {
+  color: var(--run);
+}
+
+.vmain {
+  min-width: 0;
+  padding: 12px 0;
+}
+
+.vhead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  align-items: baseline;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.vhead b {
+  color: var(--ink);
+}
+
+.vhead .issue {
+  flex-basis: 100%;
+  display: grid;
+  grid-template-columns: 74px 220px 1fr;
+  gap: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+  color: var(--ink);
+}
+
+/* 行の窓。長い行は横で切る。全部を見るのは 1 行の側 */
+.vlines {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.vlines li {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 10px;
+  padding: 1px 6px;
+  line-height: 1.75;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.vlines li:hover {
+  background: var(--surface);
+}
+
+.vlines li.sel {
+  background: var(--accent);
+  color: var(--surface);
+}
+
+.vlines li.sel .n,
+.vlines li.sel .t {
+  color: var(--surface);
+}
+
+.vlines .n {
+  color: var(--muted);
+  text-align: right;
+}
+
+.vlines .t {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vpart {
+  margin-top: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.vtag {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* 1 行の field。こちらが付けた名前（key・timestamp）は薄く、データが名乗った名前は accent */
+.vfields {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 2px 14px;
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.vfields .k {
+  color: var(--muted);
+}
+
+.vfields .k.data {
+  color: var(--accent);
+}
+
+.vfields .v {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.vraw {
+  margin: 0;
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.vimg {
+  max-width: min(100%, 480px);
+  height: auto;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 10px 0;
+}
+
+.chip.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.vrecords {
+  min-width: 0;
+}
+
+.vrecords td.mark {
+  width: 1.5em;
+}
+
+.vrecords tr.sel td {
+  background: var(--surface);
+  color: var(--accent);
+}
