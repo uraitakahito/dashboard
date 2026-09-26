@@ -71,3 +71,31 @@ test("知らない severity を「問題なし」に倒さない", async () => {
   // 検証器が新しく言い始めたことを、黙って緑にしない。
   assert.notEqual(severityKind("なにか新しい severity"), "ok");
 });
+
+/**
+ * 報告がどの条件で作られたか。**版は報告のまま出す** —— 2026-09-26 まで、この画面は
+ * 検証器の版を出していなかった。v0.28.1 の daemon が 2 日動いていても、どの報告からも
+ * 分からなかった。
+ */
+test("報告を作った検証器の版と profile を、報告のまま出す", async () => {
+  const { judgedUnder } = await import("../public/format.js");
+  assert.deepEqual(
+    judgedUnder({ validatorVersion: "0.31.0+3.gabcdef1", profile: { name: "browserhive" } }),
+    ["wacz-validator 0.31.0+3.gabcdef1", "profile browserhive"],
+  );
+});
+
+/**
+ * **`stats` は best-effort で、無いことがある** —— WARC が統計を取れないほど壊れていても、
+ * そう言う報告は出す (wacz-validator の約束)。この画面は在るものとして読み、無い報告では
+ * 検証の行ごと「検証できず」に落ちていた。
+ */
+test("stats の無い報告でも、行を落とさない", async () => {
+  const { statsOf } = await import("../public/format.js");
+  assert.deepEqual(statsOf({}), []);
+  assert.deepEqual(
+    statsOf({ stats: { warcRecordCount: 3, hosts: ["a.example", "b.example"] } }),
+    ["WARC 3 レコード", "a.example, b.example"],
+  );
+  assert.deepEqual(statsOf({ stats: { warcRecordCount: 0 } }), ["WARC 0 レコード"]);
+});
