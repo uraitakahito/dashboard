@@ -84,3 +84,18 @@ test("報告を作った検証器の版と profile を、報告のまま出す",
     ["wacz-validator 0.31.0+3.gabcdef1", "profile browserhive"],
   );
 });
+
+/**
+ * **`stats` は best-effort で、無いことがある** —— WARC が統計を取れないほど壊れていても、
+ * そう言う報告は出す (wacz-validator の約束)。この画面は在るものとして読み、無い報告では
+ * 検証の行ごと「検証できず」に落ちていた。
+ */
+test("stats の無い報告でも、行を落とさない", async () => {
+  const { statsOf } = await import("../public/format.js");
+  assert.deepEqual(statsOf({}), []);
+  assert.deepEqual(
+    statsOf({ stats: { warcRecordCount: 3, hosts: ["a.example", "b.example"] } }),
+    ["WARC 3 レコード", "a.example, b.example"],
+  );
+  assert.deepEqual(statsOf({ stats: { warcRecordCount: 0 } }), ["WARC 0 レコード"]);
+});

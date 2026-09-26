@@ -77,3 +77,20 @@ export const judgedUnder = (report) => [
   `wacz-validator ${report.validatorVersion}`,
   `profile ${report.profile.name}`,
 ];
+
+/**
+ * 報告の統計を、1 行の部品に。**`stats` は best-effort で、無いことがある** ——
+ * WARC が統計を取れないほど壊れていても、そう言う報告は出す (wacz-validator の約束)。
+ * 以前は在るものとして読み、無い報告では検証の行ごと「検証できず」に落ちていた
+ * (2026-09-26、wacz-validator の samples/wikipedia.wacz で実測)。報告が要るのは、
+ * まさにそういう archive のほう。
+ */
+export const statsOf = (report) => {
+  const stats = report.stats;
+  if (stats === undefined) return [];
+  const hosts = stats.hosts ?? [];
+  return [
+    `WARC ${String(stats.warcRecordCount)} レコード`,
+    ...(hosts.length === 0 ? [] : [hosts.join(", ")]),
+  ];
+};
