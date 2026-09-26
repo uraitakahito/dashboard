@@ -71,3 +71,16 @@ test("知らない severity を「問題なし」に倒さない", async () => {
   // 検証器が新しく言い始めたことを、黙って緑にしない。
   assert.notEqual(severityKind("なにか新しい severity"), "ok");
 });
+
+/**
+ * 報告がどの条件で作られたか。**版は報告のまま出す** —— 2026-09-26 まで、この画面は
+ * 検証器の版を出していなかった。v0.28.1 の daemon が 2 日動いていても、どの報告からも
+ * 分からなかった。
+ */
+test("報告を作った検証器の版と profile を、報告のまま出す", async () => {
+  const { judgedUnder } = await import("../public/format.js");
+  assert.deepEqual(
+    judgedUnder({ validatorVersion: "0.31.0+3.gabcdef1", profile: { name: "browserhive" } }),
+    ["wacz-validator 0.31.0+3.gabcdef1", "profile browserhive"],
+  );
+});

@@ -7,7 +7,7 @@
  * **撮った中身は他人が書いたもの。** 文字は `textContent`、画像は raster だけを
  * `<img>` で。生の HTML を差し込む API はこのファイルに無い（`check` が見張る）。
  */
-import { severityKind, stateOf, took, verdict } from "/format.js";
+import { judgedUnder, severityKind, stateOf, took, verdict } from "/format.js";
 import {
   bodyLabel,
   buildTree,
@@ -176,7 +176,7 @@ const drawReport = (td, report) => {
     tag("span", v.text, `big state ${v.kind}`),
     tag(
       "span",
-      `profile: ${report.profile.name} ／ ${String(s.durationMs)} ms` +
+      `${judgedUnder(report).join(" ／ ")} ／ ${String(s.durationMs)} ms` +
         ` ／ WARC ${String(report.stats.warcRecordCount)} レコード` +
         ` ／ ${(report.stats.hosts ?? []).join(", ")}`,
       "mono muted",
@@ -344,7 +344,11 @@ const drawWaczBar = (status) => {
   bar.append(
     tag("span", `合格 ${String(s.passed)}`, "mono state ok"),
     tag("span", v.text, `mono state ${v.kind}`),
-    tag("span", `profile ${wacz.report.profile.name} · ${String(s.durationMs)} ms`, "mono muted"),
+    tag(
+      "span",
+      `${judgedUnder(wacz.report).join(" · ")} · ${String(s.durationMs)} ms`,
+      "mono muted",
+    ),
   );
 };
 

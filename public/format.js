@@ -64,3 +64,16 @@ export const verdict = (summary) => {
   if (summary.warnings > 0) return { text: `警告 ${summary.warnings}`, kind: "warn" };
   return { text: "問題なし", kind: "ok" };
 };
+
+/**
+ * 報告がどの条件で作られたか —— どの build の検証器が、どの profile で見たか。
+ *
+ * **版は画面が決めない。** daemon が報告に書いた `validatorVersion` をそのまま出す
+ * （wacz-validator v0.31.0 からはタグの版。それより前の build は `0.0.0` と書く）。
+ * dashboard の検証を受ける daemon は自分では建て直らないので、古いまま動いていれば、
+ * ここに出る版で分かる（capture-ledger の dev:status も、checkout と比べて言う）。
+ */
+export const judgedUnder = (report) => [
+  `wacz-validator ${report.validatorVersion}`,
+  `profile ${report.profile.name}`,
+];

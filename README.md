@@ -73,7 +73,9 @@ completed` が 4、そして **`succeeded` なのに `stopReason` が `failed` �
 
 アーカイブの行の「検証」で、[wacz-validator](https://github.com/uraitakahito/wacz-validator)
 の報告が開く。合格・警告・失敗の数、rule ごとの指摘（仕様へのリンクつき）、
-ZIP の entry の一覧。結果は行にも残る。
+ZIP の entry の一覧。どの build の検証器が、どの profile で見たか（報告の
+`validatorVersion` と `profile`）も出す —— daemon は自分では建て直らないので、古いまま
+動いていれば、ここに出る版で分かる。結果は行にも残る。
 
 **鍵はどこにも増えない。** 渡すのは台帳が署名した URL 1 本で、検証する daemon は
 store の資格情報を持たない。順番にも意味があって、**先に台帳へ訊く** ——
