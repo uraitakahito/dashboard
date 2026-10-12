@@ -1,0 +1,38 @@
+# dashboard のサンドボックス。画面の相手 (台帳の代役と、本物の検証の daemon) をコンテナで起こす。
+# 画面は host で `npm run sandbox` (sandbox/sandbox.env だけを読む)。
+#
+# **コンテナどうしは話さない。** どちらも host の 127.0.0.1 に出した口で、画面から呼ばれる。
+# だから DNS ドメイン (sudo container system dns create) は要らない。
+#
+# - sandbox-ledger: 台帳と開発用 issuer の代役 (sandbox/fake-ledger.mjs)。何を見せるかは
+#   sandbox/scenario.json が決める
+# - sandbox-validator: 本物の daemon。image は、隣の ../wacz-validator の Dockerfile の daemon の段から
+#   `npm run sandbox:build` が建てる (`npm run sandbox` は、無いときだけ建てる)。
+#   版は checkout 次第で、更新したら `npm run sandbox:build`
+#
+# daemon をここの `build:` で建てないのは、container-compose 1.2.0 が `build.target` を無視して
+# 最後の段 (1 回きりの CLI) を建てるから —— 起こすと `missing required argument 'source'` で止まる。
+#
+# WACZ の置き場は既定で sandbox/samples。`SANDBOX_WACZ_DIR` で差し替えられる (volumes の中の
+# 変数は展開される。environment の値の中の ${…} は、container-compose 1.2.0 では展開されない)。
+# 2 つとも同じ置き場を同じ path (/samples) に mount する —— 代役が返す file:///samples/… を、
+# daemon がそのまま読むため。
+#
+# サービス名と image の名前を sandbox- で始めるのは、image の名前が project をまたいで 1 つの
+# 名前空間にあるから (`container image list`)。ほかの project の image とぶつけない。
+services:
+  sandbox-ledger:
+    image: node:24-alpine
+    command: ["node", "/sandbox/fake-ledger.mjs"]
+    volumes:
+      - ./sandbox:/sandbox:ro
+      - ${SANDBOX_WACZ_DIR:-./sandbox/samples}:/samples:ro
+    ports:
+      - "127.0.0.1:17070:7070"
+
+  sandbox-validator:
+    image: sandbox-validator:latest
+    volumes:
+      - ${SANDBOX_WACZ_DIR:-./sandbox/samples}:/samples:ro
+    ports:
+      - "127.0.0.1:17180:7180"
