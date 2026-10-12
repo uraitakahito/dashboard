@@ -7,7 +7,8 @@ import hastRebaseLinks from "./src/plugins/hast-rebase-links";
 const BASE = "/dashboard";
 
 export default defineConfig({
-  // user page の origin ＋ repo 名の base。actions/configure-pages は使わない (注入する物が無い)
+  // user page の origin ＋ repo 名の base。actions/configure-pages は使わない (注入する物が無い)。
+  // README の 2 本の URL はこの 2 つから組んだもの (scripts/check-doc-refs.mjs が突き合わせる)
   site: "https://uraitakahito.github.io",
   base: BASE,
   integrations: [

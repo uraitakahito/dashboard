@@ -12,12 +12,14 @@
  *      OPS に無い行も赤)
  *   5. configuration.md の環境変数の表・src/server.mjs の `optional()`・.env.example の 3 者で、
  *      名前の集合と既定値が一致する
+ *   6. README の Documentation の 2 本の URL が、docs-site/astro.config.ts の `site` ＋ `BASE` から
+ *      組んだものと一致する (base を変えた日に、README だけが 404 を指し続けないように)
  *
  * 4 と 5 が要るのは、表が手で写した物だから。口や変数を足しても、表は誰かが直すまで古いまま ——
  * README に表があった頃、画面が読まなくなった口が書かれたまま残っていた。それをこの検査が PR で止める。
  *
  * 効いているのを見るには: ja のページを 1 枚 `.ja.md` に改名する → 赤。本文に `src/nope.mjs` → 赤。
- * routes.md から 1 行消す → 赤。.env.example の既定値を 1 つ変える → 赤。
+ * routes.md から 1 行消す → 赤。.env.example の既定値を 1 つ変える → 赤。README の URL を綴り違える → 赤。
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -134,6 +136,21 @@ for (const name of names) {
     const value = side.vars.get(name);
     if (side.vars.has(name) && value !== fallback) {
       problems.push(`${side.rel}: ${name} の既定値が ${JSON.stringify(value ?? "(code でない)")} —— src/server.mjs は ${JSON.stringify(fallback)}`);
+    }
+  }
+}
+
+// ─── 6. README の URL ⇔ astro.config.ts の site ＋ BASE ─────────────────────
+const config = readFileSync(resolve(ROOT, "docs-site/astro.config.ts"), "utf8");
+const site = /^\s*site:\s*"([^"]+)"/m.exec(config)?.[1];
+const base = /^const BASE = "([^"]+)";/m.exec(config)?.[1];
+if (site === undefined || base === undefined) {
+  problems.push("docs-site/astro.config.ts: site か BASE が読めない (書き方を変えたなら、ここも直す)");
+} else {
+  const readme = readFileSync(resolve(ROOT, "README.md"), "utf8");
+  for (const url of [`${site}${base}/`, `${site}${base}/ja/`]) {
+    if (!readme.includes(`<${url}>`)) {
+      problems.push(`README.md: <${url}> へのリンクが無い (astro.config.ts の site と BASE から組んだ URL)`);
     }
   }
 }
