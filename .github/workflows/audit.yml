@@ -1,0 +1,42 @@
+name: audit
+
+# docs-site の依存の既知の脆弱性を見る。
+#
+# **なぜ別 workflow か。** この repo の lockfile は docs-site の 1 本だけで、画面は依存を
+# 持たない。ci.yml は install しない job なので、そこに混ぜると「依存を入れない job」が
+# 依存を見ることになる。capture-fixtures が audit を分けたのは、docs-site の lockfile に
+# astro の critical 勧告が居座ったまま、どこも赤くならなかったため。
+#
+# 毎日も走らせる —— 勧告は PR の合間にも公開される。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs-site/package.json'
+      - 'docs-site/package-lock.json'
+      - '.github/workflows/audit.yml'
+  pull_request:
+    paths:
+      - 'docs-site/package.json'
+      - 'docs-site/package-lock.json'
+      - '.github/workflows/audit.yml'
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Known vulnerabilities
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      # lockfile だけを読む。install はしない。
+      - run: npm audit --prefix docs-site --audit-level=low

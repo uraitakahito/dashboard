@@ -4,10 +4,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { BadRequest, paramsFor, parseWaczRoute, viaSignedUrl } from "../src/wacz.mjs";
+import { BadRequest, OPS, paramsFor, parseWaczRoute, viaSignedUrl } from "../src/wacz.mjs";
 
 test("6 本の口を読み、それ以外は読まない", () => {
   const ops = ["validate", "lines", "line", "records", "record", "record/body"];
+  // OPS は docs の表と突き合わされる名前。OPS から作ると恒真になるので、この写しと比べる
+  assert.deepEqual([...OPS].sort(), [...ops].sort());
   for (const op of ops) {
     assert.equal(parseWaczRoute(`/wacz/abc/${op}`)?.op, op, op);
     assert.equal(parseWaczRoute(`/wacz/abc/${op}`)?.archiveId, "abc");

@@ -2,8 +2,11 @@ node_modules/
 .env
 .env.local
 
-# **lockfile は置かない。** この repo は依存を持たないので、守るものが無い
-# (README の「依存を持たない」)。それでも `pnpm run dev` を打つと pnpm が
+# **root に lockfile は置かない。** 画面は依存を持たないので、守るものが無い
+# (package.json の `//dependencies`)。それでも `pnpm run dev` を打つと pnpm が
 # 空の lockfile を作るので、間違って commit しないよう無視する。
-pnpm-lock.yaml
-package-lock.json
+#
+# **先頭の `/` を落とさない。** 落とすと docs-site/package-lock.json まで無視され、
+# CI の `npm ci --prefix docs-site` が lockfile 無しで落ちる。
+/pnpm-lock.yaml
+/package-lock.json
