@@ -64,7 +64,7 @@ in `sandbox/samples/SOURCE.md`.
 
 | To | Do |
 | --- | --- |
-| change what it shows | edit the scenario. The stand-in reads it on every request, so the screen changes on its next fetch |
+| change what it shows | edit the scenario. The stand-in reads it on every request, so the change reaches the screen without restarting anything |
 | see an empty catalog | set `"emptyCatalog"` to `true` in the scenario |
 | list other WACZ files | `SANDBOX_WACZ_DIR=<dir> npm run sandbox` (relative to this repository, for example `../wacz-validator/samples`). The stand-in and the daemon both get the same directory |
 | put an updated wacz-validator into the daemon | `npm run sandbox:build`. `npm run sandbox` only builds the image when there is none |

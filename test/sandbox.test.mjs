@@ -9,7 +9,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { stateOf } from "../public/format.js";
-import { archiveRows, crawlDetail, crawlRow, idOf, signedUrlOf } from "../sandbox/fake-ledger.mjs";
+import {
+  archiveRows,
+  crawlDetail,
+  crawlRow,
+  idOf,
+  readingLastGood,
+  signedUrlOf,
+} from "../sandbox/fake-ledger.mjs";
 
 const scenario = JSON.parse(readFileSync(new URL("../sandbox/scenario.json", import.meta.url), "utf8"));
 const NOW = Date.parse("2026-10-12T12:00:00.000Z");
@@ -69,6 +76,47 @@ test("同梱の台本は、画面の状態の言い分けを全部出す", () =>
   }
   assert.ok([...texts].some((text) => text.startsWith("成功 (")), "知らない stopReason の行");
   assert.ok((scenario.hidden ?? []).length > 0, "見えない archive の行");
+});
+
+test("台本が少しの間だけ読めないときは、前に読めた台本で答える", () => {
+  let t = 0;
+  let broken;
+  const read = readingLastGood(
+    () => {
+      if (broken !== undefined) throw broken;
+      return { at: t };
+    },
+    3000,
+    () => t,
+  );
+  assert.deepEqual(read(), { at: 0 });
+
+  broken = Object.assign(new Error("ENOENT: no such file or directory"), { code: "ENOENT" });
+  t = 1000;
+  assert.deepEqual(read(), { at: 0 }, "置き換えの直後");
+  t = 3999;
+  assert.deepEqual(read(), { at: 0 }, "読めなくなってから 3 秒未満");
+  t = 4000;
+  assert.throws(read, /ENOENT/, "読めないのが続いたら投げる (書き損じを赤い文で言う)");
+
+  broken = undefined;
+  t = 5000;
+  assert.deepEqual(read(), { at: 5000 }, "読めたら新しい台本");
+});
+
+test("1 度も読めていない台本は、待たずに投げる", () => {
+  const read = readingLastGood(
+    () => JSON.parse("{"),
+    3000,
+    () => 0,
+  );
+  assert.throws(read, SyntaxError);
+});
+
+test("同梱の台本の crawlId は、画面が出す頭の 8 字で見分けられる", () => {
+  // 画面の id の欄は crawlId の頭の 8 字 (public/app.js)。頭が揃うと、全部の行が同じ id に見える
+  const heads = scenario.crawls.map((c) => c.crawlId.slice(0, 8));
+  assert.equal(new Set(heads).size, heads.length, heads.join(" "));
 });
 
 test("クロール 1 本は、画面が読む seeds と failures を返す", () => {

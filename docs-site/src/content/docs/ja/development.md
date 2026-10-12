@@ -60,7 +60,7 @@ root の script は `pnpm run` で打っても同じです（[capture-ledger](ht
 
 | したいこと | すること |
 | --- | --- |
-| 見せるものを変える | 台本を書き換える。代役は要求のたびに読むので、画面の次の引きで変わる |
+| 見せるものを変える | 台本を書き換える。代役は要求のたびに読むので、起こし直さずに画面に出る |
 | 目録が空のときを見る | 台本の `"emptyCatalog"` を `true` にする |
 | 別の WACZ を並べる | `SANDBOX_WACZ_DIR=<dir> npm run sandbox`（相対なら、この repo から。例: `../wacz-validator/samples`）。代役と daemon の両方に同じ置き場が入る |
 | wacz-validator の更新を daemon に入れる | `npm run sandbox:build`。`npm run sandbox` は、image が無いときにしか建てない |

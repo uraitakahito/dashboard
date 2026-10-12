@@ -1,9 +1,10 @@
 {
   "//": [
     "サンドボックスの台本。台帳の代役 (fake-ledger.mjs) が、要求のたびにこれを読んで答える。",
-    "書き換えると、画面の次の引き (走行中の行があれば 2 秒、無ければ 30 秒) で変わる。",
-    "crawls: 時刻は startedSecondsAgo (何秒前に始まったか) と tookSeconds (かかった秒) で書く。",
+    "書き換えると、代役を起こし直さずに画面に出る (画面は、走行中の行があれば 2 秒、無ければ 30 秒ごとに引く)。",
+    "crawls: 時刻は startedSecondsAgo (代役が起きた時より何秒前に始まったか) と tookSeconds (かかった秒) で書く。",
     "        running の行は終わりが無く、かかった時間が引くたびに伸びる。",
+    "        crawlId は頭の 8 字で違える (画面の id の欄は、頭の 8 字しか出さない)。",
     "archives: アーカイブの行は WACZ の置き場から作る。ここに書いた名前の行は、欄を上書きする。",
     "hidden: 一覧には出るが、署名は出ない行 (台帳の「見てよくない archive」と同じ 404 になる)。",
     "emptyCatalog: true にすると、目録が空のときの赤い文が出る。"
@@ -12,7 +13,7 @@
   "emptyCatalog": false,
   "crawls": [
     {
-      "crawlId": "5b0c6a1e-0001-4000-8000-000000000001",
+      "crawlId": "5b0c0001-6a1e-4000-8000-000000000001",
       "state": "running",
       "seeds": ["https://sandbox.example/"],
       "startedSecondsAgo": 40,
@@ -23,7 +24,7 @@
       "lastJobDepth": 1
     },
     {
-      "crawlId": "5b0c6a1e-0002-4000-8000-000000000002",
+      "crawlId": "5b0c0002-6a1e-4000-8000-000000000002",
       "state": "succeeded",
       "stopReason": "completed",
       "seeds": ["https://sandbox.example/about"],
@@ -36,7 +37,7 @@
       "lastJobDepth": 0
     },
     {
-      "crawlId": "5b0c6a1e-0003-4000-8000-000000000003",
+      "crawlId": "5b0c0003-6a1e-4000-8000-000000000003",
       "state": "succeeded",
       "stopReason": "max_depth",
       "seeds": ["https://sandbox.example/docs/"],
@@ -49,7 +50,7 @@
       "lastJobDepth": 2
     },
     {
-      "crawlId": "5b0c6a1e-0004-4000-8000-000000000004",
+      "crawlId": "5b0c0004-6a1e-4000-8000-000000000004",
       "state": "succeeded",
       "stopReason": "max_pages",
       "seeds": ["https://sandbox.example/blog/"],
@@ -62,7 +63,7 @@
       "lastJobDepth": 2
     },
     {
-      "crawlId": "5b0c6a1e-0005-4000-8000-000000000005",
+      "crawlId": "5b0c0005-6a1e-4000-8000-000000000005",
       "state": "succeeded",
       "stopReason": "failed",
       "seeds": ["https://sandbox.example/odd"],
@@ -74,7 +75,7 @@
       "failures": [{ "url": "https://sandbox.example/odd", "depth": 0, "reason": "http 500" }]
     },
     {
-      "crawlId": "5b0c6a1e-0006-4000-8000-000000000006",
+      "crawlId": "5b0c0006-6a1e-4000-8000-000000000006",
       "state": "failed",
       "stopReason": "failed",
       "seeds": ["https://sandbox.example/slow"],

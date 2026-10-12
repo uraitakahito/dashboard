@@ -20,6 +20,12 @@ import { pathToFileURL } from "node:url";
 const SAMPLES = process.env.SANDBOX_SAMPLES ?? "/samples";
 const SCENARIO = new URL("./scenario.json", import.meta.url);
 
+/**
+ * 台本の時刻の基準。代役が起きた時刻に固定する —— 要求のたびの「いま」を基準にすると、
+ * 走行中の行はいつ引いても startedSecondsAgo 秒前に始まったことになり、かかった時間が伸びない。
+ */
+const STARTED = Date.now();
+
 /** 台帳と同じ UUID の形の id を、名前から決める (何度起こしても同じ id になる)。 */
 export const idOf = (name) =>
   createHash("sha1")
@@ -29,7 +35,7 @@ export const idOf = (name) =>
 
 /**
  * /api/crawls の 1 行。欄は capture-ledger の src/api/crawls.ts (v0.57.4) と同じ。
- * 時刻は台本の「何秒前」から、いまを基準に組む。走行中は終わりが無い。
+ * 時刻は台本の「何秒前」から、now (代役が起きた時刻) を基準に組む。走行中は終わりが無い。
  */
 export const crawlRow = (c, now) => ({
   crawlId: c.crawlId,
@@ -98,8 +104,32 @@ const samples = () =>
     .filter((name) => name.endsWith(".wacz"))
     .sort();
 
-/** 台本は要求のたびに読む。書き換えると、画面の次の引きで変わる (代役を起こし直さなくてよい)。 */
-const scenario = () => JSON.parse(readFileSync(SCENARIO, "utf8"));
+/**
+ * 読み直す関数を包み、**読めない間が短ければ、前に読めたもので答える**。
+ *
+ * host で rename して置き換えたファイル (`sed -i` や、多くの editor の保存) は、コンテナの中からは
+ * 置き換えの直後のしばらく ENOENT に見える (container 1.5.0 で実測)。その場で書き直す editor
+ * なら、空や途中の JSON が読める。どちらもすぐ終わるので、その間は前のもので答える。
+ * 読めないのが graceMs より続いたら投げる —— 台本の書き損じは、画面の上の赤い文で言う。
+ */
+export const readingLastGood = (read, graceMs, now = Date.now) => {
+  let last;
+  let failingSince;
+  return () => {
+    try {
+      last = read();
+      failingSince = undefined;
+      return last;
+    } catch (err) {
+      failingSince ??= now();
+      if (last !== undefined && now() - failingSince < graceMs) return last;
+      throw err;
+    }
+  };
+};
+
+/** 台本は要求のたびに読む。書き換えると、代役を起こし直さずに画面に出る。 */
+const scenario = readingLastGood(() => JSON.parse(readFileSync(SCENARIO, "utf8")), 3000);
 
 const handle = (req, res) => {
   const { pathname } = new URL(req.url ?? "/", "http://sandbox");
@@ -109,8 +139,7 @@ const handle = (req, res) => {
     return;
   }
   if (req.method === "GET" && pathname === "/api/crawls") {
-    const now = Date.now();
-    send(res, 200, { crawls: s.crawls.map((c) => crawlRow(c, now)) });
+    send(res, 200, { crawls: s.crawls.map((c) => crawlRow(c, STARTED)) });
     return;
   }
   const one = /^\/api\/crawls\/([^/]+)$/.exec(pathname);
