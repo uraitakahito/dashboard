@@ -1,0 +1,6 @@
+/* 表のセルの中の code (口・status の並び・env の名前) を折り返さない。
+   Starlight の表は既定で `display: block; overflow: auto` なので、
+   収まらないときは表そのものが横に scroll する。 */
+.sl-markdown-content table code {
+  white-space: nowrap;
+}

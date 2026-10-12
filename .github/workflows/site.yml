@@ -1,0 +1,48 @@
+name: site
+
+# docs-site の検査。**公開はしない。**
+#
+# `astro build` だけでは守りにならない —— `.md` のページは中で何が落ちても Starlight の
+# docs loader が握り潰して exit 0 になる。だから build と一緒に scripts/check-doc-refs.mjs
+# を必ず通す (npm run site:check)。
+#
+# **paths で絞らない。** 検査は docs の外 (src/・public/・test/・.env.example・README) も
+# 読むので、絞ると、そちらだけを変えた PR で検査が走らない。public repo なので、
+# Actions の分は数えない。
+#
+# fork の PR でも安全に走らせられるように、ここには deploy を置かない
+# (permissions は contents: read だけ)。公開は docs.yml がタグの push でだけ行う。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Docs sync guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # 画面は依存を持たない。install するのは docs-site の中だけ
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+
+      - name: Install docs-site dependencies
+        run: npm ci --prefix docs-site
+
+      - name: Build and check
+        run: npm run site:check

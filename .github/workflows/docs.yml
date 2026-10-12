@@ -1,0 +1,61 @@
+name: docs
+
+# docs-site/ を GitHub Pages に出す。
+#
+#   /dashboard/      → English
+#   /dashboard/ja/   → 日本語
+#
+# **リリースのタグ (v*) を push したときだけ走らせる。** 公開する docs は、出した版の docs にする。
+# main への push では走らせない —— main には、まだ出していない変更も入る。
+# fork のブランチは、ここでは build しない (その fork が、公開される中身を選べてしまう)。
+# PR の検査は site.yml (deploy を持たない) が見る。
+# github-pages の環境も、v* のタグからの deploy だけを許す。
+# 公開し直すときは、タグを指して起こす (gh workflow run docs.yml --ref vX.Y.Z)。
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 1 度に 1 つ。cancel-in-progress にしない —— 公開物の途中で止まった deploy は、
+# 待たされるより高くつく。
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+
+      - name: Install docs-site dependencies
+        run: npm ci --prefix docs-site
+
+      # site:build ではなく site:check。build は `.md` では守りにならない (site.yml の註を参照)
+      - name: Build and check
+        run: npm run site:check
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs-site/dist
+
+      - id: deployment
+        uses: actions/deploy-pages@v5

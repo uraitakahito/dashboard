@@ -1,0 +1,43 @@
+# yaml-language-server: $schema=https://json.schemastore.org/dependabot-2.0.json
+#
+# Dependabot が読むのは **default branch (main) に置かれたこのファイル** だけ。
+# PR も main へ出す (`target-branch` を書かなければ、default branch 宛てになる)。
+#
+# 画面 (repo の根) は依存を持たない。npm の lockfile は docs-site の 1 本だけなので、
+# npm の entry は `directory: /docs-site` だけを置く (root の entry はこの lockfile に届かない)。
+version: 2
+updates:
+  # ── docs-site (Astro) ──
+  #
+  # 本番コードではなくドキュメントのビルド専用なので、種類で分けずに **全部 1 本**
+  # にまとめる。上限も 1。
+  - package-ecosystem: npm
+    directory: /docs-site
+    schedule:
+      interval: weekly
+      day: monday
+    # 版が枯れてから PR 化する (supply-chain 対策)。security 更新には適用されない
+    cooldown:
+      default-days: 3
+      semver-major-days: 7
+    open-pull-requests-limit: 1
+    versioning-strategy: increase
+    groups:
+      docs-site:
+        patterns:
+          - "*"
+
+  # ── GitHub Actions ──
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    # github-actions は default-days のみ対応
+    cooldown:
+      default-days: 3
+    open-pull-requests-limit: 1
+    groups:
+      actions:
+        patterns:
+          - "*"

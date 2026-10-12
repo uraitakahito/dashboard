@@ -1,0 +1,47 @@
+{
+  "//": [
+    "package.json にコメントを書く方法の議論:",
+    "https://stackoverflow.com/questions/14221579/how-do-i-add-comments-to-package-json-for-npm-install",
+    "",
+    "docs の原稿 (Astro + Starlight) だけの npm project。画面 (repo の根) は依存を持たないので、",
+    "依存も lockfile も audit も Dependabot も、ここに閉じる。root に node_modules は作らない。",
+    "@astrojs/markdown-satteri と satteri: Astro 7.2 からの既定の Markdown 処理系。astro.config.ts が",
+    "src/plugins/hast-rebase-links.ts を差し込むために、直接 import している。",
+    "mermaid は 11 系: astro-mermaid (2.1.0) が peer で ^10 || ^11 を要求し、npm は 12 を入れさせない。",
+    "外す条件: astro-mermaid が、mermaid 12 を peer で受ける版を出したとき。",
+    "",
+    "overrides: 上流が古い系列に縛っている依存を、勧告の修正版の系列へ上げる。",
+    "@expressive-code/core > postcss-nested: core 0.44.2 が ^6.0.1 を要求する。6 系が連れてくる",
+    "postcss-selector-parser 6 は GHSA-rj75-hqrm-r3gf（moderate、修正版は 7.1.6）の対象で、6 系に修正版は無い。",
+    "外す条件: @expressive-code/core が、postcss-nested を 7 以上で要求する版を出したとき。",
+    "mermaid > katex: mermaid が katex を ^0.16 系で要求する。0.16 系は GHSA-238p-pmpm-9mq7",
+    "（low、修正版は 0.18.2）の対象。",
+    "外す条件: mermaid が、katex を 0.18.2 以上で要求する版を出したとき。"
+  ],
+  "name": "dashboard-docs-site",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.42.5",
+    "astro": "^7.3.8",
+    "astro-mermaid": "^2.0.2",
+    "mermaid": "^11.17.2"
+  },
+  "devDependencies": {
+    "@astrojs/markdown-satteri": "^0.4.3",
+    "satteri": "^0.10.5"
+  },
+  "overrides": {
+    "@expressive-code/core": {
+      "postcss-nested": "^7.0.2"
+    },
+    "mermaid": {
+      "katex": "^0.18.2"
+    }
+  }
+}
