@@ -22,6 +22,17 @@ updates:
       semver-major-days: 7
     open-pull-requests-limit: 1
     versioning-strategy: increase
+    ignore:
+      # mermaid は major を上げない (11 系に留める)。
+      #
+      # astro-mermaid が、最新の 2.1.0 でも peer で `mermaid: ^10.0.0 || ^11.0.0` を要求する。
+      # 上げると npm ci が ERESOLVE で **必ず** 落ちる (#19 が実際にそうなった)。
+      # docs-site/package.json の "//" に書いた理由と同じ。
+      #
+      # **astro-mermaid が mermaid 12 を受ける版を出したら、この entry を消すこと。** 確認は:
+      #   npm view astro-mermaid@latest peerDependencies.mermaid
+      - dependency-name: "mermaid"
+        update-types: ["version-update:semver-major"]
     groups:
       docs-site:
         patterns:
