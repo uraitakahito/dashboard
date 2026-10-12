@@ -1,6 +1,6 @@
 ---
 title: Development
-description: Where the dependencies stop, what the checks and tests see and do not see, checking without the ledger, editing these docs, releasing
+description: Where the dependencies stop, what the checks and tests see and do not see, opening the screen in the sandbox, editing these docs, releasing
 ---
 
 ## Where the dependencies stop
@@ -36,25 +36,50 @@ same files the browser reads, so there is no copy to rot.
 **Relaying and identity are not checked in CI.** They cannot be confirmed without the ledger and
 the issuer running, so the evidence is gathered by hand and pasted into the PR.
 
-## Checking without the ledger
+## Opening the screen in the sandbox
 
-For when you want to try the screen against the real daemon without starting the ledger and the
-stack.
+A way to open the screen in every state without starting the ledger's stack. The other side (a
+stand-in for the ledger, and the real validation daemon) runs in containers, and the screen runs
+on the host.
 
-1. Run a fake ledger on a free port (7071, say). It only has to answer the ledger routes the screen
-   reads (which ones is decided by the `api(` calls in `public/app.js`) and the signing route
-   (`POST /api/archives/:id/url`), which returns a `file://` URL of a local WACZ (the archive
-   file the crawler produces) as `{"url": …}`. The daemon reads `file://` too.
-2. Start a second screen pointed at the fake ledger.
+1. Put [wacz-validator](https://github.com/uraitakahito/wacz-validator) next to this repository
+   (`../wacz-validator`). The daemon's image is built from the daemon stage of its Dockerfile.
+2. Bring it up and open it.
 
    ```sh
-   DASHBOARD_PORT=7081 DASHBOARD_LEDGER_URL=http://127.0.0.1:7071 npm run dev
+   npm run sandbox       # the first time, builds the daemon's image before starting
+   open http://127.0.0.1:7081/
    ```
 
-   The screen gets its identity before it goes to the ledger, so it needs to reach an issuer
-   too. If no issuer is running, let the fake ledger also answer `POST /token` (returning
-   `{"access_token": "…"}`) and point `DASHBOARD_ISSUER_URL` at it.
-3. Open `http://127.0.0.1:7081/` and press 検証 (validate) or 開く (open) on an archive row.
+3. Clean up. Ctrl-C stops the screen, and `npm run sandbox:down` stops the containers.
+
+Its ports are moved away from the ones `dev:up` uses, so both can run side by side (the ports are
+in `sandbox/sandbox.env`). The screen reads only `sandbox/sandbox.env`, never your `.env`. How the
+containers fit together is written at the top of `docker-compose.yml`.
+
+What it shows is decided by the scenario (`sandbox/scenario.json`) and the sample WACZ files (the
+archive files the crawler produces, in `sandbox/samples/`). The samples are copied from a corpus
+whose validation results are known; where they come from, and the result each one should get, is
+in `sandbox/samples/SOURCE.md`.
+
+| To | Do |
+| --- | --- |
+| change what it shows | edit the scenario. The stand-in reads it on every request, so the screen changes on its next fetch |
+| see an empty catalog | set `"emptyCatalog"` to `true` in the scenario |
+| list other WACZ files | `SANDBOX_WACZ_DIR=<dir> npm run sandbox` (relative to this repository, for example `../wacz-validator/samples`). The stand-in and the daemon both get the same directory |
+| put an updated wacz-validator into the daemon | `npm run sandbox:build`. `npm run sandbox` only builds the image when there is none |
+
+There are things the stand-in does not do:
+
+- **It does not imitate authorization.** Any identity gets through, so the screens for a missing
+  permission do not appear here.
+- **replay ↗ and run ↗ lead outside the sandbox.** The stand-in's rows do not exist over there.
+- The validation report says `wacz-validator unknown` (the image is built without `.git`).
+- The red messages on the screen name capture-ledger commands as the fix. In the sandbox, read
+  "the ledger" as the stand-in and "the daemon" as the `sandbox-validator` container.
+- The shape of the stand-in's answers is copied from the ledger's code. When the ledger changes a
+  field, the stand-in does not follow (`test/sandbox.test.mjs` pins the copied set of fields).
+  Checking against the real thing happens on the `dev:up` stack.
 
 Reading it with headless Chrome's `--dump-dom` never finishes, because the screen keeps fetching
 its lists (the DOM is there by the time you stop it). To press buttons automatically, use a tool

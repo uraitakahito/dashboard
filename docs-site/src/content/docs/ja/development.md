@@ -1,6 +1,6 @@
 ---
 title: 開発
-description: 依存の線、検査と試験が見るもの・見ないもの、台帳を起こさずに確かめる手、docs を直す、リリース
+description: 依存の線、検査と試験が見るもの・見ないもの、サンドボックスで開く、docs を直す、リリース
 ---
 
 ## 依存の線
@@ -33,23 +33,50 @@ root の script は `pnpm run` で打っても同じです（[capture-ledger](ht
 **中継と名乗りは、CI では見ません。**
 台帳と issuer が立っていないと確かめられないので、証拠は手で当てて PR に貼ります。
 
-## 台帳を起こさずに確かめる
+## サンドボックスで開く
 
-画面を本物の daemon に当てて確かめたいが、台帳とスタックは起こしたくないときの手です。
+台帳のスタックを起こさずに、画面を全部の状態で開く手です。
+相手（台帳の代役と、本物の検証の daemon）はコンテナで、画面は host で動きます。
 
-1. 偽の台帳を、空いている口（たとえば 7071）に立てる。
-   答えるのは、画面が読む台帳の口（どれを読むかは `public/app.js` の `api(` の呼び出し）と、署名の口（`POST /api/archives/:id/url`）だけでよい。
-   署名の口は、手元の WACZ（撮ったページをまとめたアーカイブ）の `file://` の URL を `{"url": …}` で返す。
-   daemon は `file://` も読みます。
-2. 2 つ目の画面を、偽の台帳に向けて立てる。
+1. この repo の隣（`../wacz-validator`）に [wacz-validator](https://github.com/uraitakahito/wacz-validator) を置く。
+   daemon の image は、その Dockerfile の daemon の段から建てます。
+2. 起こして、開く。
 
    ```sh
-   DASHBOARD_PORT=7081 DASHBOARD_LEDGER_URL=http://127.0.0.1:7071 npm run dev
+   npm run sandbox       # 初回は daemon の image を建ててから起こす
+   open http://127.0.0.1:7081/
    ```
 
-   画面は台帳へ行く前に名乗りを取るので、issuer にも届く必要があります。
-   issuer が立っていなければ、偽の台帳に `POST /token`（`{"access_token": "…"}` を返す）も答えさせ、`DASHBOARD_ISSUER_URL` もそこへ向けます。
-3. `http://127.0.0.1:7081/` を開いて、アーカイブの行の「検証」や「開く」を押す。
+3. 片付ける。
+   画面は Ctrl-C で止まり、コンテナは `npm run sandbox:down` で止まります。
+
+口は `dev:up` が起こすものとずらしてあるので、並べて動かせます（口は `sandbox/sandbox.env`）。
+画面が読む設定は `sandbox/sandbox.env` だけで、あなたの `.env` は読みません。
+コンテナの組み立ては、`docker-compose.yml` の頭に書いてあります。
+
+何を見せるかは、台本（`sandbox/scenario.json`）と標本の WACZ（撮ったページをまとめたアーカイブ。`sandbox/samples/`）が決めます。
+標本は、検証の結論が分かっている corpus から写したものです。
+出どころと、それぞれが受けるはずの結論は `sandbox/samples/SOURCE.md` に在ります。
+
+| したいこと | すること |
+| --- | --- |
+| 見せるものを変える | 台本を書き換える。代役は要求のたびに読むので、画面の次の引きで変わる |
+| 目録が空のときを見る | 台本の `"emptyCatalog"` を `true` にする |
+| 別の WACZ を並べる | `SANDBOX_WACZ_DIR=<dir> npm run sandbox`（相対なら、この repo から。例: `../wacz-validator/samples`）。代役と daemon の両方に同じ置き場が入る |
+| wacz-validator の更新を daemon に入れる | `npm run sandbox:build`。`npm run sandbox` は、image が無いときにしか建てない |
+
+代役にできないこともあります。
+
+- **認可を真似ない。**
+  名乗りは何でも通るので、許可が無いときの画面はここでは出ません。
+- **replay ↗ と run ↗ の飛び先は、サンドボックスの外です。**
+  開いても、代役の行は向こうに在りません。
+- 検証の報告の版は `wacz-validator unknown` と出ます（image に `.git` を入れないため）。
+- 画面の赤い文は、直し方に capture-ledger のコマンドを挙げます。
+  サンドボックスでは、台帳は代役、daemon は `sandbox-validator` のコンテナと読み替えてください。
+- 代役の答えの形は、台帳のコードから写したものです。
+  台帳が欄を変えても、代役はついてきません（写した欄の集合は `test/sandbox.test.mjs` が固定しています）。
+  本物との突き合わせは、`dev:up` のスタックでします。
 
 headless Chrome の `--dump-dom` で読もうとすると、終わりません。
 画面が一覧を引き続けるからです（止めたときには DOM は出ています）。
