@@ -23,7 +23,7 @@ flowchart LR
   B["ブラウザ"] -->|"画面・/api/*・/wacz/*"| D["dashboard"]
   D -->|"名乗りを取る<br/>POST /token"| I["開発用の issuer"]
   D -->|"/api/* を素通し"| L["capture-ledger の API"]
-  D -->|"署名付き URL を 1 本だけ渡す"| V["wacz-validator の daemon"]
+  D -->|"署名付き URL を<br/>1 本だけ渡す"| V["wacz-validator の daemon"]
   V -->|"Range で読む"| S[("seaweedfs の store")]
   B -.->|"行き先のリンク"| R["replay"]
   B -.->|"run のリンク"| W["Windmill"]
@@ -58,3 +58,12 @@ replay と Windmill へは、画面の行からリンクで飛ぶだけです。
 https のページから `127.0.0.1` を叩くと、Chrome の Private Network Access（PNA。公開のページから手元のネットワークへの要求を止める仕組み）が止めます。
 だから**画面を** GitHub Pages に置く道はありません。
 Pages に置いてあるのは、この説明だけです。
+
+## 次に読むもの
+
+- **[クイックスタート](/quickstart/)** —— 画面を起こす、名乗りに許可を付ける、出た文から直す。
+- **[画面](/screens/)** —— 4 つの面に何が並ぶか、状態の言い方、引く間隔。
+- **[WACZ を見る](/wacz/)** —— 検証の 2 段と報告、中身の面。
+- **[設定](/configuration/)** —— 環境変数の表と、読む順。
+- **[中継の口](/routes/)** —— サーバが答える口、通すヘッダ、失敗の形。
+- **[開発](/development/)** —— 依存の線、試験が見ないもの、docs を直す、リリース。

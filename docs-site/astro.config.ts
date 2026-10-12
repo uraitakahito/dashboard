@@ -33,7 +33,15 @@ export default defineConfig({
       ],
       // Starlight はページを訳すがナビは訳さない。translations が無いと
       // 英語の目次に日本語のページがぶら下がる
-      sidebar: [{ label: "Overview", translations: { ja: "概要" }, slug: "index" }],
+      sidebar: [
+        { label: "Overview", translations: { ja: "概要" }, slug: "index" },
+        { label: "Quickstart", translations: { ja: "クイックスタート" }, slug: "quickstart" },
+        { label: "Screens", translations: { ja: "画面" }, slug: "screens" },
+        { label: "Inspecting a WACZ", translations: { ja: "WACZ を見る" }, slug: "wacz" },
+        { label: "Configuration", translations: { ja: "設定" }, slug: "configuration" },
+        { label: "Routes", translations: { ja: "中継の口" }, slug: "routes" },
+        { label: "Development", translations: { ja: "開発" }, slug: "development" },
+      ],
     }),
   ],
   markdown: {

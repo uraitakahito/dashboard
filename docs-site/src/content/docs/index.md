@@ -61,3 +61,14 @@ The screen binds to `127.0.0.1` only and is served over plain http. Chrome's Pri
 Access (PNA, which blocks requests from public pages to your local network) stops an https page
 from calling `127.0.0.1`. So there is no way to put **the screen** on GitHub Pages. What lives on
 Pages is this documentation only.
+
+## Where to go next
+
+- **[Quickstart](/quickstart/)** — bring the screen up, grant your identity access, fix things
+  from the message you see.
+- **[Screens](/screens/)** — what the four views show, how states are worded, how often it polls.
+- **[Inspecting a WACZ](/wacz/)** — the two steps of validation, the report, the contents view.
+- **[Configuration](/configuration/)** — the environment variables and the order they are read in.
+- **[Routes](/routes/)** — what the server answers, which headers pass, what failures look like.
+- **[Development](/development/)** — where the dependencies stop, what the tests do not see,
+  editing these docs, releasing.

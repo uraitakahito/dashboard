@@ -24,7 +24,13 @@ export class BadRequest extends Error {
   }
 }
 
-const ROUTE = /^\/wacz\/([^/?]+)\/(validate|lines|line|records|record(?:\/body)?)(?:\?(.*))?$/;
+/**
+ * daemon へ行く口の名前。**docs の「中継の口」の表は、これと突き合わされる**
+ * (scripts/check-doc-refs.mjs)。口を足すときは、ここと paramsFor と docs の表の 3 か所。
+ */
+export const OPS = Object.freeze(["validate", "lines", "line", "records", "record", "record/body"]);
+
+const ROUTE = new RegExp(`^/wacz/([^/?]+)/(${OPS.join("|")})(?:\\?(.*))?$`);
 
 /**
  * `/wacz/<archiveId>/<op>?…` を読む。合わなければ undefined。
