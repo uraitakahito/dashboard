@@ -36,7 +36,10 @@ npm run dev           # http://127.0.0.1:7080/
 ```
 
 The ledger's API and the issuer have to be up (the ones `dev:up` started are enough). 検証
-(validate) and the contents view also need the daemon.
+(validate) and the contents view also need the daemon. If you would rather not start the ledger's
+stack, open it in [the sandbox](/development/#opening-the-screen-in-the-sandbox) instead:
+`npm run sandbox` starts a stand-in for the ledger and the real daemon in containers, and serves
+the screen on 7081.
 
 Changes under `public/` take effect when you reload the browser, because the server reads the
 files from disk on every request. After changing `src/`, restart it. If the screen that `dev:up`
