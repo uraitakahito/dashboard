@@ -31,6 +31,7 @@ flowchart LR
 
 ブラウザが話す相手は dashboard だけです（同一オリジン）。
 dashboard は開発用の issuer からアクセストークンを取得し、それを付けて `/api/*` をそのまま台帳へ通します。
+書くのは、クロールの面の欄から起こすときの `POST /api/crawls` だけで、同じ道で台帳へ通します。
 WACZ の検証と中身は、台帳に署名してもらった URL を daemon に渡して読ませます。
 replay と Windmill へは、画面の行からリンクで飛ぶだけです。
 

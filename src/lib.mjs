@@ -2,7 +2,7 @@
  * サーバが使う、外と話さない部分。**ここだけは試験から直接呼べる。**
  *
  * http の口（`server.mjs`）に混ぜないのは、混ぜた部分が「動かしてみないと
- * 分からない」側に入ってしまうため。path の組み立てと content-type は、
+ * 分からない」側に入ってしまうため。path の組み立てと content-type と門の判定は、
  * 動かさずに確かめられる。
  */
 import { normalize, resolve, sep } from "node:path";
@@ -56,4 +56,29 @@ export const safePath = (root, url) => {
   if (pathname.endsWith("/")) pathname += "index.html";
   const full = resolve(root, `.${normalize(pathname)}`);
   return full === root || full.startsWith(root + sep) ? full : undefined;
+};
+
+/**
+ * Host が、この画面の口か。**全部の口で見る** —— DNS rebinding（よそのドメインの名前を
+ * 127.0.0.1 に向け直す手）で、別のサイトのページがこの画面を自分のオリジンとして読むのを
+ * 止める。書く口だけを守っても、読む口から一覧が漏れる。
+ */
+export const hostAllowed = (host, port) =>
+  host === `127.0.0.1:${String(port)}` || host === `localhost:${String(port)}`;
+
+/**
+ * 書く口の門。この画面のページからの JSON だけを通す。断るなら `{ status, error }` を返す。
+ *
+ * Origin を見るのは CSRF（別のサイトのページに、利用者のブラウザから POST させる手）のため。
+ * JSON に限るのは、form が preflight なしで送れる形（text/plain など）を締め出すため。
+ * Chrome の Private Network Access には頼らない —— 版で振る舞いが変わる。
+ */
+export const writeRefusal = (headers, port) => {
+  if (!hostAllowed(headers.host, port)) return { status: 403, error: "この画面の Host ではない" };
+  if (headers.origin !== `http://${String(headers.host)}`) {
+    return { status: 403, error: "この画面のページからの要求ではない" };
+  }
+  const type = (headers["content-type"] ?? "").split(";")[0].trim();
+  if (type !== "application/json") return { status: 415, error: "JSON だけを受ける" };
+  return undefined;
 };

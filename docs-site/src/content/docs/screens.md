@@ -10,7 +10,7 @@ enter it with 開く (open) on an archive row. The screen itself is in Japanese;
 
 | View | What it lists |
 | --- | --- |
-| Crawls | one row per crawl: state, pages captured, pages discovered, number of WACZ files (the archive format that packs captured pages into one ZIP), time taken, link to the run |
+| Crawls | one row per crawl: state, pages captured, pages discovered, number of WACZ files (the archive format that packs captured pages into one ZIP), time taken, link to the run; start a crawl from the form above it |
 | Archives | the WACZ files you can see; from a row, validate, open the contents, or open in [replay](https://github.com/uraitakahito/replay) (which plays a WACZ back in the browser) |
 | Catalog | the scripts that run inside the captured page; says so in red when it is empty |
 | Contents | inside one WACZ; see [Inspecting a WACZ](/wacz/) |
@@ -43,6 +43,24 @@ WACZ files and the time taken. "run ↗" at the right end opens the Windmill run
 - **Click a row to see the URLs that could not be fetched, and why.** Only then does the screen
   fetch `/api/crawls/:id`. It lists what the ledger returns, which is not necessarily every page
   that failed. If nothing failed, it says so and lists the seed URLs.
+
+### Starting a crawl from the form above
+
+The form above the table starts a crawl. Write the seed URLs one per line, choose このページだけ
+(this page only) or リンクを辿る (follow links, the ledger's default), and press 起こす (start).
+
+- **It sends the seed URLs, and whether the depth is 0, nothing else.** このページだけ sends
+  `maxDepth: 0`; リンクを辿る adds nothing (the depth and the page limit are the ledger's
+  defaults). The screen does not check the URLs; if one cannot be read, the ledger says so with a
+  400.
+- **The answer is one line under the form.** When the crawl is accepted, its row gets a mark
+  (it is running, so the footer starts polling every 2 seconds). If a crawl is already running,
+  the answer is a 409 and the row in the way gets the mark (the ledger runs one crawl at a time,
+  overall). Anything else is shown in the ledger's own words.
+- **The row is not opened.** The table is rebuilt on every fetch, so an opened row would vanish
+  at the next one. The mark is remembered by id and put back each time the table is redrawn.
+
+It is sent through `POST /api/crawls` in [Routes](/routes/).
 
 ### The state is worded together with stopReason
 

@@ -21,6 +21,13 @@
  * 直に叩く道は塞がっているので、同一オリジンにするために通す。**ここに画面の
  * ロジックは置かない** —— 置いた瞬間に「台帳が知っていることの写し」が生まれる。
  *
+ * ## 書く口は 1 本
+ *
+ * 書くのは `POST /api/crawls`（クロールを起こす）だけで、中身は検査せずに台帳へ渡す。
+ * 起点の URL も方針も、決めるのは台帳。代わりに門を通す —— 全部の口で Host を見て
+ * （DNS rebinding）、書く口ではこの画面のページからの JSON だけを受ける（CSRF）。
+ * 門の判定は `lib.mjs` に在り、試験から直接呼べる。
+ *
  * ## 7080 であって 7000 ではない
  *
  * macOS の ControlCenter (AirPlay Receiver) が `*:7000` を握っている（実測）。
@@ -44,7 +51,7 @@ import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { userInfo } from "node:os";
 
-import { contentType, optional, safePath } from "./lib.mjs";
+import { contentType, hostAllowed, optional, safePath, writeRefusal } from "./lib.mjs";
 import { BadRequest, paramsFor, parseWaczRoute, viaSignedUrl } from "./wacz.mjs";
 
 const PUBLIC = fileURLToPath(new URL("../public", import.meta.url));
@@ -101,13 +108,18 @@ const mint = async () => {
  * issuer を起こし直した日に落ちる —— 起動のたびに鍵が変わるので、まだ有効なはずの
  * トークンが静かに通らなくなる。401 は、その両方（期限切れ・鍵替わり）を同じ形で言う。
  */
-const toLedger = async (path, method = "GET") => {
+const toLedger = async (path, method = "GET", body = undefined) => {
   if (token === undefined) await mint();
   const send = async () => {
     try {
+      // 401 で取得し直したときも、同じ body を送り直す（文字列なので何度でも読める）
       return await fetch(LEDGER + path, {
         method,
-        headers: { authorization: `Bearer ${token}` },
+        headers: {
+          authorization: `Bearer ${token}`,
+          ...(body !== undefined && { "content-type": "application/json" }),
+        },
+        ...(body !== undefined && { body }),
       });
     } catch (err) {
       // **何が居ないかを言う。** 素の `fetch failed` は、台帳が落ちているのか
@@ -167,6 +179,43 @@ const pass = async (reply, upstream) => {
   await pipeline(Readable.fromWeb(upstream.body), reply);
 };
 
+/** 台帳の答えを、状態と content-type と本文のまま返す。 */
+const relay = async (reply, res) => {
+  reply.writeHead(res.status, {
+    "content-type": res.headers.get("content-type") ?? "application/json; charset=utf-8",
+  });
+  reply.end(await res.text());
+};
+
+const sendJson = (reply, status, body) => {
+  reply.writeHead(status, { "content-type": "application/json; charset=utf-8" });
+  reply.end(JSON.stringify(body));
+};
+
+/** 書く口が受ける本文の上限。起点の URL を並べるだけなので、これで足りる。 */
+const WRITE_LIMIT = 64 * 1024;
+
+class TooLarge extends Error {}
+
+/**
+ * 本文を読む。上限を超えたら**溜めるのをやめ**、読み切ってから TooLarge で断る ——
+ * 途中で接続を切ると、413 を書く相手が居なくなる。
+ */
+const readBody = (request, limit) =>
+  new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    request.on("data", (chunk) => {
+      size += chunk.length;
+      if (size <= limit) chunks.push(chunk);
+    });
+    request.on("end", () => {
+      if (size > limit) reject(new TooLarge(`本文が ${String(limit)} バイトを超えた`));
+      else resolve(Buffer.concat(chunks).toString("utf8"));
+    });
+    request.on("error", reject);
+  });
+
 /** 失敗は、**何が居ないか**を言う。「見えない」と「立っていない」を混ぜない。 */
 const failed = (reply, err) => {
   // 流している途中で切れたら、もう頭は書けない。閉じるだけ。
@@ -174,13 +223,19 @@ const failed = (reply, err) => {
     reply.destroy();
     return;
   }
-  const status = err instanceof BadRequest ? 400 : 502;
-  reply.writeHead(status, { "content-type": "application/json; charset=utf-8" });
-  reply.end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }));
+  const status = err instanceof BadRequest ? 400 : err instanceof TooLarge ? 413 : 502;
+  sendJson(reply, status, { error: err instanceof Error ? err.message : String(err) });
 };
 
 const server = createServer((request, reply) => {
   const url = request.url ?? "/";
+
+  // **どの口も、この画面の Host でなければ答えない**（DNS rebinding。`lib.mjs` の注）。
+  // dev:up の準備の確かめは `http://127.0.0.1:<口>/healthz` を引くので、ここを通る。
+  if (!hostAllowed(request.headers.host, PORT)) {
+    sendJson(reply, 403, { error: "この画面の Host ではない" });
+    return;
+  }
 
   // 生存と、画面が要る設定。**`/api/` の下には置かない** —— あちらは台帳へ素通しする
   // 場所で、こちらの答えを混ぜると「どちらが答えたのか」が読めなくなる。
@@ -234,14 +289,34 @@ const server = createServer((request, reply) => {
     return;
   }
 
+  /**
+   * クロールを起こす。**ただ 1 本の書く口**で、中身は検査しない —— 起点の URL も方針も
+   * 台帳が検査して決め、答え（202・400・404・409）をそのまま返す。門だけはここで見る。
+   */
+  if (url === "/api/crawls" && request.method === "POST") {
+    const refusal = writeRefusal(request.headers, PORT);
+    if (refusal !== undefined) {
+      sendJson(reply, refusal.status, { error: refusal.error });
+      return;
+    }
+    void readBody(request, WRITE_LIMIT)
+      .then((body) => toLedger("/api/crawls", "POST", body))
+      .then((res) => relay(reply, res))
+      .catch((err) => {
+        failed(reply, err);
+      });
+    return;
+  }
+
   if (url.startsWith("/api/")) {
+    // 読む口は GET だけ。ほかの method を GET として通すと、書けたように見えてしまう。
+    if (request.method !== "GET") {
+      reply.writeHead(405, { allow: "GET", "content-type": "text/plain; charset=utf-8" });
+      reply.end("GET だけ（書く口は POST /api/crawls）\n");
+      return;
+    }
     void toLedger(url)
-      .then(async (res) => {
-        reply.writeHead(res.status, {
-          "content-type": res.headers.get("content-type") ?? "application/json; charset=utf-8",
-        });
-        reply.end(await res.text());
-      })
+      .then((res) => relay(reply, res))
       .catch((err) => {
         failed(reply, err);
       });

@@ -1,6 +1,6 @@
 ---
 title: Routes
-description: What the screen's server answers — /healthz, the pass-through to the ledger, and the /wacz/ routes into a WACZ. Which headers pass, and what failures look like
+description: What the screen's server answers — /healthz, the pass-through to the ledger, the route that starts a crawl, and the /wacz/ routes into a WACZ. The Host check, which headers pass, and what failures look like
 ---
 
 The screen's server only relays. The screen's logic lives in the browser (`public/`); all the
@@ -11,12 +11,17 @@ not.
 | Route | Answered by |
 | --- | --- |
 | `GET /healthz` | the server itself (liveness, and the settings the screen needs) |
-| `/api/*` | passed through to the ledger |
+| `POST /api/crawls` | the ledger (the one and only route that writes) |
+| `/api/*` (the rest) | passed through to the ledger (GET only) |
 | `/wacz/:id/…` | signed by the ledger, then answered by the daemon |
 | anything else | the files in `public/` |
 
 The routing is in `src/server.mjs`; parsing and rewriting the `/wacz/` routes is in
 `src/wacz.mjs`.
+
+Every route refuses with a 403 unless the request's `Host` is `127.0.0.1:<port>` or
+`localhost:<port>`. That stops a page from another site from reading this screen as if it were
+its own origin, by pointing its domain name at 127.0.0.1 (DNS rebinding).
 
 ## /healthz
 
@@ -43,7 +48,8 @@ The ledger does not return CORS (Cross-Origin Resource Sharing, which lets pages
 origin call it) headers (`OPTIONS /api/archives` is a 404). Since the browser
 cannot call it directly, the server relays it to make it same-origin.
 
-- The path and query go through unchanged, as a GET (the screen only reads).
+- The path and query go through unchanged, as a GET. Any other method is a 405 (the only route
+  that writes is `POST /api/crawls` below).
 - The access token is attached as `Authorization: Bearer`. If the server does not have one yet, it
   first gets one from the development issuer.
 - **On a 401 it gets a new token and retries once.** It does not track the token's lifetime:
@@ -53,6 +59,29 @@ cannot call it directly, the server relays it to make it same-origin.
 
 Which ledger routes are read is decided by the screen (`public/app.js`); the server does not
 choose. It keeps no list of allowed routes.
+
+## POST /api/crawls — the route that starts a crawl
+
+This is the one route of the screen's server that writes. The form on the crawls view
+([Screens](/screens/)) uses it. The server does not check the contents: it hands the body that
+passed the checks below to the ledger's `POST /api/crawls` as it is, and returns the answer as
+it is. The ledger is the one that checks and decides the seed URLs and the policy (depth, page
+limit, which scripts run).
+
+- **Only JSON from this screen's own page gets through.** If the `Origin` is not this screen it
+  is a 403, if the `content-type` is not JSON it is a 415, and a body over 64 KiB is a 413. This
+  stops a page from another site from making your browser send the POST (CSRF). It does not
+  rely on Chrome's Private Network Access.
+- The access token is attached, and a 401 retried, the same way as for `/api/*` above.
+
+| The ledger's answer | When |
+| --- | --- |
+| 202 `{"crawlId": …}` | accepted (it does not wait for the crawl to finish) |
+| 400 `{"error": …}` | a seed URL that cannot be read, an empty script catalog (with a `hint`), and so on |
+| 404 | the identity may not start crawls (`{"error":"not found"}`), or the ledger has nowhere to send crawls configured and does not serve the route at all |
+| 409 `{"error": …, "crawlId": …}` | a crawl is already running (one at a time, overall); `crawlId` is the one in the way |
+
+The checks are `writeRefusal` in `src/lib.mjs`, which the tests call directly.
 
 ## /wacz/:id/… — routes into a WACZ
 
@@ -95,7 +124,10 @@ A failure says what is missing. "You may not see it" and "it is not running" are
 | Status | When | Body |
 | --- | --- | --- |
 | 400 | an argument of a `/wacz/` route is missing or not a number; the ledger is not asked | `{"error":"from is required"}` |
-| 405 | wrong method on a `/wacz/` route (validation is POST, the rest GET) | `POST だけ` or `GET だけ`, with an `Allow` header |
+| 403 | the `Host` is not this screen's (any route); on the route that writes, also when the `Origin` is not this screen | `{"error":"この画面の Host ではない"}` and so on |
+| 405 | wrong method: on a `/wacz/` route (validation is POST, the rest GET), or on `/api/*` (GET only, except the route that writes) | `POST だけ`, `GET だけ` and so on, with an `Allow` header |
+| 413 | the body sent to the route that writes is over 64 KiB | `{"error":"本文が 65536 バイトを超えた"}` |
+| 415 | the `content-type` sent to the route that writes is not JSON | `{"error":"JSON だけを受ける"}` |
 | as the ledger said | the ledger refused (such as a 404 for an archive you may not view) | the ledger's body |
 | 502 | the issuer, the ledger or the daemon cannot be reached, or the issuer refused the identity | `{"error":"… に届かない (…)。…"}`, with one sentence on how to fix it |
 | 404 | a file that is not in `public/`, or an extension that is not served | `not found` |

@@ -8,6 +8,7 @@
  * `<img>` で。生の HTML を差し込む API はこのファイルに無い（`check` が見張る）。
  */
 import { judgedUnder, severityKind, stateOf, statsOf, took, verdict } from "/format.js";
+import { startAnswer, startBody } from "/start.js";
 import {
   bodyLabel,
   buildTree,
@@ -100,6 +101,12 @@ const failedText = (err) => (err instanceof Error ? err.message : String(err));
 // ── クロール ───────────────────────────────────────────────────────
 let crawls = [];
 
+/**
+ * 起こした 1 本か、409 で塞いでいた 1 本。**行は開かずに印を付ける** —— 表は引くたびに
+ * 作り直すので、開いた行は次の引きで消える。id で覚えておけば、描き直しのたびに付け直せる。
+ */
+let spotlight;
+
 const runHref = (crawl) =>
   crawl.lastJob === null
     ? undefined
@@ -119,7 +126,7 @@ const openDetail = async (crawl, after) => {
     const failures = one.failures ?? [];
     td.textContent =
       failures.length === 0
-        ? `取れなかったページはありません（種: ${one.seeds.join(", ")}）`
+        ? `取れなかったページはありません（起点: ${one.seeds.join(", ")}）`
         : failures.map((f) => `${f.url} — ${f.reason ?? "理由なし"}`).join("\n");
     td.style.whiteSpace = "pre-wrap";
   } catch (err) {
@@ -134,7 +141,7 @@ const drawCrawls = () => {
   for (const crawl of crawls) {
     const state = stateOf(crawl);
     const row = document.createElement("tr");
-    row.className = "head";
+    row.className = crawl.crawlId === spotlight ? "head spot" : "head";
     row.append(cell(state.text, `state ${state.kind}`));
     row.append(cell(crawl.crawlId.slice(0, 8), "mono"));
     row.append(cell(`${crawl.requestedBy} / ${crawl.orgId}`));
@@ -158,6 +165,51 @@ const drawCrawls = () => {
     body.append(row);
   }
 };
+
+// ── 起こす ─────────────────────────────────────────────────────────
+/** 空の欄では押せない。送らないことを、押す前に見せる。 */
+const syncStart = () => {
+  $("start-go").disabled = startBody($("start-seeds").value, true).seeds.length === 0;
+};
+
+/**
+ * 欄から 1 本起こす。**送る前に検査しない** —— 読めない URL は台帳が 400 で言う。
+ * 答えは欄の下に 1 行で、台帳の文は言い換えずに出す（`start.js` の `startAnswer`）。
+ */
+const startCrawl = async (event) => {
+  event.preventDefault();
+  const body = startBody($("start-seeds").value, $("start-page").checked);
+  if (body.seeds.length === 0) return;
+  $("start-go").disabled = true;
+  let status = 0;
+  let answer = {};
+  try {
+    const res = await fetch("/api/crawls", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    status = res.status;
+    answer = await res.json().catch(() => ({}));
+  } catch (err) {
+    answer = { error: failedText(err) };
+  }
+  const said = startAnswer(status, answer);
+  const line = $("start-answer");
+  line.hidden = false;
+  line.className = `start-answer state ${said.kind}`;
+  line.textContent = said.text;
+  if (status === 202) $("start-seeds").value = "";
+  syncStart();
+  // 202 は起こした 1 本、409 は塞いでいる 1 本。どちらも印を付けて、すぐ引き直す
+  if (typeof answer.crawlId === "string") {
+    spotlight = answer.crawlId;
+    await refresh();
+  }
+};
+
+$("start-seeds").addEventListener("input", syncStart);
+$("start").addEventListener("submit", (event) => void startCrawl(event));
 
 // ── 検証 ───────────────────────────────────────────────────────────
 /**
@@ -658,6 +710,9 @@ window.addEventListener("hashchange", route);
  */
 const pace = () => (crawls.some((c) => c.state === "running") ? 2_000 : 30_000);
 
+/** 次の引きの予約。**1 つだけ** —— 起こした直後に引き直しても、引く輪が 2 本にならない。 */
+let timer;
+
 const refresh = async () => {
   try {
     const [c, a, s] = await Promise.all([
@@ -678,7 +733,8 @@ const refresh = async () => {
     trouble(failedText(err));
     $("pulse").textContent = "取りに行けませんでした（上の表は最後に描けたもの）";
   }
-  setTimeout(() => void refresh(), pace());
+  clearTimeout(timer);
+  timer = setTimeout(() => void refresh(), pace());
 };
 
 const start = async () => {

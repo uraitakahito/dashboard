@@ -68,6 +68,7 @@ in `sandbox/samples/SOURCE.md`.
 | see an empty catalog | set `"emptyCatalog"` to `true` in the scenario |
 | list other WACZ files | `SANDBOX_WACZ_DIR=<dir> npm run sandbox` (relative to this repository, for example `../wacz-validator/samples`). The stand-in and the daemon both get the same directory |
 | put an updated wacz-validator into the daemon | `npm run sandbox:build`. `npm run sandbox` only builds the image when there is none |
+| try the start form | Start a crawl from the form on the crawls view. The stand-in runs each crawl it accepts for the scenario's `submit.runsSeconds` seconds, then completes it. Pressing again while it runs gives a 409; a URL that cannot be read gives a 400 |
 
 There are things the stand-in does not do:
 

@@ -26,13 +26,27 @@
 
     <main>
       <section id="face-crawls">
+        <!--
+          クロールを起こす欄。送るのは起点の URL と「このページだけ（maxDepth: 0）」だけで、
+          ほかは台帳の既定。URL は検査しない（台帳が 400 で言う）。答えは欄の下に 1 行で。
+        -->
+        <form id="start" class="start" autocomplete="off">
+          <label for="start-seeds">起点の URL（1 行に 1 本）</label>
+          <textarea id="start-seeds" rows="2" spellcheck="false" placeholder="https://example.com/"></textarea>
+          <div class="start-row">
+            <label><input type="radio" name="start-depth" id="start-page" checked /> このページだけ</label>
+            <label><input type="radio" name="start-depth" id="start-follow" /> リンクを辿る（台帳の既定）</label>
+            <button type="submit" id="start-go" disabled>起こす</button>
+          </div>
+          <p id="start-answer" class="start-answer" hidden></p>
+        </form>
         <table>
           <thead>
             <tr>
               <th>状態</th>
               <th>id</th>
               <th>起こした人</th>
-              <th>種</th>
+              <th>起点</th>
               <th class="num">撮れた</th>
               <th class="num">見つけた</th>
               <th class="num">WACZ</th>
