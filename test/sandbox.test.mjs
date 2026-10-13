@@ -16,6 +16,8 @@ import {
   idOf,
   readingLastGood,
   signedUrlOf,
+  submitCrawl,
+  submittedRow,
 } from "../sandbox/fake-ledger.mjs";
 
 const scenario = JSON.parse(readFileSync(new URL("../sandbox/scenario.json", import.meta.url), "utf8"));
@@ -53,6 +55,72 @@ test("クロールの 1 行は、台帳の /api/crawls と同じ欄を持つ", (
   for (const c of scenario.crawls) {
     assert.deepEqual(Object.keys(crawlRow(c, NOW)).sort(), LEDGER_CRAWL_KEYS, c.crawlId);
   }
+});
+
+// ── 起こす口（POST /api/crawls）。文は capture-ledger v0.57.5 の src/api/crawls.ts から写した ──
+
+const RUNS = 15;
+
+test("起こすと 202 で、受けた行が走行中として先頭に出る", () => {
+  // 台本には走行中の行が在るが、受けた行だけで数えるので塞がない
+  assert.ok(scenario.crawls.some((c) => c.state === "running"));
+  const rows = [];
+  const answer = submitCrawl(rows, { seeds: ["https://example.com/"], maxDepth: 0 }, NOW, RUNS);
+  assert.equal(answer.status, 202);
+  assert.deepEqual(Object.keys(answer.body), ["crawlId"]);
+  assert.equal(rows[0].crawlId, answer.body.crawlId);
+  const row = submittedRow(rows[0], NOW + 1000);
+  assert.equal(row.state, "running");
+  assert.equal(row.finishedAt, null);
+  assert.equal(row.startedAt, "2026-10-12T12:00:00.000Z");
+});
+
+test("走っている間の 2 本目は 409 で、塞いでいる行を名指す", () => {
+  const rows = [];
+  const first = submitCrawl(rows, { seeds: ["https://example.com/"] }, NOW, RUNS);
+  const second = submitCrawl(rows, { seeds: ["https://example.org/"] }, NOW + 5000, RUNS);
+  assert.equal(second.status, 409);
+  assert.deepEqual(second.body, {
+    error: "a crawl is already in progress",
+    crawlId: first.body.crawlId,
+    startedAt: "2026-10-12T12:00:00.000Z",
+  });
+  assert.equal(rows.length, 1, "断った本は行にしない");
+});
+
+test("runsSeconds を過ぎると完走になり、次を受ける", () => {
+  const rows = [];
+  submitCrawl(rows, { seeds: ["https://example.com/", "https://example.com/docs/"] }, NOW, RUNS);
+  const done = submittedRow(rows[0], NOW + RUNS * 1000);
+  assert.equal(done.state, "succeeded");
+  assert.equal(done.stopReason, "completed");
+  assert.equal(done.finishedAt, "2026-10-12T12:00:15.000Z");
+  assert.equal(done.pagesCaptured, 2);
+  assert.equal(stateOf(done).text, "完走");
+  const next = submitCrawl(rows, { seeds: ["https://example.org/"] }, NOW + RUNS * 1000, RUNS);
+  assert.equal(next.status, 202);
+  assert.equal(rows[0].crawlId, next.body.crawlId, "新しい順の先頭");
+});
+
+test("読めない起点・空の起点・seeds の無い body は、台帳と同じ文で 400", () => {
+  const rows = [];
+  const say = (body) => submitCrawl(rows, body, NOW, RUNS);
+  assert.deepEqual(say({}), { status: 400, body: { error: "provide exactly one of seeds or fromTargets" } });
+  assert.deepEqual(say({ seeds: [] }), { status: 400, body: { error: "seeds must not be empty" } });
+  for (const seed of ["ftp://example.com/", "not a url", "example.com"]) {
+    assert.deepEqual(say({ seeds: ["https://example.com/", seed] }), {
+      status: 400,
+      body: { error: "every seed must be an http(s) URL" },
+    });
+  }
+  assert.equal(rows.length, 0, "断った本は行にしない");
+});
+
+test("受けた行も、台帳の /api/crawls と同じ欄を持つ", () => {
+  const rows = [];
+  submitCrawl(rows, { seeds: ["https://example.com/"] }, NOW, RUNS);
+  assert.deepEqual(Object.keys(submittedRow(rows[0], NOW)).sort(), LEDGER_CRAWL_KEYS);
+  assert.deepEqual(Object.keys(submittedRow(rows[0], NOW + RUNS * 1000)).sort(), LEDGER_CRAWL_KEYS);
 });
 
 test("時刻は台本の何秒前から組み、走行中は終わりが無い", () => {
