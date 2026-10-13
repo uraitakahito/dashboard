@@ -16,8 +16,8 @@ The difference from [capture-ledger](https://github.com/uraitakahito/capture-led
 that starts crawls and records what came back) is that nothing here lacks a sensible default.
 capture-ledger requires values that are only known after something has run, such as the ids of
 OpenFGA (the authorization service), so it needs a `.env`. This screen only has an identity and
-destinations: the identity is fetched from the issuer at every start, and the destinations are
-fixed loopback addresses. There are no secrets.
+destinations: the access token for that identity is fetched from the issuer when needed, and the
+destinations are fixed loopback addresses. There are no secrets.
 
 ## Environment variables
 
@@ -38,7 +38,7 @@ you add a variable, change all three.
 
 ### The identity is a convenience, not a protection
 
-The screen gets its token from the development issuer's `POST /token`, using the names in
+The screen gets its access token from the development issuer's `POST /token`, using the names in
 `DASHBOARD_SUBJECT` and `DASHBOARD_ORGANIZATIONS`. The development issuer hands out a token for
 any name it is asked for. Change the name here and you see what that name may see. That is why
 this screen is not a boundary, and why it never leaves loopback.

@@ -25,7 +25,7 @@ checks a WACZ rule by rule).
 ```mermaid
 flowchart LR
   B["Browser"] -->|"screen · /api/* · /wacz/*"| D["dashboard"]
-  D -->|"gets an identity<br/>POST /token"| I["development issuer"]
+  D -->|"gets an access token<br/>POST /token"| I["development issuer"]
   D -->|"passes /api/* through"| L["capture-ledger API"]
   D -->|"hands over one signed URL"| V["wacz-validator daemon"]
   V -->|"reads with Range"| S[("seaweedfs store")]
@@ -33,16 +33,16 @@ flowchart LR
   B -.->|"link to the run"| W["Windmill"]
 ```
 
-The browser only ever talks to dashboard (same origin). dashboard gets an identity token from the
-development issuer and passes `/api/*` straight through to the ledger. For validating a WACZ and
-reading its contents, it asks the ledger to sign a URL and hands that URL to the daemon, which
+The browser only ever talks to dashboard (same origin). dashboard gets an access token from the
+development issuer and passes `/api/*` straight through to the ledger with it. For validating a WACZ
+and reading its contents, it asks the ledger to sign a URL and hands that URL to the daemon, which
 reads the archive itself. replay and Windmill are only linked to from the rows.
 
 ## Promises
 
-- **It holds no secrets.** The token it presents to the ledger is fetched from the development
-  issuer's `POST /token` every time it starts. `.env` only says who you look as and where to look;
-  there is nowhere to put a key or a token.
+- **It holds no secrets.** The access token it presents to the ledger is fetched from the
+  development issuer's `POST /token` when needed. `.env` only says who you look as and where to
+  look; there is nowhere to put a key or a token.
 - **So it is not a boundary.** The development issuer hands out a token for any name it is asked
   for. The identity here is a convenience, not a protection, and the screen says so in its
   header.
