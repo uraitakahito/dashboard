@@ -18,7 +18,8 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env --env-file-if-exists=.env.local src/server.mjs",
     "test": "node --test",
-    "check": "node --check src/server.mjs && node --check src/lib.mjs && node --check src/wacz.mjs && ! grep -q innerHTML public/*.js && node --test",
+    "check": "node --check src/server.mjs && node --check src/lib.mjs && node --check src/wacz.mjs && ! grep -q innerHTML public/*.js && node --test && npm run check:terms",
+    "check:terms": "node scripts/check-terms.mjs",
     "sandbox": "(container image inspect sandbox-validator:latest >/dev/null 2>&1 || npm run sandbox:build) && container-compose up -d && node --watch --env-file=sandbox/sandbox.env src/server.mjs",
     "sandbox:build": "container build --target daemon -t sandbox-validator:latest ../wacz-validator",
     "sandbox:down": "container-compose down",
