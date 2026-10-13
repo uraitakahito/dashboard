@@ -44,8 +44,8 @@ origin call it) headers (`OPTIONS /api/archives` is a 404). Since the browser
 cannot call it directly, the server relays it to make it same-origin.
 
 - The path and query go through unchanged, as a GET (the screen only reads).
-- The identity token (Bearer) is attached. If the server does not have one yet, it first gets
-  one from the development issuer.
+- The access token is attached as `Authorization: Bearer`. If the server does not have one yet, it
+  first gets one from the development issuer.
 - **On a 401 it gets a new token and retries once.** It does not track the token's lifetime:
   restarting the issuer changes its keys, so a clock that says "still valid" cannot be trusted.
   A 401 says both "expired" and "the keys changed" in the same way.

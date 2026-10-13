@@ -107,6 +107,9 @@ npm run site:check          # push の前に
   frontmatter の中のリンクだけはそこを通らないので、`/dashboard/…` と書きます。
 - **日本語は、句読点の後で改行する。**
   文の途中で改行すると、表示で字の間に空白が出ます。
+- **「名乗り」は、誰として見るかにだけ使う。**
+  issuer が返す物はアクセストークンと書きます（英語版は access token）。
+  2 つを混ぜた形は、`npm run check` の中の `scripts/check-terms.mjs` が見張ります。
 
 ## リリースと公開
 

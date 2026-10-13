@@ -111,6 +111,9 @@ npm run site:check          # before pushing
   write those as `/dashboard/…`.
 - **In Japanese, break lines after punctuation.** A line break in the middle of a sentence shows
   up as a space between characters.
+- **In the Japanese pages, 名乗り means only who you look as.** What the issuer returns is an access
+  token (アクセストークン). The forms that mixed the two up are watched by
+  `scripts/check-terms.mjs`, which `npm run check` runs.
 
 ## Releasing and publishing
 
