@@ -34,9 +34,10 @@ flowchart LR
 ```
 
 The browser only ever talks to dashboard (same origin). dashboard gets an access token from the
-development issuer and passes `/api/*` straight through to the ledger with it. For validating a WACZ
-and reading its contents, it asks the ledger to sign a URL and hands that URL to the daemon, which
-reads the archive itself. replay and Windmill are only linked to from the rows.
+development issuer and passes `/api/*` straight through to the ledger with it. The only write is
+`POST /api/crawls`, sent the same way when you start a crawl from the form on the crawls view. For
+validating a WACZ and reading its contents, it asks the ledger to sign a URL and hands that URL to
+the daemon, which reads the archive itself. replay and Windmill are only linked to from the rows.
 
 ## Promises
 
