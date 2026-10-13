@@ -15,7 +15,7 @@ cp -n .env.example .env    # 要る行のコメントを外す
 
 [capture-ledger](https://github.com/uraitakahito/capture-ledger)（クロールを起こし、撮れたものを記録する台帳）と違うのは、ここには既定値を持てない値が 1 つも無いからです。
 capture-ledger は、OpenFGA（認可のサービス）の id のように「走らせてみないと決まらない値」を必須で持つので、`.env` が要ります。
-こちらが持つのは名乗りと宛先だけで、名乗りは起動のたびに issuer から取り、宛先は loopback の決め打ちで足ります。
+こちらが持つのは名乗り（誰として見るか）と宛先だけで、アクセストークンは要るときに issuer から取得し、宛先は loopback の決め打ちで足ります。
 秘密は 1 つもありません。
 
 ## 環境変数
@@ -37,7 +37,7 @@ capture-ledger は、OpenFGA（認可のサービス）の id のように「走
 
 ### 名乗りは便利さで、守りではない
 
-画面は `DASHBOARD_SUBJECT` と `DASHBOARD_ORGANIZATIONS` の名前で、開発用 issuer の `POST /token` からトークンを取ります。
+画面は `DASHBOARD_SUBJECT` と `DASHBOARD_ORGANIZATIONS` の名前で、開発用 issuer の `POST /token` からアクセストークンを取得します。
 開発用 issuer は、頼まれれば誰の名前でも出します。
 ここで名前を変えれば、その名前として見えるものが見えます。
 だからこの画面は境界ではなく、loopback の外に出しません。

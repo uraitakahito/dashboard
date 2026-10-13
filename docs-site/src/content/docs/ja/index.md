@@ -21,7 +21,7 @@ dashboard は、その 4 枚を跨いだ像を台帳の API から 1 枚に組�
 ```mermaid
 flowchart LR
   B["ブラウザ"] -->|"画面・/api/*・/wacz/*"| D["dashboard"]
-  D -->|"名乗りを取る<br/>POST /token"| I["開発用の issuer"]
+  D -->|"アクセストークンを取得<br/>POST /token"| I["開発用の issuer"]
   D -->|"/api/* を素通し"| L["capture-ledger の API"]
   D -->|"署名付き URL を<br/>1 本だけ渡す"| V["wacz-validator の daemon"]
   V -->|"Range で読む"| S[("seaweedfs の store")]
@@ -30,15 +30,15 @@ flowchart LR
 ```
 
 ブラウザが話す相手は dashboard だけです（同一オリジン）。
-dashboard は開発用の issuer から名乗りのトークンを取り、`/api/*` をそのまま台帳へ通します。
+dashboard は開発用の issuer からアクセストークンを取得し、それを付けて `/api/*` をそのまま台帳へ通します。
 WACZ の検証と中身は、台帳に署名してもらった URL を daemon に渡して読ませます。
 replay と Windmill へは、画面の行からリンクで飛ぶだけです。
 
 ## 約束
 
 - **秘密を持たない。**
-  台帳へ名乗るトークンは、開発用 issuer の `POST /token` から起動のたびに取ります。
-  `.env` に書くのは「誰として見るか」と「どこを見るか」だけで、鍵にも token にも置き場がありません。
+  台帳に示すアクセストークンは、開発用 issuer の `POST /token` から要るときに取得します。
+  `.env` に書くのは「誰として見るか」と「どこを見るか」だけで、鍵にもトークンにも置き場がありません。
 - **そのぶん、境界ではない。**
   開発用 issuer は、頼まれれば誰の名前でもトークンを出します。
   ここの名乗りは便利さであって守りではなく、画面もそう書いています（「開発用の名乗りです」）。
