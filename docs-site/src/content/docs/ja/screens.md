@@ -48,9 +48,6 @@ description: 4 つの面に何が並ぶか —— クロール・アーカイブ
 `succeeded` には、全部を辿り終えた完走と、深さや枚数の上限で止めた打ち切りが混ざっています。
 画面は `stopReason` と合わせて「完走」「打ち切り (深さ)」のように言い分け、知らない `stopReason` は括弧に入れてそのまま見せます。
 
-2026-09-21 の実機の例では、68 本のうち `succeeded` / `max_depth` が 41・`failed` が 22・`succeeded` / `completed` が 4 で、`succeeded` なのに `stopReason` が `failed` の行が 1 本ありました。
-`state` だけを描くと、42 本を取り違えます。
-
 言い分けの規則は `public/format.js` の `stateOf` で、`test/format.test.mjs` が固定しています。
 ブラウザが読むのと同じファイルを試験も読むので、写しが腐りません。
 

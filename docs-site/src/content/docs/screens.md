@@ -51,10 +51,6 @@ crawls that stopped at the depth or page limit. The screen words them apart usin
 (完走 for completed, 打ち切り for stopped at a limit), and shows an unknown `stopReason` as it
 is, in parentheses.
 
-In an example from the real stack on 2026-09-21, of 68 crawls, 41 were `succeeded` /
-`max_depth`, 22 were `failed`, 4 were `succeeded` / `completed`, and 1 row was `succeeded` with a
-`stopReason` of `failed`. Drawing `state` alone would get 42 of them wrong.
-
 The wording rules are `stateOf` in `public/format.js`, pinned by `test/format.test.mjs`. The
 tests read the same file the browser reads, so there is no copy to rot.
 
