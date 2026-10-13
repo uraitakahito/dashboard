@@ -194,6 +194,81 @@ tr.head {
   cursor: pointer;
 }
 
+/* 起こした 1 本（409 なら塞いでいる 1 本）。描き直しのたびに id から付け直す。 */
+tr.head.spot td {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+tr.head.spot td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* ── 起こす欄（クロールの面の上） ───────────────────────────── */
+.start {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 720px;
+  margin: 14px 0 6px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.start > label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.start textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  color: var(--ink);
+  background: var(--ground);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 6px 8px;
+  resize: vertical;
+}
+
+.start textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.start-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  font-size: 13px;
+}
+
+.start-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+#start-go {
+  font-weight: 600;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+#start-go:disabled {
+  color: var(--muted);
+  border-color: var(--line);
+  cursor: default;
+}
+
+.start-answer {
+  margin: 0;
+  font-size: 12.5px;
+  white-space: normal;
+}
+
 footer {
   padding: 12px 20px 28px;
   color: var(--muted);
