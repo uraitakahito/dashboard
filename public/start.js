@@ -8,23 +8,49 @@
  * 片方だけが変わった日に、画面が通すのに台帳が断る（または逆）形になる。
  */
 
+/** 走らせるものの欄が、何も選んでいない形（目録が空で、その場の JS も無い）。 */
+const NOTHING_CHOSEN = { catalog: [], picked: [], inline: { name: "", phase: "behavior", source: "" } };
+
 /**
- * 欄から台帳へ送る body。空行を落とすだけ。
+ * 走らせるもの（台帳の `scripts`）。**既定のまま —— 目録を全部選び、その場の JS が空 —— なら
+ * 送らない**（`undefined`）。台帳の既定（有効な各 id の最新版）と、目録が空のときの 400 を生かす。
+ *
+ * 送るときは、その場の JS を先に、選んだ目録を目録の並び（`catalog` の順）で。全部外せば `[]` ——
+ * 「何も走らせない」。source は削らない —— 台帳が打つ sha256 は、書いたバイト列の物。名前は前後の
+ * 空白だけ落とす。綴りは検査しない（台帳が 400 で言う）。
+ */
+export const scriptsOf = ({ catalog, picked, inline }) => {
+  const written = inline.source.trim() !== "";
+  if (!written && picked.length === catalog.length) return undefined;
+  return [
+    ...(written
+      ? [{ inline: { name: inline.name.trim(), phase: inline.phase, source: inline.source } }]
+      : []),
+    ...catalog.filter((id) => picked.includes(id)).map((id) => ({ catalog: id })),
+  ];
+};
+
+/**
+ * 欄から台帳へ送る body。起点は空行を落とすだけ。
  *
  * 「このページだけ」なら `maxDepth: 0` を足す。「リンクを辿る」なら何も足さない ——
- * 深さも枚数も台帳の既定に任せ、既定の数を画面に写さない。
+ * 深さも枚数も台帳の既定に任せ、既定の数を画面に写さない。走らせるものは `scriptsOf`。
  */
-export const startBody = (text, onlyThisPage) => ({
-  seeds: text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line !== ""),
-  ...(onlyThisPage && { maxDepth: 0 }),
-});
+export const startBody = (text, onlyThisPage, run = NOTHING_CHOSEN) => {
+  const scripts = scriptsOf(run);
+  return {
+    seeds: text
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line !== ""),
+    ...(onlyThisPage && { maxDepth: 0 }),
+    ...(scripts !== undefined && { scripts }),
+  };
+};
 
 /**
  * 答えを 1 行で言う。**台帳の文は言い換えない** —— `message` を先に、無ければ `error` を拾い、
- * `hint` があれば添える。
+ * 名指した `ids` と `hint` があれば添える。
  *
  * `message` が先なのは、Fastify が自分で返す答え（route が無い 404、schema の 400）が
  * `error: "Not Found"` と `message: "Route POST:/api/crawls not found"` の両方を持ち、
@@ -40,6 +66,8 @@ export const startAnswer = (status, answer) => {
   }
   const said = answer.message ?? answer.error ?? "答えに文がありません";
   if (status === 0) return { kind: "bad", text: `この画面自身に届きません（${said}）` };
+  // 台帳が名指した id（知らない目録の id・重ね）。文の後、hint の前に
+  const ids = Array.isArray(answer.ids) ? `: ${answer.ids.join(", ")}` : "";
   const hint = typeof answer.hint === "string" ? `（${answer.hint}）` : "";
-  return { kind: "bad", text: `${String(status)} —— ${said}${hint}` };
+  return { kind: "bad", text: `${String(status)} —— ${said}${ids}${hint}` };
 };

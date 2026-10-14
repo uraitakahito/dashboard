@@ -141,6 +141,8 @@ const ranOf = (scripts) => {
         ? `目録 v${String(script.version)}・${script.phase}`
         : `その場・${script.phase}`;
     item.append(tag("span", script.id, "mono"), tag("span", where, "muted"));
+    // その場の JS は、直して撮り直せるように欄へ戻せる（目録の物は目録に在る）
+    if (script.inline !== undefined) item.append(button("欄に戻す", () => putBack(script.inline)));
     list.append(item);
   }
   const box = document.createElement("div");
@@ -248,6 +250,80 @@ const drawCrawls = () => {
 };
 
 // ── 起こす ─────────────────────────────────────────────────────────
+/** 目録の id（目録の面と同じ並び）。チェックはこの並びで描き、送るときもこの並び。 */
+let catalogIds = [];
+
+/** 外した目録の id。**引き直しても覚えておく。** 新しく現れた id は、選んだ状態で出る。 */
+const unpicked = new Set();
+
+/** 最後に描いた目録の形（id と版）。同じなら描き直さない。 */
+let catalogKey;
+
+/**
+ * 目録のチェックを描く。**目録が変わったときだけ描き直す** —— 一覧は走行中なら 2 秒ごとに
+ * 引くので、毎回作り直すと、押そうとしているチェックが手の下で入れ替わる。
+ */
+const drawPicks = (scripts) => {
+  const key = scripts.map((s) => `${s.id}@${String(s.version)}`).join(",");
+  if (key === catalogKey) return;
+  catalogKey = key;
+  catalogIds = scripts.map((s) => s.id);
+  const box = $("start-picks");
+  box.replaceChildren();
+  if (scripts.length === 0) {
+    box.append(tag("span", "目録が空です（目録の面を見てください）", "muted"));
+    return;
+  }
+  for (const script of scripts) {
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = !unpicked.has(script.id);
+    input.onchange = () => {
+      if (input.checked) unpicked.delete(script.id);
+      else unpicked.add(script.id);
+    };
+    const label = document.createElement("label");
+    label.className = "pick";
+    label.append(input, tag("span", `${script.id} v${String(script.version)}`, "mono"));
+    box.append(label);
+  }
+};
+
+/** 欄の「走らせるもの」。組み立ては `start.js` の `scriptsOf`（試験から呼べる）。 */
+const runOf = () => ({
+  catalog: catalogIds,
+  picked: catalogIds.filter((id) => !unpicked.has(id)),
+  inline: {
+    name: $("start-inline-name").value,
+    phase: $("start-inline-preload").checked ? "preload" : "behavior",
+    source: $("start-inline-source").value,
+  },
+});
+
+/** その場の JS を欄に戻す。直して撮り直すため。**起点と目録の選びは触らない。** */
+const putBack = ({ name, phase, source }) => {
+  $("start-inline-name").value = name;
+  $(phase === "preload" ? "start-inline-preload" : "start-inline-behavior").checked = true;
+  $("start-inline-source").value = source;
+  $("start").scrollIntoView({ block: "nearest" });
+  $("start-inline-source").focus();
+};
+
+/**
+ * ファイルを読む。**ブラウザの中で読むだけ**で、サーバには何も足さない。capture-scripts の中で
+ * 型の補完を効かせて書いたファイルを、そのまま欄に入れるため。名前が空なら、拡張子を除いた
+ * ファイル名を入れる（綴りは台帳が見る）。
+ */
+const readFileIntoForm = async () => {
+  const file = $("start-inline-file").files?.[0];
+  if (file === undefined) return;
+  $("start-inline-source").value = await file.text();
+  if ($("start-inline-name").value.trim() === "") {
+    $("start-inline-name").value = file.name.replace(/\.[^.]*$/, "");
+  }
+  $("start-inline-file").value = ""; // 同じファイルをもう 1 度読めるように
+};
+
 /** 空の欄では押せない。送らないことを、押す前に見せる。 */
 const syncStart = () => {
   $("start-go").disabled = startBody($("start-seeds").value, true).seeds.length === 0;
@@ -259,7 +335,7 @@ const syncStart = () => {
  */
 const startCrawl = async (event) => {
   event.preventDefault();
-  const body = startBody($("start-seeds").value, $("start-page").checked);
+  const body = startBody($("start-seeds").value, $("start-page").checked, runOf());
   if (body.seeds.length === 0) return;
   $("start-go").disabled = true;
   let status = 0;
@@ -280,6 +356,7 @@ const startCrawl = async (event) => {
   line.hidden = false;
   line.className = `start-answer state ${said.kind}`;
   line.textContent = said.text;
+  // 起点は消す。その場の JS は残す —— 直して撮り直すことが多い
   if (status === 202) $("start-seeds").value = "";
   syncStart();
   // 202 は起こした 1 本、409 は塞いでいる 1 本。どちらも印を付けて、すぐ引き直す
@@ -291,6 +368,7 @@ const startCrawl = async (event) => {
 
 $("start-seeds").addEventListener("input", syncStart);
 $("start").addEventListener("submit", (event) => void startCrawl(event));
+$("start-inline-file").addEventListener("change", () => void readFileIntoForm());
 
 // ── 検証 ───────────────────────────────────────────────────────────
 /**
@@ -807,6 +885,7 @@ const refresh = async () => {
     refreshOpened();
     drawArchives();
     drawScripts(s.scripts);
+    drawPicks(s.scripts);
     trouble(undefined);
     $("pulse").textContent =
       `クロール ${String(crawls.length)} 本 ／ アーカイブ ${String(archives.length)} 本 ` +
