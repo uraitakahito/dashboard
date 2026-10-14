@@ -40,25 +40,46 @@ WACZ files and the time taken. "run ↗" at the right end opens the Windmill run
 - **run ↗ is the run of the last level that was handed over.** The link is built from the id of
   `lastJob` that the ledger returns, plus the Windmill origin and workspace the server hands out
   through `/healthz`. Rows where the ledger has no `lastJob` get no link.
-- **Click a row to see the URLs that could not be fetched, and why.** Only then does the screen
-  fetch `/api/crawls/:id`. It lists what the ledger returns, which is not necessarily every page
-  that failed. If nothing failed, it says so and lists the seed URLs.
+- **Click a row to see why it failed, what ran in the page, and the URLs that could not be
+  fetched.** Only then does the screen fetch `/api/crawls/:id`. The ledger's `error` comes first,
+  in its own words: a crawl that failed at the compile step captured nothing, so its list of failed
+  pages is empty and would otherwise read like a success. Next is what ran, in the order it ran:
+  catalog scripts with their version, and scripts written in the form marked その場 (written on
+  the spot), each with a 欄に戻す (back to the form) button. Last are the pages that failed, as many
+  as the ledger returns; if none did, it says so and lists the seed URLs.
+- **An opened row stays open.** The table is rebuilt on every fetch, so the screen remembers the
+  open rows by id and opens them again from the last answer. It fetches a row again only while the
+  crawl is running or when its state has changed.
 
 ### Starting a crawl from the form above
 
 The form above the table starts a crawl. Write the seed URLs one per line, choose このページだけ
 (this page only) or リンクを辿る (follow links, the ledger's default), and press 起こす (start).
+Under 走らせるもの (what runs), tick the catalog scripts that should run, and add a script of your
+own if you need one.
 
-- **It sends the seed URLs, and whether the depth is 0, nothing else.** このページだけ sends
-  `maxDepth: 0`; リンクを辿る adds nothing (the depth and the page limit are the ledger's
-  defaults). The screen does not check the URLs; if one cannot be read, the ledger says so with a
-  400.
+- **It sends the seed URLs, whether the depth is 0, and what runs — the last only when it differs
+  from the default.** このページだけ sends `maxDepth: 0`; リンクを辿る adds nothing (the depth and
+  the page limit are the ledger's defaults). With every catalog script ticked and no script of your
+  own, the form sends no `scripts`, so the ledger's default applies and an empty catalog is still a
+  400. Otherwise it sends `scripts`: your script first, then the ticked catalog scripts in catalog
+  order; unticking all of them sends `[]`, which runs nothing. The screen checks neither the URLs
+  nor the script's name; the ledger says what is wrong with a 400, naming the ids it refused.
+- **A script of your own is type-checked as strict TypeScript** at the first level's compile step,
+  and a single error fails the crawl; open its row to read the diagnostics. Wrap it in an IIFE,
+  give the elements you look up a type, and use `?.`; start it with `// @ts-nocheck` to skip the
+  type check. Do not write `export`: the page then gets a syntax error and nothing runs.
+  読み込みの後 (after load) runs once in the main frame; 遷移の前 (before navigation) runs in every
+  frame on every navigation and has no `__bh`. ファイルを読む (read a file) loads a file into the
+  form, in the browser only.
+- **After a 202 the seed URLs are cleared and your script is kept,** since the usual next step is
+  to fix it and run again.
 - **The answer is one line under the form.** When the crawl is accepted, its row gets a mark
   (it is running, so the footer starts polling every 2 seconds). If a crawl is already running,
   the answer is a 409 and the row in the way gets the mark (the ledger runs one crawl at a time,
   overall). Anything else is shown in the ledger's own words.
-- **The row is not opened.** The table is rebuilt on every fetch, so an opened row would vanish
-  at the next one. The mark is remembered by id and put back each time the table is redrawn.
+- **The row gets a mark, and is not opened.** The mark is remembered by id and put back each time
+  the table is redrawn.
 
 It is sent through `POST /api/crawls` in [Routes](/routes/).
 
@@ -89,7 +110,8 @@ The WACZ files you can see, newest capture first.
 ## Catalog
 
 The scripts that run inside the pages being captured: their id, version, the point in the page
-where they run (`phase`), and the start of their sha256.
+where they run (`phase`), and the start of their sha256. The same list appears as checkboxes under
+走らせるもの in the crawl form.
 
 **An empty catalog is shown in red.** The capture server (BrowserHive) does not bring any scripts
 of its own, so with an empty catalog nothing runs inside the page. Nothing scrolls and nothing

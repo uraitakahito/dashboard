@@ -112,25 +112,104 @@ const runHref = (crawl) =>
     ? undefined
     : `${settings.windmillOrigin}/run/${crawl.lastJob.id}?workspace=${settings.windmillWorkspace}`;
 
-/** 行を開くと、取れなかった URL と理由が出る。**開いたときだけ `:id` を引く。** */
-const openDetail = async (crawl, after) => {
+/**
+ * 開いている行。**id で覚え、描き直しのたびに開き直す** —— 表は引くたびに作り直すので、
+ * DOM に置いただけの行は次の引きで消える（走行中なら 2 秒で）。値は最後に引いた
+ * `/api/crawls/:id` の答え（まだ引いていなければ undefined、引けなければ Error）。
+ */
+const opened = new Map();
+
+const failuresText = (one) => {
+  const failures = one.failures ?? [];
+  return failures.length === 0
+    ? `取れなかったページはありません（起点: ${one.seeds.join(", ")}）`
+    : failures.map((f) => `${f.url} — ${f.reason ?? "理由なし"}`).join("\n");
+};
+
+/**
+ * 走らせたもの。**並びが実行順。** 目録の物は版を、その場で書いた物は「その場」と出す ——
+ * その場の物にだけ、台帳は頼まれた要素（`inline`）を返す。
+ */
+const ranOf = (scripts) => {
+  if (scripts.length === 0) return tag("p", "走らせたもの: なし");
+  const list = document.createElement("ol");
+  list.className = "ran";
+  for (const script of scripts) {
+    const item = document.createElement("li");
+    const where =
+      script.inline === undefined
+        ? `目録 v${String(script.version)}・${script.phase}`
+        : `その場・${script.phase}`;
+    item.append(tag("span", script.id, "mono"), tag("span", where, "muted"));
+    // その場の JS は、直して撮り直せるように欄へ戻せる（目録の物は目録に在る）
+    if (script.inline !== undefined) item.append(button("欄に戻す", () => putBack(script.inline)));
+    list.append(item);
+  }
+  const box = document.createElement("div");
+  box.append(tag("p", "走らせたもの（並びが実行順）"), list);
+  return box;
+};
+
+/**
+ * 1 本の詳しい所。**失敗の文が先** —— compile の段で落ちたクロールは 1 枚も撮っていないので
+ * failures が空で、それだけを出すと「取れなかったページはありません」と、成功のように読める。
+ * 台帳の文は言い換えない。
+ */
+const detailOf = (one) => [
+  ...(one.error === null || one.error === undefined
+    ? []
+    : [tag("p", `失敗の文: ${one.error}`, "state bad pre")]),
+  ranOf(one.scripts ?? []),
+  tag("p", failuresText(one), "pre"),
+];
+
+/** 開いた行の下に出す 1 行。最後の答えで、引き直しを待たずに描く。 */
+const detailRow = (crawl) => {
   const row = document.createElement("tr");
   row.className = "detail";
+  row.dataset.crawl = crawl.crawlId;
   const td = document.createElement("td");
   td.colSpan = 9;
-  td.textContent = "読み込み中…";
+  const one = opened.get(crawl.crawlId);
+  if (one === undefined) td.textContent = "読み込み中…";
+  else if (one instanceof Error) td.replaceChildren(tag("p", failedText(one), "state bad"));
+  else td.replaceChildren(...detailOf(one));
   row.append(td);
-  after.after(row);
+  return row;
+};
+
+/** 1 本を引いて覚え、その行だけを描き直す。**開いたときと、変わりうるときだけ引く。** */
+const loadDetail = async (crawlId) => {
+  let one;
   try {
-    const one = await api(`/api/crawls/${crawl.crawlId}`);
-    const failures = one.failures ?? [];
-    td.textContent =
-      failures.length === 0
-        ? `取れなかったページはありません（起点: ${one.seeds.join(", ")}）`
-        : failures.map((f) => `${f.url} — ${f.reason ?? "理由なし"}`).join("\n");
-    td.style.whiteSpace = "pre-wrap";
+    one = await api(`/api/crawls/${crawlId}`);
   } catch (err) {
-    td.textContent = failedText(err);
+    one = err instanceof Error ? err : new Error(String(err));
+  }
+  if (!opened.has(crawlId)) return; // 待っている間に閉じた
+  opened.set(crawlId, one);
+  const crawl = crawls.find((c) => c.crawlId === crawlId);
+  const row = document.querySelector(`tr.detail[data-crawl="${crawlId}"]`);
+  if (crawl !== undefined && row !== null) row.replaceWith(detailRow(crawl));
+};
+
+/**
+ * 引き直しの後、開いている行の答えを新しくする。**引くのは、まだ答えが無い・引けなかった・
+ * 走行中・状態が変わった行だけ** —— 終わった行は 1 度で足りる。1 ページ目から外れた行は忘れる。
+ */
+const refreshOpened = () => {
+  for (const [crawlId, one] of opened) {
+    const crawl = crawls.find((c) => c.crawlId === crawlId);
+    if (crawl === undefined) {
+      opened.delete(crawlId);
+      continue;
+    }
+    const stale =
+      one === undefined ||
+      one instanceof Error ||
+      crawl.state === "running" ||
+      one.state !== crawl.state;
+    if (stale) void loadDetail(crawlId);
   }
 };
 
@@ -154,19 +233,97 @@ const drawCrawls = () => {
     row.append(cell(String(crawl.waczCount), "num mono"));
     row.append(cell(took(crawl), "num mono"));
     row.append(linkCell(runHref(crawl), "run ↗"));
-    let open = false;
     row.onclick = (event) => {
       if (event.target instanceof HTMLAnchorElement) return;
-      const next = row.nextElementSibling;
-      if (open && next?.classList.contains("detail")) next.remove();
-      else void openDetail(crawl, row);
-      open = !open;
+      if (opened.delete(crawl.crawlId)) {
+        if (row.nextElementSibling?.classList.contains("detail")) row.nextElementSibling.remove();
+        return;
+      }
+      opened.set(crawl.crawlId, undefined);
+      row.after(detailRow(crawl));
+      void loadDetail(crawl.crawlId);
     };
     body.append(row);
+    // 開いていた行は、最後の答えで開き直す（表は引くたびに作り直す）
+    if (opened.has(crawl.crawlId)) body.append(detailRow(crawl));
   }
 };
 
 // ── 起こす ─────────────────────────────────────────────────────────
+/** 目録の id（目録の面と同じ並び）。チェックはこの並びで描き、送るときもこの並び。 */
+let catalogIds = [];
+
+/** 外した目録の id。**引き直しても覚えておく。** 新しく現れた id は、選んだ状態で出る。 */
+const unpicked = new Set();
+
+/** 最後に描いた目録の形（id と版）。同じなら描き直さない。 */
+let catalogKey;
+
+/**
+ * 目録のチェックを描く。**目録が変わったときだけ描き直す** —— 一覧は走行中なら 2 秒ごとに
+ * 引くので、毎回作り直すと、押そうとしているチェックが手の下で入れ替わる。
+ */
+const drawPicks = (scripts) => {
+  const key = scripts.map((s) => `${s.id}@${String(s.version)}`).join(",");
+  if (key === catalogKey) return;
+  catalogKey = key;
+  catalogIds = scripts.map((s) => s.id);
+  const box = $("start-picks");
+  box.replaceChildren();
+  if (scripts.length === 0) {
+    box.append(tag("span", "目録が空です（目録の面を見てください）", "muted"));
+    return;
+  }
+  for (const script of scripts) {
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = !unpicked.has(script.id);
+    input.onchange = () => {
+      if (input.checked) unpicked.delete(script.id);
+      else unpicked.add(script.id);
+    };
+    const label = document.createElement("label");
+    label.className = "pick";
+    label.append(input, tag("span", `${script.id} v${String(script.version)}`, "mono"));
+    box.append(label);
+  }
+};
+
+/** 欄の「走らせるもの」。組み立ては `start.js` の `scriptsOf`（試験から呼べる）。 */
+const runOf = () => ({
+  catalog: catalogIds,
+  picked: catalogIds.filter((id) => !unpicked.has(id)),
+  inline: {
+    name: $("start-inline-name").value,
+    phase: $("start-inline-preload").checked ? "preload" : "behavior",
+    source: $("start-inline-source").value,
+  },
+});
+
+/** その場の JS を欄に戻す。直して撮り直すため。**起点と目録の選びは触らない。** */
+const putBack = ({ name, phase, source }) => {
+  $("start-inline-name").value = name;
+  $(phase === "preload" ? "start-inline-preload" : "start-inline-behavior").checked = true;
+  $("start-inline-source").value = source;
+  $("start").scrollIntoView({ block: "nearest" });
+  $("start-inline-source").focus();
+};
+
+/**
+ * ファイルを読む。**ブラウザの中で読むだけ**で、サーバには何も足さない。capture-scripts の中で
+ * 型の補完を効かせて書いたファイルを、そのまま欄に入れるため。名前が空なら、拡張子を除いた
+ * ファイル名を入れる（綴りは台帳が見る）。
+ */
+const readFileIntoForm = async () => {
+  const file = $("start-inline-file").files?.[0];
+  if (file === undefined) return;
+  $("start-inline-source").value = await file.text();
+  if ($("start-inline-name").value.trim() === "") {
+    $("start-inline-name").value = file.name.replace(/\.[^.]*$/, "");
+  }
+  $("start-inline-file").value = ""; // 同じファイルをもう 1 度読めるように
+};
+
 /** 空の欄では押せない。送らないことを、押す前に見せる。 */
 const syncStart = () => {
   $("start-go").disabled = startBody($("start-seeds").value, true).seeds.length === 0;
@@ -178,7 +335,7 @@ const syncStart = () => {
  */
 const startCrawl = async (event) => {
   event.preventDefault();
-  const body = startBody($("start-seeds").value, $("start-page").checked);
+  const body = startBody($("start-seeds").value, $("start-page").checked, runOf());
   if (body.seeds.length === 0) return;
   $("start-go").disabled = true;
   let status = 0;
@@ -199,6 +356,7 @@ const startCrawl = async (event) => {
   line.hidden = false;
   line.className = `start-answer state ${said.kind}`;
   line.textContent = said.text;
+  // 起点は消す。その場の JS は残す —— 直して撮り直すことが多い
   if (status === 202) $("start-seeds").value = "";
   syncStart();
   // 202 は起こした 1 本、409 は塞いでいる 1 本。どちらも印を付けて、すぐ引き直す
@@ -210,6 +368,7 @@ const startCrawl = async (event) => {
 
 $("start-seeds").addEventListener("input", syncStart);
 $("start").addEventListener("submit", (event) => void startCrawl(event));
+$("start-inline-file").addEventListener("change", () => void readFileIntoForm());
 
 // ── 検証 ───────────────────────────────────────────────────────────
 /**
@@ -723,8 +882,10 @@ const refresh = async () => {
     crawls = c.crawls;
     archives = a.archives;
     drawCrawls();
+    refreshOpened();
     drawArchives();
     drawScripts(s.scripts);
+    drawPicks(s.scripts);
     trouble(undefined);
     $("pulse").textContent =
       `クロール ${String(crawls.length)} 本 ／ アーカイブ ${String(archives.length)} 本 ` +

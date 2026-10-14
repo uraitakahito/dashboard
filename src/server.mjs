@@ -192,7 +192,10 @@ const sendJson = (reply, status, body) => {
   reply.end(JSON.stringify(body));
 };
 
-/** 書く口が受ける本文の上限。起点の URL を並べるだけなので、これで足りる。 */
+/**
+ * 書く口が受ける本文の上限。起点の URL と、その場で書いた JS が入る。目録の TS は大きい物でも
+ * 数 KB なので、手で書く JS ならこれで足りる。超えたら 413（台帳まで行かない）。
+ */
 const WRITE_LIMIT = 64 * 1024;
 
 class TooLarge extends Error {}

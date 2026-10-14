@@ -9,7 +9,8 @@
  * (sandbox-validator) も同じ置き場を同じ path に mount しているので、それを読める。
  *
  * `POST /api/crawls` (画面の起こす欄) にも答える。受けた行は代役が起きている間だけ在り、
- * 台本の `submit.runsSeconds` 秒走ってから完走になる (台本の行とは別に持つ)。
+ * 台本の `submit.runsSeconds` 秒走ってから完走になる (台本の行とは別に持つ)。走らせるもの
+ * (`scripts`。目録の名指しとその場の JS) も台帳と同じ形で受け、1 本の詳しい所に返す。
  *
  * 試験から関数を import できるように、server は直に走らせたときだけ立てる。
  */
@@ -60,14 +61,31 @@ export const crawlRow = (c, now) => ({
 });
 
 /**
- * /api/crawls/:id。台帳はほかの欄 (範囲・上限・走らせたスクリプトなど) も返すが、
- * 画面が読むのは seeds と failures だけなので、そこまでにしてある。
+ * /api/crawls/:id の、走らせたもの 1 本。欄は capture-ledger v0.58.0 の src/api/crawls.ts と同じ ——
+ * 目録の物は身元だけ、その場の物にだけ頼まれた要素 (`inline`) が付く。
  */
-export const crawlDetail = (c) => ({
+const detailScript = (s) => ({
+  id: s.id,
+  version: s.version,
+  phase: s.phase,
+  sha256: s.sha256,
+  jsSha256: s.jsSha256 ?? null,
+  compiledWith: s.compiledWith ?? null,
+  ...(s.inline !== undefined && { inline: s.inline }),
+});
+
+/**
+ * /api/crawls/:id。台帳はほかの欄 (範囲・上限など) も返すが、画面が読むのは seeds・
+ * error・scripts・failures なので、そこまでにしてある。受けた行は走らせたものを行に持たない
+ * (行の欄は一覧と揃えて試験が固定している) ので、`scripts` で渡す。
+ */
+export const crawlDetail = (c, scripts = c.scripts ?? []) => ({
   crawlId: c.crawlId,
   seeds: c.seeds,
   state: c.state,
   stopReason: c.stopReason ?? null,
+  error: c.error ?? null,
+  scripts: scripts.map(detailScript),
   failures: c.failures ?? [],
 });
 
@@ -97,14 +115,100 @@ const httpUrl = (raw) => {
   }
 };
 
+/** その場の JS の名前の綴り (台帳の schema と同じ。`inline-` と合わせて 64 字まで)。 */
+const INLINE_NAME = /^[a-z][a-z0-9-]*$/;
+
+/**
+ * Fastify が schema の誤りで返す本文の形 (台帳の 400 と同じ。画面は `message` を出す)。
+ * 文は台帳 v0.58.0 の実物から写した —— 要素は鍵が 1 つの object なので、誤りの場所だけが出る。
+ */
+const schemaError = (message) => ({
+  status: 400,
+  body: { statusCode: 400, code: "FST_ERR_VALIDATION", error: "Bad Request", message },
+});
+
+/** `scripts` の 1 要素の形を見る。断るなら文を返す。 */
+const elementRefusal = (element, i) => {
+  const at = `body/scripts/${String(i)}`;
+  const keys = element !== null && typeof element === "object" ? Object.keys(element) : [];
+  if (keys.some((key) => key !== "catalog" && key !== "inline")) {
+    return `${at} must NOT have additional properties`;
+  }
+  if (keys.length > 1) return `${at} must NOT have more than 1 properties`;
+  if (keys.length === 0) return `${at} must NOT have fewer than 1 properties`;
+  if ("catalog" in element) {
+    return typeof element.catalog === "string" && element.catalog !== ""
+      ? undefined
+      : `${at}/catalog must NOT have fewer than 1 characters`;
+  }
+  const { name, phase, source } = element.inline ?? {};
+  if (typeof name !== "string" || !INLINE_NAME.test(name) || name.length > 57) {
+    return `${at}/inline/name must match pattern "^[a-z][a-z0-9-]*$"`;
+  }
+  if (phase !== "behavior" && phase !== "preload") {
+    return `${at}/inline/phase must be equal to one of the allowed values`;
+  }
+  if (typeof source !== "string" || source === "") {
+    return `${at}/inline/source must NOT have fewer than 1 characters`;
+  }
+  return undefined;
+};
+
+/**
+ * 走らせるものを、台帳と同じ順で解く: 形 (schema) → 重ね → 目録に無い id。省けば目録の既定。
+ * その場の JS は `inline-<name>`・版 1 で、sha256 は source から打つ (台帳と同じ)。
+ */
+const resolveRun = (scripts, catalog) => {
+  if (scripts === undefined) return { scripts: catalog };
+  if (!Array.isArray(scripts)) return schemaError("body/scripts must be array");
+  for (const [i, element] of scripts.entries()) {
+    const refused = elementRefusal(element, i);
+    if (refused !== undefined) return schemaError(refused);
+  }
+  const ids = scripts.map((r) => ("catalog" in r ? r.catalog : `inline-${r.inline.name}`));
+  const twice = [...new Set(ids.filter((id, i) => ids.indexOf(id) !== i))];
+  if (twice.length > 0) {
+    return { status: 400, body: { error: "duplicate script ids", ids: twice } };
+  }
+  const missing = [
+    ...new Set(
+      scripts
+        .filter((r) => "catalog" in r && !catalog.some((c) => c.id === r.catalog))
+        .map((r) => r.catalog),
+    ),
+  ];
+  if (missing.length > 0) {
+    return { status: 400, body: { error: "unknown catalog scripts", ids: missing } };
+  }
+  return {
+    scripts: scripts.map((r) =>
+      "catalog" in r
+        ? catalog.find((c) => c.id === r.catalog)
+        : {
+            id: `inline-${r.inline.name}`,
+            version: 1,
+            phase: r.inline.phase,
+            sha256: createHash("sha256").update(r.inline.source, "utf8").digest("hex"),
+            inline: r.inline,
+          },
+    ),
+  };
+};
+
 /**
  * `POST /api/crawls` を真似る。受けたら `rows` の先頭に足す (新しい順)。
  *
- * 答えの文と形は capture-ledger v0.57.5 の src/api/crawls.ts から写した (試験が固定する)。
+ * 答えの文と形は capture-ledger v0.58.0 の src/api/crawls.ts から写した (試験が固定する)。
  * **走行中の 1 本は、受けた行だけで数える** —— 台本の走行中の行は飾りで、それで 409 に
  * すると何も起こせない。409 を見たいなら、走っている間にもう 1 度起こす。
+ *
+ * `catalog` は台本の目録 (既定の集合)。走らせたものは受けた行の `scripts` に持ち、
+ * 一覧の行 (`submittedRow`) には出さない。
  */
-export const submitCrawl = (rows, body, now, runsSeconds) => {
+export const submitCrawl = (rows, body, now, runsSeconds, catalog = []) => {
+  if (body !== null && typeof body === "object" && "scriptIds" in body) {
+    return schemaError("body must NOT have additional properties");
+  }
   if (!Array.isArray(body?.seeds)) {
     return { status: 400, body: { error: "provide exactly one of seeds or fromTargets" } };
   }
@@ -112,6 +216,9 @@ export const submitCrawl = (rows, body, now, runsSeconds) => {
   if (!body.seeds.every(httpUrl)) {
     return { status: 400, body: { error: "every seed must be an http(s) URL" } };
   }
+  // 走らせるものの誤りは、走行中でも 400 が先 —— 台帳は解いてから行を立て、409 は行を立てる所で出る
+  const run = resolveRun(body.scripts, catalog);
+  if (run.status !== undefined) return run;
   const running = rows.find((row) => now < row.startedAt + row.runsSeconds * 1000);
   if (running !== undefined) {
     return {
@@ -123,7 +230,13 @@ export const submitCrawl = (rows, body, now, runsSeconds) => {
       },
     };
   }
-  const row = { crawlId: randomUUID(), seeds: body.seeds, startedAt: now, runsSeconds };
+  const row = {
+    crawlId: randomUUID(),
+    seeds: body.seeds,
+    startedAt: now,
+    runsSeconds,
+    scripts: run.scripts,
+  };
   rows.unshift(row);
   return { status: 202, body: { crawlId: row.crawlId } };
 };
@@ -213,7 +326,8 @@ const handle = (req, res, raw) => {
       send(res, 400, { error: "body is not valid JSON" });
       return;
     }
-    const answer = submitCrawl(submitted, body, Date.now(), s.submit?.runsSeconds ?? 15);
+    const catalog = s.emptyCatalog === true ? [] : s.scripts;
+    const answer = submitCrawl(submitted, body, Date.now(), s.submit?.runsSeconds ?? 15, catalog);
     send(res, answer.status, answer.body);
     return;
   }
@@ -227,8 +341,14 @@ const handle = (req, res, raw) => {
   const one = /^\/api\/crawls\/([^/]+)$/.exec(pathname);
   if (req.method === "GET" && one !== null) {
     const mine = submitted.find((row) => row.crawlId === one[1]);
-    const c = mine === undefined ? s.crawls.find((x) => x.crawlId === one[1]) : submittedRow(mine, Date.now());
-    send(res, c === undefined ? 404 : 200, c === undefined ? { error: "not found" } : crawlDetail(c));
+    const detail =
+      mine === undefined
+        ? (() => {
+            const c = s.crawls.find((x) => x.crawlId === one[1]);
+            return c === undefined ? undefined : crawlDetail(c);
+          })()
+        : crawlDetail(submittedRow(mine, Date.now()), mine.scripts);
+    send(res, detail === undefined ? 404 : 200, detail ?? { error: "not found" });
     return;
   }
   if (req.method === "GET" && pathname === "/api/archives") {

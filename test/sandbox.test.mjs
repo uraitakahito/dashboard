@@ -187,11 +187,101 @@ test("同梱の台本の crawlId は、画面が出す頭の 8 字で見分け�
   assert.equal(new Set(heads).size, heads.length, heads.join(" "));
 });
 
-test("クロール 1 本は、画面が読む seeds と failures を返す", () => {
-  const failed = scenario.crawls.find((c) => c.state === "failed");
+test("クロール 1 本は、画面が読む seeds・error・scripts・failures を返す", () => {
+  const failed = scenario.crawls.find((c) => c.state === "failed" && c.failures?.length > 0);
   const detail = crawlDetail(failed);
   assert.deepEqual(detail.seeds, failed.seeds);
+  assert.equal(detail.error, failed.error);
   assert.ok(detail.failures.length > 0);
+  // 走らせたものを持たない行は、空の並び（台帳も、何も走らせなければ []）
+  assert.deepEqual(detail.scripts, []);
+});
+
+test("同梱の台本に、その場の JS で完走した行と、compile の段で落ちた行が在る", () => {
+  const withInline = scenario.crawls.filter((c) => c.scripts?.some((s) => s.inline !== undefined));
+  assert.deepEqual(withInline.map((c) => c.state).sort(), ["failed", "succeeded"]);
+  const broken = crawlDetail(withInline.find((c) => c.state === "failed"));
+  assert.match(broken.error, /compile 422 .*inline-close-banner\.ts/);
+  // 台帳と同じく、その場の物にだけ inline が付き、目録の物は身元だけ
+  assert.equal(broken.scripts[0].id, "inline-close-banner");
+  assert.equal(broken.scripts[0].inline.name, "close-banner");
+  assert.equal("inline" in broken.scripts[1], false);
+});
+
+test("scripts を受けると、その場の JS は inline- の id・版 1 で写り、1 本の詳しい所に inline ごと出る", () => {
+  const rows = [];
+  const inline = { name: "close-banner", phase: "preload", source: "x;" };
+  const answer = submitCrawl(
+    rows,
+    { seeds: ["https://example.com/"], scripts: [{ inline }, { catalog: "autofetch" }] },
+    NOW,
+    RUNS,
+    scenario.scripts,
+  );
+  assert.equal(answer.status, 202);
+  const detail = crawlDetail(submittedRow(rows[0], NOW), rows[0].scripts);
+  assert.deepEqual(
+    detail.scripts.map((s) => [s.id, s.version, s.phase]),
+    [
+      ["inline-close-banner", 1, "preload"],
+      ["autofetch", 1, "behavior"],
+    ],
+  );
+  assert.deepEqual(detail.scripts[0].inline, inline);
+  assert.equal("inline" in detail.scripts[1], false);
+  // 一覧の行には出さない（欄は台帳の一覧と揃えて固定している）
+  assert.equal("scripts" in submittedRow(rows[0], NOW), false);
+});
+
+test("走行中でも、走らせるものの誤りは 409 より先に 400 —— 台帳と同じ順", () => {
+  const rows = [];
+  submitCrawl(rows, { seeds: ["https://example.com/"] }, NOW, RUNS, scenario.scripts);
+  const busy = submitCrawl(
+    rows,
+    { seeds: ["https://example.com/"], scripts: [{ catalog: "typo-scroll" }] },
+    NOW + 1000,
+    RUNS,
+    scenario.scripts,
+  );
+  assert.equal(busy.status, 400);
+  // 形が合っていれば、走行中は 409（今までどおり）
+  const ok = submitCrawl(rows, { seeds: ["https://example.com/"], scripts: [] }, NOW + 1000, RUNS, scenario.scripts);
+  assert.equal(ok.status, 409);
+});
+
+test("scripts を省くと、目録の既定を走らせたものとして返す", () => {
+  const rows = [];
+  submitCrawl(rows, { seeds: ["https://example.com/"] }, NOW, RUNS, scenario.scripts);
+  const detail = crawlDetail(submittedRow(rows[0], NOW), rows[0].scripts);
+  assert.deepEqual(
+    detail.scripts.map((s) => s.id),
+    scenario.scripts.map((s) => s.id),
+  );
+});
+
+test("知らない目録の id・重ね・形の誤り・scriptIds は、台帳と同じ文で 400", () => {
+  const post = (body) =>
+    submitCrawl([], { seeds: ["https://example.com/"], ...body }, NOW, RUNS, scenario.scripts);
+  const inline = (name) => ({ inline: { name, phase: "behavior", source: "x;" } });
+  assert.deepEqual(post({ scripts: [{ catalog: "typo-scroll" }] }), {
+    status: 400,
+    body: { error: "unknown catalog scripts", ids: ["typo-scroll"] },
+  });
+  assert.deepEqual(post({ scripts: [inline("a"), inline("a")] }).body, {
+    error: "duplicate script ids",
+    ids: ["inline-a"],
+  });
+  // 文は台帳 v0.58.0 が Fastify の schema で返す物（画面は message を出す）
+  assert.equal(
+    post({ scripts: [inline("Probe")] }).body.message,
+    'body/scripts/0/inline/name must match pattern "^[a-z][a-z0-9-]*$"',
+  );
+  assert.equal(
+    post({ scripts: [{ catalog: "autofetch", ...inline("a") }] }).body.message,
+    "body/scripts/0 must NOT have more than 1 properties",
+  );
+  assert.equal(post({ scripts: [{}] }).body.message, "body/scripts/0 must NOT have fewer than 1 properties");
+  assert.equal(post({ scriptIds: ["autofetch"] }).body.message, "body must NOT have additional properties");
 });
 
 test("アーカイブの 1 行は、台帳の /api/archives と同じ欄を持ち、台本で上書きできる", () => {
