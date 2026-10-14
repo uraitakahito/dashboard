@@ -69,7 +69,8 @@ it is. The ledger is the one that checks and decides the seed URLs and the polic
 limit, which scripts run).
 
 - **Only JSON from this screen's own page gets through.** If the `Origin` is not this screen it
-  is a 403, if the `content-type` is not JSON it is a 415, and a body over 64 KiB is a 413. This
+  is a 403, if the `content-type` is not JSON it is a 415, and a body over 64 KiB (seed URLs and any
+  script written in the form, together) is a 413. This
   stops a page from another site from making your browser send the POST (CSRF). It does not
   rely on Chrome's Private Network Access.
 - The access token is attached, and a 401 retried, the same way as for `/api/*` above.
@@ -77,7 +78,7 @@ limit, which scripts run).
 | The ledger's answer | When |
 | --- | --- |
 | 202 `{"crawlId": …}` | accepted (it does not wait for the crawl to finish) |
-| 400 `{"error": …}` | a seed URL that cannot be read, an empty script catalog (with a `hint`), and so on |
+| 400 `{"error": …}` | a seed URL that cannot be read, an empty script catalog (with a `hint`), an unknown catalog id or the same id twice (with `ids`), and so on |
 | 404 | the identity may not start crawls (`{"error":"not found"}`), or the ledger has nowhere to send crawls configured and does not serve the route at all |
 | 409 `{"error": …, "crawlId": …}` | a crawl is already running (one at a time, overall); `crawlId` is the one in the way |
 

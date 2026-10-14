@@ -64,7 +64,8 @@ root の script は `pnpm run` で打っても同じです（[capture-ledger](ht
 | 目録が空のときを見る | 台本の `"emptyCatalog"` を `true` にする |
 | 別の WACZ を並べる | `SANDBOX_WACZ_DIR=<dir> npm run sandbox`（相対なら、この repo から。例: `../wacz-validator/samples`）。代役と daemon の両方に同じ置き場が入る |
 | wacz-validator の更新を daemon に入れる | `npm run sandbox:build`。`npm run sandbox` は、image が無いときにしか建てない |
-| 起こす欄を試す | クロールの面の欄から起こす。代役は受けた行を台本の `submit.runsSeconds` 秒だけ走らせてから完走にする。走っている間にもう 1 度押すと 409、読めない URL は 400 |
+| 起こす欄を試す | クロールの面の欄から起こす。代役は受けた行を台本の `submit.runsSeconds` 秒だけ走らせてから完走にする。走っている間にもう 1 度押すと 409、読めない URL は 400。走らせるもの（目録のチェックとその場の JS）も台帳と同じ形で受け、知らない目録の id・同じ id の重ね・名前の綴りは台帳と同じ文で 400。行を開くと走らせたものが出る |
+| 走らせたものの在る行を見る | 台本のクロールに `scripts` を書く（その場の物は `inline` つき）。同梱の台本には、その場の JS で完走した行と、compile の段で落ちた行が在る |
 
 代役にできないこともあります。
 
