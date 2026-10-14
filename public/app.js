@@ -112,25 +112,102 @@ const runHref = (crawl) =>
     ? undefined
     : `${settings.windmillOrigin}/run/${crawl.lastJob.id}?workspace=${settings.windmillWorkspace}`;
 
-/** 行を開くと、取れなかった URL と理由が出る。**開いたときだけ `:id` を引く。** */
-const openDetail = async (crawl, after) => {
+/**
+ * 開いている行。**id で覚え、描き直しのたびに開き直す** —— 表は引くたびに作り直すので、
+ * DOM に置いただけの行は次の引きで消える（走行中なら 2 秒で）。値は最後に引いた
+ * `/api/crawls/:id` の答え（まだ引いていなければ undefined、引けなければ Error）。
+ */
+const opened = new Map();
+
+const failuresText = (one) => {
+  const failures = one.failures ?? [];
+  return failures.length === 0
+    ? `取れなかったページはありません（起点: ${one.seeds.join(", ")}）`
+    : failures.map((f) => `${f.url} — ${f.reason ?? "理由なし"}`).join("\n");
+};
+
+/**
+ * 走らせたもの。**並びが実行順。** 目録の物は版を、その場で書いた物は「その場」と出す ——
+ * その場の物にだけ、台帳は頼まれた要素（`inline`）を返す。
+ */
+const ranOf = (scripts) => {
+  if (scripts.length === 0) return tag("p", "走らせたもの: なし");
+  const list = document.createElement("ol");
+  list.className = "ran";
+  for (const script of scripts) {
+    const item = document.createElement("li");
+    const where =
+      script.inline === undefined
+        ? `目録 v${String(script.version)}・${script.phase}`
+        : `その場・${script.phase}`;
+    item.append(tag("span", script.id, "mono"), tag("span", where, "muted"));
+    list.append(item);
+  }
+  const box = document.createElement("div");
+  box.append(tag("p", "走らせたもの（並びが実行順）"), list);
+  return box;
+};
+
+/**
+ * 1 本の詳しい所。**失敗の文が先** —— compile の段で落ちたクロールは 1 枚も撮っていないので
+ * failures が空で、それだけを出すと「取れなかったページはありません」と、成功のように読める。
+ * 台帳の文は言い換えない。
+ */
+const detailOf = (one) => [
+  ...(one.error === null || one.error === undefined
+    ? []
+    : [tag("p", `失敗の文: ${one.error}`, "state bad pre")]),
+  ranOf(one.scripts ?? []),
+  tag("p", failuresText(one), "pre"),
+];
+
+/** 開いた行の下に出す 1 行。最後の答えで、引き直しを待たずに描く。 */
+const detailRow = (crawl) => {
   const row = document.createElement("tr");
   row.className = "detail";
+  row.dataset.crawl = crawl.crawlId;
   const td = document.createElement("td");
   td.colSpan = 9;
-  td.textContent = "読み込み中…";
+  const one = opened.get(crawl.crawlId);
+  if (one === undefined) td.textContent = "読み込み中…";
+  else if (one instanceof Error) td.replaceChildren(tag("p", failedText(one), "state bad"));
+  else td.replaceChildren(...detailOf(one));
   row.append(td);
-  after.after(row);
+  return row;
+};
+
+/** 1 本を引いて覚え、その行だけを描き直す。**開いたときと、変わりうるときだけ引く。** */
+const loadDetail = async (crawlId) => {
+  let one;
   try {
-    const one = await api(`/api/crawls/${crawl.crawlId}`);
-    const failures = one.failures ?? [];
-    td.textContent =
-      failures.length === 0
-        ? `取れなかったページはありません（起点: ${one.seeds.join(", ")}）`
-        : failures.map((f) => `${f.url} — ${f.reason ?? "理由なし"}`).join("\n");
-    td.style.whiteSpace = "pre-wrap";
+    one = await api(`/api/crawls/${crawlId}`);
   } catch (err) {
-    td.textContent = failedText(err);
+    one = err instanceof Error ? err : new Error(String(err));
+  }
+  if (!opened.has(crawlId)) return; // 待っている間に閉じた
+  opened.set(crawlId, one);
+  const crawl = crawls.find((c) => c.crawlId === crawlId);
+  const row = document.querySelector(`tr.detail[data-crawl="${crawlId}"]`);
+  if (crawl !== undefined && row !== null) row.replaceWith(detailRow(crawl));
+};
+
+/**
+ * 引き直しの後、開いている行の答えを新しくする。**引くのは、まだ答えが無い・引けなかった・
+ * 走行中・状態が変わった行だけ** —— 終わった行は 1 度で足りる。1 ページ目から外れた行は忘れる。
+ */
+const refreshOpened = () => {
+  for (const [crawlId, one] of opened) {
+    const crawl = crawls.find((c) => c.crawlId === crawlId);
+    if (crawl === undefined) {
+      opened.delete(crawlId);
+      continue;
+    }
+    const stale =
+      one === undefined ||
+      one instanceof Error ||
+      crawl.state === "running" ||
+      one.state !== crawl.state;
+    if (stale) void loadDetail(crawlId);
   }
 };
 
@@ -154,15 +231,19 @@ const drawCrawls = () => {
     row.append(cell(String(crawl.waczCount), "num mono"));
     row.append(cell(took(crawl), "num mono"));
     row.append(linkCell(runHref(crawl), "run ↗"));
-    let open = false;
     row.onclick = (event) => {
       if (event.target instanceof HTMLAnchorElement) return;
-      const next = row.nextElementSibling;
-      if (open && next?.classList.contains("detail")) next.remove();
-      else void openDetail(crawl, row);
-      open = !open;
+      if (opened.delete(crawl.crawlId)) {
+        if (row.nextElementSibling?.classList.contains("detail")) row.nextElementSibling.remove();
+        return;
+      }
+      opened.set(crawl.crawlId, undefined);
+      row.after(detailRow(crawl));
+      void loadDetail(crawl.crawlId);
     };
     body.append(row);
+    // 開いていた行は、最後の答えで開き直す（表は引くたびに作り直す）
+    if (opened.has(crawl.crawlId)) body.append(detailRow(crawl));
   }
 };
 
@@ -723,6 +804,7 @@ const refresh = async () => {
     crawls = c.crawls;
     archives = a.archives;
     drawCrawls();
+    refreshOpened();
     drawArchives();
     drawScripts(s.scripts);
     trouble(undefined);

@@ -190,6 +190,30 @@ tr.detail td {
   background: var(--surface);
 }
 
+/* クロールの行の詳しい所: 失敗の文・走らせたもの・取れなかったページ。改行は台帳の文のまま。 */
+tr.detail p {
+  margin: 0 0 6px;
+}
+
+tr.detail .pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+tr.detail .ran {
+  margin: 0 0 6px;
+  padding-left: 1.6em;
+}
+
+tr.detail .ran li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 2px 0;
+  color: var(--ink);
+}
+
 tr.head {
   cursor: pointer;
 }
