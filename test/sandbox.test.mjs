@@ -233,6 +233,22 @@ test("scripts を受けると、その場の JS は inline- の id・版 1 で�
   assert.equal("scripts" in submittedRow(rows[0], NOW), false);
 });
 
+test("走行中でも、走らせるものの誤りは 409 より先に 400 —— 台帳と同じ順", () => {
+  const rows = [];
+  submitCrawl(rows, { seeds: ["https://example.com/"] }, NOW, RUNS, scenario.scripts);
+  const busy = submitCrawl(
+    rows,
+    { seeds: ["https://example.com/"], scripts: [{ catalog: "typo-scroll" }] },
+    NOW + 1000,
+    RUNS,
+    scenario.scripts,
+  );
+  assert.equal(busy.status, 400);
+  // 形が合っていれば、走行中は 409（今までどおり）
+  const ok = submitCrawl(rows, { seeds: ["https://example.com/"], scripts: [] }, NOW + 1000, RUNS, scenario.scripts);
+  assert.equal(ok.status, 409);
+});
+
 test("scripts を省くと、目録の既定を走らせたものとして返す", () => {
   const rows = [];
   submitCrawl(rows, { seeds: ["https://example.com/"] }, NOW, RUNS, scenario.scripts);

@@ -216,6 +216,9 @@ export const submitCrawl = (rows, body, now, runsSeconds, catalog = []) => {
   if (!body.seeds.every(httpUrl)) {
     return { status: 400, body: { error: "every seed must be an http(s) URL" } };
   }
+  // 走らせるものの誤りは、走行中でも 400 が先 —— 台帳は解いてから行を立て、409 は行を立てる所で出る
+  const run = resolveRun(body.scripts, catalog);
+  if (run.status !== undefined) return run;
   const running = rows.find((row) => now < row.startedAt + row.runsSeconds * 1000);
   if (running !== undefined) {
     return {
@@ -227,8 +230,6 @@ export const submitCrawl = (rows, body, now, runsSeconds, catalog = []) => {
       },
     };
   }
-  const run = resolveRun(body.scripts, catalog);
-  if (run.status !== undefined) return run;
   const row = {
     crawlId: randomUUID(),
     seeds: body.seeds,
