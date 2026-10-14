@@ -321,7 +321,7 @@ tr.head.spot td:first-child {
   background: var(--ground);
   border: 0;
   padding: 2px 6px;
-  width: 16em;
+  width: 11em;
 }
 
 .start-name input:focus-visible {
