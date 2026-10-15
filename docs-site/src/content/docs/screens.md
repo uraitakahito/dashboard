@@ -1,16 +1,17 @@
 ---
 title: Screens
-description: What the four views show — crawls, archives, catalog and contents — how a crawl's state is worded, and how often the screen polls
+description: What the five views show — crawls, start, archives, catalog and contents — how a crawl's state is worded, and how often the screen polls
 ---
 
-The screen has four views. You switch with the tabs at the top, and the `#` in the URL decides
-which view is shown (`#crawls`, `#archives`, `#scripts`). The contents tab only appears once you
+The screen has five views. You switch with the tabs at the top, and the `#` in the URL decides
+which view is shown (`#crawls`, `#start`, `#archives`, `#scripts`). The contents tab only appears once you
 enter it with 開く (open) on an archive row. The screen itself is in Japanese; the tab names are
-クロール, アーカイブ, 目録 and 中身.
+クロール, 起こす, アーカイブ, 目録 and 中身.
 
 | View | What it lists |
 | --- | --- |
-| Crawls | one row per crawl: state, pages captured, pages discovered, number of WACZ files (the archive format that packs captured pages into one ZIP), time taken, link to the run; start a crawl from the form above it |
+| Crawls | one row per crawl: state, pages captured, pages discovered, number of WACZ files (the archive format that packs captured pages into one ZIP), time taken, link to the run |
+| Start | the form that starts a crawl: seed URLs, catalog scripts, depth, and a script of your own in a box as tall as the window |
 | Archives | the WACZ files you can see; from a row, validate, open the contents, or open in [replay](https://github.com/uraitakahito/replay) (which plays a WACZ back in the browser) |
 | Catalog | the scripts that run inside the captured page; says so in red when it is empty |
 | Contents | inside one WACZ; see [Inspecting a WACZ](/wacz/) |
@@ -45,43 +46,12 @@ WACZ files and the time taken. "run ↗" at the right end opens the Windmill run
   in its own words: a crawl that failed at the compile step captured nothing, so its list of failed
   pages is empty and would otherwise read like a success. Next is what ran, in the order it ran:
   catalog scripts with their version, and scripts written in the form marked その場 (written on
-  the spot), each with a 欄に戻す (back to the form) button. Last are the pages that failed, as many
+  the spot) with their size in bytes, each with a 欄に戻す (back to the form) button that takes
+  you to the [start view](#start-a-crawl). Last are the pages that failed, as many
   as the ledger returns; if none did, it says so and lists the seed URLs.
 - **An opened row stays open.** The table is rebuilt on every fetch, so the screen remembers the
   open rows by id and opens them again from the last answer. It fetches a row again only while the
   crawl is running or when its state has changed.
-
-### Starting a crawl from the form above
-
-The form above the table starts a crawl. Write the seed URLs one per line, choose このページだけ
-(this page only) or リンクを辿る (follow links, the ledger's default), and press 起こす (start).
-Under 走らせるもの (what runs), tick the catalog scripts that should run, and add a script of your
-own if you need one.
-
-- **It sends the seed URLs, whether the depth is 0, and what runs — the last only when it differs
-  from the default.** このページだけ sends `maxDepth: 0`; リンクを辿る adds nothing (the depth and
-  the page limit are the ledger's defaults). With every catalog script ticked and no script of your
-  own, the form sends no `scripts`, so the ledger's default applies and an empty catalog is still a
-  400. Otherwise it sends `scripts`: your script first, then the ticked catalog scripts in catalog
-  order; unticking all of them sends `[]`, which runs nothing. The screen checks neither the URLs
-  nor the script's name; the ledger says what is wrong with a 400, naming the ids it refused.
-- **A script of your own is type-checked as strict TypeScript** at the first level's compile step,
-  and a single error fails the crawl; open its row to read the diagnostics. Wrap it in an IIFE,
-  give the elements you look up a type, and use `?.`; start it with `// @ts-nocheck` to skip the
-  type check. Do not write `export`: the page then gets a syntax error and nothing runs.
-  読み込みの後 (after load) runs once in the main frame; 遷移の前 (before navigation) runs in every
-  frame on every navigation and has no `__bh`. ファイルを読む (read a file) loads a file into the
-  form, in the browser only.
-- **After a 202 the seed URLs are cleared and your script is kept,** since the usual next step is
-  to fix it and run again.
-- **The answer is one line under the form.** When the crawl is accepted, its row gets a mark
-  (it is running, so the footer starts polling every 2 seconds). If a crawl is already running,
-  the answer is a 409 and the row in the way gets the mark (the ledger runs one crawl at a time,
-  overall). Anything else is shown in the ledger's own words.
-- **The row gets a mark, and is not opened.** The mark is remembered by id and put back each time
-  the table is redrawn.
-
-It is sent through `POST /api/crawls` in [Routes](/routes/).
 
 ### The state is worded together with stopReason
 
@@ -92,6 +62,53 @@ is, in parentheses.
 
 The wording rules are `stateOf` in `public/format.js`, pinned by `test/format.test.mjs`. The
 tests read the same file the browser reads, so there is no copy to rot.
+
+## Start a crawl
+
+The 起こす (start) view starts a crawl. The left column holds the seed URLs, the catalog scripts,
+the depth and the 起こす button; the right column holds the box for a script of your own. The box
+stretches to the bottom of the window and has line numbers on its left, so a large script can be
+pasted, read, fixed a little and run. Write the seed URLs one per line, choose このページだけ (this
+page only) or リンクを辿る (follow links, the ledger's default), and press 起こす.
+
+- **It sends the seed URLs, whether the depth is 0, and what runs — the last only when it differs
+  from the default.** このページだけ sends `maxDepth: 0`; リンクを辿る adds nothing (the depth and
+  the page limit are the ledger's defaults). With every catalog script ticked and no script of your
+  own, the form sends no `scripts`, so the ledger's default applies and an empty catalog is still a
+  400. Otherwise it sends `scripts`: your script first, then the ticked catalog scripts in catalog
+  order; unticking all of them sends `[]`, which runs nothing. The screen checks neither the URLs
+  nor the script's name; the ledger says what is wrong with a 400, naming the ids it refused.
+- **It shows the size before sending.** Under the box are the number of lines, the size of the body
+  it will send (UTF-8 bytes) and how much of the limit that is. The limit is the one the writing
+  route enforces, handed out by the server as `writeLimit` in `/healthz`. Over it, the line turns
+  red and 起こす cannot be pressed.
+- **A script of your own is type-checked as strict TypeScript** at the first level's compile step,
+  and a single error fails the crawl; open its row to read the number of diagnostics and the first
+  five. Wrap it in an IIFE, give the elements you look up a type, and use `?.`. Do not write
+  `export`: the page then gets a syntax error and nothing runs.
+- **For a bundled script, tick 型を検査しない (skip the type check).** Ticking it puts
+  `// @ts-nocheck` on the first line of the box, and unticking takes it off: what you see is what is
+  sent, and the ledger's sha256 covers it too. A pasted script that already starts with that line
+  shows the box ticked.
+- **The box does not wrap lines,** so the line numbers stay in step; long lines scroll sideways.
+  読み込みの後 (after load) runs once in the main frame; 遷移の前 (before navigation) runs in every
+  frame on every navigation and has no `__bh`. ファイルを読む (read a file) loads a file into the
+  box, in the browser only.
+- **A 202 or a 409 takes you to the crawls view.** When the crawl is accepted, its row gets a mark;
+  if a crawl is already running, the row in the way gets the mark (the ledger runs one crawl at a
+  time, overall). An accepted crawl is running, so the footer starts polling every 2 seconds.
+  Anything else (a 400, a 413, an unreachable server) stays in this view, in the ledger's own words
+  under the left column.
+- **After a 202 the seed URLs are cleared and your script is kept,** since the usual next step is
+  to fix it and run again.
+- **欄に戻す (back to the form) brings you back here.** Open a row in the crawls view and press
+  欄に戻す on a script of your own: this view opens with its name, phase and source. The source
+  comes from the ledger's `/api/crawls/:id/inline/:name` (a crawl's detail only carries its size).
+  The seed URLs and the catalog choice are left alone.
+- **The row gets a mark, and is not opened.** The mark is remembered by id and put back each time
+  the table is redrawn.
+
+It is sent through `POST /api/crawls` in [Routes](/routes/).
 
 ## Archives
 
@@ -111,7 +128,7 @@ The WACZ files you can see, newest capture first.
 
 The scripts that run inside the pages being captured: their id, version, the point in the page
 where they run (`phase`), and the start of their sha256. The same list appears as checkboxes under
-走らせるもの in the crawl form.
+目録から (from the catalog) in the [start view](#start-a-crawl).
 
 **An empty catalog is shown in red.** The capture server (BrowserHive) does not bring any scripts
 of its own, so with an empty catalog nothing runs inside the page. Nothing scrolls and nothing
