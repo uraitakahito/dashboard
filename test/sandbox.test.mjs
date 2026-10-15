@@ -14,6 +14,7 @@ import {
   crawlDetail,
   crawlRow,
   idOf,
+  inlineSource,
   readingLastGood,
   signedUrlOf,
   submitCrawl,
@@ -208,7 +209,7 @@ test("同梱の台本に、その場の JS で完走した行と、compile の�
   assert.equal("inline" in broken.scripts[1], false);
 });
 
-test("scripts を受けると、その場の JS は inline- の id・版 1 で写り、1 本の詳しい所に inline ごと出る", () => {
+test("scripts を受けると、その場の JS は inline- の id・版 1 で写り、詳しい所には名前・口・バイト数だけが出る", () => {
   const rows = [];
   const inline = { name: "close-banner", phase: "preload", source: "x;" };
   const answer = submitCrawl(
@@ -227,10 +228,57 @@ test("scripts を受けると、その場の JS は inline- の id・版 1 で�
       ["autofetch", 1, "behavior"],
     ],
   );
-  assert.deepEqual(detail.scripts[0].inline, inline);
+  // source は運ばない（capture-ledger v0.59.0）。走行中の行は 2 秒ごとに引き直すので
+  assert.deepEqual(detail.scripts[0].inline, { name: "close-banner", phase: "preload", bytes: 2 });
+  assert.equal(JSON.stringify(detail).includes('"source"'), false);
   assert.equal("inline" in detail.scripts[1], false);
   // 一覧の行には出さない（欄は台帳の一覧と揃えて固定している）
   assert.equal("scripts" in submittedRow(rows[0], NOW), false);
+});
+
+test("名前の口は、受けた行と台本の行の両方で、その場の JS を source ごと返す", () => {
+  const rows = [];
+  const inline = { name: "close-banner", phase: "preload", source: "x;" };
+  submitCrawl(
+    rows,
+    { seeds: ["https://example.com/"], scripts: [{ inline }] },
+    NOW,
+    RUNS,
+    scenario.scripts,
+  );
+  const mine = inlineSource(rows[0].scripts, "close-banner");
+  assert.equal(mine.status, 200);
+  assert.deepEqual(mine.body, { ...inline, sha256: rows[0].scripts[0].sha256 });
+
+  // 台本の行（compile の段で落ちた行）からも引ける。sha256 は詳しい所と同じ
+  const failed = scenario.crawls.find(
+    (c) => c.state === "failed" && c.scripts?.some((x) => x.inline !== undefined),
+  );
+  const theirs = inlineSource(failed.scripts, "close-banner");
+  assert.equal(theirs.status, 200);
+  assert.equal(theirs.body.sha256, crawlDetail(failed).scripts[0].sha256);
+  assert.match(theirs.body.source, /close/);
+});
+
+test("名前の口は、目録の物・知らない名前・知らない行には 404（台帳と同じ文）", () => {
+  const rows = [];
+  submitCrawl(
+    rows,
+    {
+      seeds: ["https://example.com/"],
+      scripts: [{ inline: { name: "a", phase: "behavior", source: "x;" } }, { catalog: "autofetch" }],
+    },
+    NOW,
+    RUNS,
+    scenario.scripts,
+  );
+  for (const name of ["autofetch", "nope"]) {
+    assert.deepEqual(inlineSource(rows[0].scripts, name), {
+      status: 404,
+      body: { error: "not found" },
+    });
+  }
+  assert.equal(inlineSource(undefined, "a").status, 404);
 });
 
 test("走行中でも、走らせるものの誤りは 409 より先に 400 —— 台帳と同じ順", () => {

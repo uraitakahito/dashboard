@@ -226,22 +226,128 @@ tr.head.spot td:first-child {
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
-/* ── 起こす欄（クロールの面の上） ───────────────────────────── */
-.start {
+/* ── 起こす面 ── 左に設定、右にその場の JS。窓の高さに収め、ページは縦に流さない ───── */
+/* 収めるのは起こす面にいる間だけ（app.js の show が body に data-face を書く） */
+body[data-face="start"] {
+  height: 100dvh;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-width: 720px;
-  margin: 14px 0 6px;
+}
+
+body[data-face="start"] main {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: 8px;
+}
+
+#face-start {
+  height: 100%;
+  padding-top: 8px;
+}
+
+.start {
+  display: grid;
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+  gap: 16px;
+  height: 100%;
   padding: 10px 12px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 6px;
 }
 
-.start > label {
+.start-side {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  overflow: auto;
+}
+
+.start-side > label {
   font-size: 12px;
   color: var(--muted);
+}
+
+/* 右の列: 名前・口・ファイル・型の行、箱（残りの高さを全部）、大きさの行 */
+.start-code {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.start-editor {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--ground);
+}
+
+/* 溝と箱は同じ字・同じ行の高さ。溝の下の余白は、箱の横のスクロールバーの分（一番下まで流しても最後の行がずれない） */
+.start-editor .gutter,
+.start .start-editor textarea {
+  font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.start-editor .gutter {
+  margin: 0;
+  padding: 6px 8px 22px;
+  overflow: hidden;
+  text-align: right;
+  color: var(--muted);
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.start .start-editor textarea {
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  resize: none;
+  white-space: pre;
+  overflow: auto;
+  tab-size: 2;
+}
+
+.start-size {
+  margin: 0;
+  font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.start-size.bad {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+/* 狭い窓では 1 段に戻し、箱の高さは窓の 6 割に */
+@media (max-width: 760px) {
+  body[data-face="start"] {
+    height: auto;
+    display: block;
+  }
+
+  body[data-face="start"] main {
+    overflow: visible;
+  }
+
+  .start {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+
+  .start-editor {
+    height: 60vh;
+  }
 }
 
 .start textarea {

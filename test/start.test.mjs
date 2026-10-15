@@ -6,7 +6,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { scriptsOf, startAnswer, startBody } from "../public/start.js";
+import {
+  bodyBytes,
+  hasNocheck,
+  NOCHECK,
+  scriptsOf,
+  sizeOf,
+  startAnswer,
+  startBody,
+  withNocheck,
+} from "../public/start.js";
 
 test("起点は 1 行に 1 本 —— 前後の空白と空行を落とし、順番は保つ", () => {
   const body = startBody("  https://example.com/ \n\n https://example.com/docs/\n", true);
@@ -122,4 +131,45 @@ test("台帳が名指した ids を、文の後に添える", () => {
     startAnswer(400, { error: "duplicate script ids", ids: ["inline-a", "autofetch"] }).text,
     "400 —— duplicate script ids: inline-a, autofetch",
   );
+});
+
+test("本文の大きさは、門と同じく UTF-8 のバイトで数える", () => {
+  // 「例」は 3 バイト。JS の文字列の長さ（UTF-16）なら 27 になる
+  assert.equal(bodyBytes({ seeds: ["https://例.jp/"] }), 29);
+  // 改行は JSON の中で \n（2 バイト）になる
+  assert.equal(bodyBytes({ source: "a\nb" }), 17);
+});
+
+test("上限ちょうどは送れ、1 バイト超えは送れない", () => {
+  assert.equal(sizeOf("x", 1024, 1024).over, false);
+  assert.equal(sizeOf("x", 1025, 1024).over, true);
+  assert.equal(sizeOf("x", 512, 1024).percent, 50);
+  // 上限を知らなければ止めない（門が 413 で言う）
+  assert.equal(sizeOf("x", 10 ** 9, Infinity).over, false);
+});
+
+test("行数は JS の行で、空の箱は 0 行", () => {
+  assert.equal(sizeOf("", 0, 1024).lines, 0);
+  assert.equal(sizeOf("a", 0, 1024).lines, 1);
+  assert.equal(sizeOf("a\n", 0, 1024).lines, 2);
+});
+
+test("型を検査しないと 1 行目に印が入り、外すと消える —— ほかの行は 1 バイトも変えない", () => {
+  const source = "  (() => {\n    void 0;\n  })();\n";
+  const on = withNocheck(source, true);
+  assert.equal(on, `${NOCHECK}\n${source}`);
+  assert.equal(withNocheck(on, false), source);
+  // 既に合っていれば触らない
+  assert.equal(withNocheck(on, true), on);
+  assert.equal(withNocheck(source, false), source);
+  // 印だけの 1 行を外すと空になる
+  assert.equal(withNocheck(NOCHECK, false), "");
+});
+
+test("貼った JS が印を持っていれば、付いた状態で始まる", () => {
+  assert.equal(hasNocheck(`${NOCHECK}\nvoid 0;`), true);
+  assert.equal(hasNocheck(`  ${NOCHECK}  \nvoid 0;`), true);
+  // 2 行目の印は数えない（ts-compile-service も 1 行目しか見ない）
+  assert.equal(hasNocheck(`void 0;\n${NOCHECK}`), false);
+  assert.equal(hasNocheck(""), false);
 });

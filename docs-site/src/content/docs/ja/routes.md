@@ -31,11 +31,13 @@ description: 画面のサーバが答える口 —— /healthz、台帳への素
   "organizations": ["acme"],
   "replayOrigin": "http://127.0.0.1:8899",
   "windmillOrigin": "http://127.0.0.1:8000",
-  "windmillWorkspace": "crawler"
+  "windmillWorkspace": "crawler",
+  "writeLimit": 1048576
 }
 ```
 
 画面は開いたときにこれを読み、誰として見ているかと、深いリンクの行き先を知ります。
+`writeLimit` は書く口が受ける本文の上限（バイト）で、起こす面はこれを超える本文を送る前に止めます。
 `/api/` の下には置きません。
 あちらは台帳へ素通しする場所で、こちらの答えを混ぜると、どちらが答えたのかが読めなくなります。
 
@@ -65,7 +67,7 @@ description: 画面のサーバが答える口 —— /healthz、台帳への素
 起点の URL も方針（深さ・枚数・走らせるスクリプト）も、検査して決めるのは台帳です。
 
 - **この画面のページからの JSON だけを通す。**
-  `Origin` がこの画面でなければ 403、`content-type` が JSON でなければ 415、本文が 64 KiB を超えたら 413 です（起点の URL と、欄で書いた JS の合計）。
+  `Origin` がこの画面でなければ 403、`content-type` が JSON でなければ 415、本文が 1 MiB を超えたら 413 です（起点の URL と、欄で書いた JS の合計。台帳の `POST /api/crawls` と同じ上限）。
   別のサイトのページに、利用者のブラウザから POST させる手（CSRF）を止めるためです。
   Chrome の Private Network Access には頼りません。
 - アクセストークンの付け方と、401 でのやり直しは、上の `/api/*` と同じです。
@@ -120,7 +122,7 @@ daemon の `date` や `connection` は、画面の応答に混ぜません。
 | 400 | `/wacz/` の口の引数が足りない、または数でない。台帳へは行かない | `{"error":"from is required"}` |
 | 403 | `Host` がこの画面の口でない（どの口も）。書く口では、`Origin` がこの画面でないときも | `{"error":"この画面の Host ではない"}` など |
 | 405 | method が違う。`/wacz/` の口（検証は POST、他は GET）と、`/api/*`（GET だけ。書く口を除く） | `POST だけ`・`GET だけ` など（`Allow` ヘッダつき） |
-| 413 | 書く口の本文が 64 KiB を超えた | `{"error":"本文が 65536 バイトを超えた"}` |
+| 413 | 書く口の本文が 1 MiB を超えた | `{"error":"本文が 1048576 バイトを超えた"}` |
 | 415 | 書く口の `content-type` が JSON でない | `{"error":"JSON だけを受ける"}` |
 | 台帳のまま | 台帳が断った（見てよくない archive の 404 など） | 台帳の本文 |
 | 502 | issuer・台帳・daemon に届かない、または issuer が名乗りを断った | `{"error":"… に届かない (…)。…"}`。直し方の 1 文つき |

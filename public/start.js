@@ -71,3 +71,37 @@ export const startAnswer = (status, answer) => {
   const hint = typeof answer.hint === "string" ? `（${answer.hint}）` : "";
   return { kind: "bad", text: `${String(status)} —— ${said}${ids}${hint}` };
 };
+
+/**
+ * 送る本文の大きさ（バイト）。**門と同じ数え方** —— 門は受けたバイトを数えるので、JSON にして
+ * UTF-8 で数える（日本語は 1 字 3 バイト、改行の escape は 2 バイト）。
+ */
+export const bodyBytes = (body) => new TextEncoder().encode(JSON.stringify(body)).length;
+
+/**
+ * 欄の下の 1 行。行数は JS の、割合は送る本文の。**上限を超えたら押せない**（over）。
+ * 上限は `/healthz` の `writeLimit`（画面が知らなければ Infinity を渡し、門に任せる）。
+ */
+export const sizeOf = (source, bytes, limit) => ({
+  lines: source === "" ? 0 : source.split("\n").length,
+  bytes,
+  percent: Math.min(100, Math.round((bytes / limit) * 100)),
+  over: bytes > limit,
+});
+
+/** 型の検査を外す印。ts-compile-service は 1 行目のこれを見て、構文だけを見る。 */
+export const NOCHECK = "// @ts-nocheck";
+
+/** 1 行目が印か。行頭と行末の空白は許す。2 行目より後の印は数えない。 */
+export const hasNocheck = (source) => source.split("\n", 1)[0].trim() === NOCHECK;
+
+/**
+ * 「型を検査しない」のチェックに合わせて、1 行目の印を足し引きする。**ほかの行は触らない**
+ * —— 見えている物が送る物で、台帳が打つ sha256 もこの source の物になる。
+ */
+export const withNocheck = (source, on) => {
+  if (on === hasNocheck(source)) return source;
+  if (on) return `${NOCHECK}\n${source}`;
+  const end = source.indexOf("\n");
+  return end === -1 ? "" : source.slice(end + 1);
+};

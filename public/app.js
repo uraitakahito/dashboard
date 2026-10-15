@@ -8,7 +8,7 @@
  * `<img>` で。生の HTML を差し込む API はこのファイルに無い（`check` が見張る）。
  */
 import { judgedUnder, severityKind, stateOf, statsOf, took, verdict } from "/format.js";
-import { startAnswer, startBody } from "/start.js";
+import { bodyBytes, hasNocheck, sizeOf, startAnswer, startBody, withNocheck } from "/start.js";
 import {
   bodyLabel,
   buildTree,
@@ -130,7 +130,8 @@ const failuresText = (one) => {
  * 走らせたもの。**並びが実行順。** 目録の物は版を、その場で書いた物は「その場」と出す ——
  * その場の物にだけ、台帳は頼まれた要素（`inline`）を返す。
  */
-const ranOf = (scripts) => {
+const ranOf = (one) => {
+  const scripts = one.scripts ?? [];
   if (scripts.length === 0) return tag("p", "走らせたもの: なし");
   const list = document.createElement("ol");
   list.className = "ran";
@@ -139,10 +140,13 @@ const ranOf = (scripts) => {
     const where =
       script.inline === undefined
         ? `目録 v${String(script.version)}・${script.phase}`
-        : `その場・${script.phase}`;
+        : `その場・${script.phase}・${count(script.inline.bytes)} バイト`;
     item.append(tag("span", script.id, "mono"), tag("span", where, "muted"));
-    // その場の JS は、直して撮り直せるように欄へ戻せる（目録の物は目録に在る）
-    if (script.inline !== undefined) item.append(button("欄に戻す", () => putBack(script.inline)));
+    // その場の JS は、直して撮り直せるように欄へ戻せる（目録の物は目録に在る）。source は詳しい所に
+    // 無いので、押したときに名前の口から取る
+    if (script.inline !== undefined) {
+      item.append(button("欄に戻す", () => void putBack(one.crawlId, script.inline.name)));
+    }
     list.append(item);
   }
   const box = document.createElement("div");
@@ -159,7 +163,7 @@ const detailOf = (one) => [
   ...(one.error === null || one.error === undefined
     ? []
     : [tag("p", `失敗の文: ${one.error}`, "state bad pre")]),
-  ranOf(one.scripts ?? []),
+  ranOf(one),
   tag("p", failuresText(one), "pre"),
 ];
 
@@ -300,12 +304,25 @@ const runOf = () => ({
   },
 });
 
-/** その場の JS を欄に戻す。直して撮り直すため。**起点と目録の選びは触らない。** */
-const putBack = ({ name, phase, source }) => {
+/**
+ * その場の JS を欄に戻し、起こす面へ移る。直して撮り直すため。**起点と目録の選びは触らない。**
+ * source は詳しい所に無い（capture-ledger v0.59.0）ので、名前の口から取る。
+ */
+const putBack = async (crawlId, name) => {
+  let back;
+  try {
+    back = await api(`/api/crawls/${crawlId}/inline/${enc(name)}`);
+  } catch (err) {
+    trouble(`欄に戻せません: ${failedText(err)}`);
+    return;
+  }
   $("start-inline-name").value = name;
-  $(phase === "preload" ? "start-inline-preload" : "start-inline-behavior").checked = true;
-  $("start-inline-source").value = source;
-  $("start").scrollIntoView({ block: "nearest" });
+  $(back.phase === "preload" ? "start-inline-preload" : "start-inline-behavior").checked = true;
+  $("start-inline-source").value = back.source;
+  $("start-answer").hidden = true; // 前の答えは、戻した JS の物ではない
+  location.hash = "start";
+  drawSource();
+  syncStart();
   $("start-inline-source").focus();
 };
 
@@ -322,11 +339,47 @@ const readFileIntoForm = async () => {
     $("start-inline-name").value = file.name.replace(/\.[^.]*$/, "");
   }
   $("start-inline-file").value = ""; // 同じファイルをもう 1 度読めるように
+  drawSource();
+  syncStart();
 };
 
-/** 空の欄では押せない。送らないことを、押す前に見せる。 */
+/** 数を 3 桁ずつ区切る（大きさの行と、走らせたものの行）。 */
+const count = (n) => n.toLocaleString("en-US");
+
+/** 行番号の溝。**行の数が変わったときだけ**組み直す（2 万行でも、打つたびには組まない）。 */
+let drawnLines = -1;
+const drawGutter = () => {
+  const lines = Math.max(1, $("start-inline-source").value.split("\n").length);
+  if (lines === drawnLines) return;
+  $("start-gutter").textContent = Array.from({ length: lines }, (_, i) => String(i + 1)).join("\n");
+  drawnLines = lines;
+};
+
+/**
+ * 空の欄では押せない。**上限を超えた本文も**、送る前に止める（上限は /healthz の writeLimit。
+ * 知らなければ止めない —— 門が 413 で言う）。欄の下に、行数・本文の大きさ・上限に対する割合を出す。
+ */
 const syncStart = () => {
-  $("start-go").disabled = startBody($("start-seeds").value, true).seeds.length === 0;
+  const body = startBody($("start-seeds").value, $("start-page").checked, runOf());
+  const limit = settings.writeLimit ?? Infinity;
+  const size = sizeOf($("start-inline-source").value, bodyBytes(body), limit);
+  const line = $("start-size");
+  line.textContent = size.over
+    ? `本文が上限（${count(limit)} バイト）を ${count(size.bytes - limit)} バイト超えています。起こせません`
+    : `${count(size.lines)} 行 · 本文 ${count(size.bytes)} バイト` +
+      (limit === Infinity ? "" : ` · 上限の ${String(size.percent)}%`);
+  line.classList.toggle("bad", size.over);
+  $("start-go").disabled = body.seeds.length === 0 || size.over;
+};
+
+/**
+ * 箱の中身が変わったら、溝と「型を検査しない」のチェックを中身に合わせる（貼った JS が印を持っていれば
+ * 付く）。**チェックを押したときには呼ばない** —— checkbox は change の前に input を出すので、そこで
+ * 中身から読み直すと、押した向きが change に届く前に戻ってしまう。
+ */
+const drawSource = () => {
+  drawGutter();
+  $("start-nocheck").checked = hasNocheck($("start-inline-source").value);
 };
 
 /**
@@ -362,11 +415,25 @@ const startCrawl = async (event) => {
   // 202 は起こした 1 本、409 は塞いでいる 1 本。どちらも印を付けて、すぐ引き直す
   if (typeof answer.crawlId === "string") {
     spotlight = answer.crawlId;
+    location.hash = "crawls"; // 印は一覧の面で見る
     await refresh();
   }
 };
 
-$("start-seeds").addEventListener("input", syncStart);
+// 箱・起点・チェック・2 択のどれが変わっても、大きさの行と「起こす」を合わせる。溝とチェックは箱のときだけ
+$("start").addEventListener("input", (event) => {
+  if (event.target === $("start-inline-source")) drawSource();
+  syncStart();
+});
+$("start-inline-source").addEventListener("scroll", (event) => {
+  $("start-gutter").scrollTop = event.target.scrollTop;
+});
+$("start-nocheck").addEventListener("change", (event) => {
+  const box = $("start-inline-source");
+  box.value = withNocheck(box.value, event.target.checked); // 見えている物が送る物
+  drawSource();
+  syncStart();
+});
 $("start").addEventListener("submit", (event) => void startCrawl(event));
 $("start-inline-file").addEventListener("change", () => void readFileIntoForm());
 
@@ -835,13 +902,14 @@ const openRecord = async (path, offset, length) => {
 };
 
 // ── 面の切り替え ───────────────────────────────────────────────────
-const FACES = ["crawls", "archives", "scripts", "wacz"];
+const FACES = ["crawls", "start", "archives", "scripts", "wacz"];
 
 const show = (face) => {
   for (const b of document.querySelectorAll("#tabs button")) {
     b.classList.toggle("on", b.dataset.face === face);
   }
   for (const name of FACES) $(`face-${name}`).hidden = name !== face;
+  document.body.dataset.face = face; // 起こす面だけ、CSS が窓の高さに収める
 };
 
 /** URL が面を決める。`#wacz/…` は中身の面、それ以外は 3 つの面のどれか。 */
@@ -907,6 +975,7 @@ const start = async () => {
   } catch {
     $("who").textContent = "この画面自身に届きません";
   }
+  syncStart(); // 上限を知ってから、欄の下の行を出す
   await refresh();
   route();
 };
