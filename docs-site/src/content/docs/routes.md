@@ -34,11 +34,14 @@ Returns liveness and the settings the screen needs.
   "organizations": ["acme"],
   "replayOrigin": "http://127.0.0.1:8899",
   "windmillOrigin": "http://127.0.0.1:8000",
-  "windmillWorkspace": "crawler"
+  "windmillWorkspace": "crawler",
+  "writeLimit": 1048576
 }
 ```
 
 The screen reads it when it opens, to learn who it is looking as and where the deep links go.
+`writeLimit` is the largest body, in bytes, the route that writes accepts; the crawl form stops
+before sending a bigger one.
 It does not live under `/api/`: that is where the ledger is passed through, and mixing this
 server's answers in would make it unclear who answered.
 
@@ -69,8 +72,8 @@ it is. The ledger is the one that checks and decides the seed URLs and the polic
 limit, which scripts run).
 
 - **Only JSON from this screen's own page gets through.** If the `Origin` is not this screen it
-  is a 403, if the `content-type` is not JSON it is a 415, and a body over 64 KiB (seed URLs and any
-  script written in the form, together) is a 413. This
+  is a 403, if the `content-type` is not JSON it is a 415, and a body over 1 MiB (seed URLs and any
+  script written in the form, together; the same limit as the ledger's `POST /api/crawls`) is a 413. This
   stops a page from another site from making your browser send the POST (CSRF). It does not
   rely on Chrome's Private Network Access.
 - The access token is attached, and a 401 retried, the same way as for `/api/*` above.
@@ -127,7 +130,7 @@ A failure says what is missing. "You may not see it" and "it is not running" are
 | 400 | an argument of a `/wacz/` route is missing or not a number; the ledger is not asked | `{"error":"from is required"}` |
 | 403 | the `Host` is not this screen's (any route); on the route that writes, also when the `Origin` is not this screen | `{"error":"この画面の Host ではない"}` and so on |
 | 405 | wrong method: on a `/wacz/` route (validation is POST, the rest GET), or on `/api/*` (GET only, except the route that writes) | `POST だけ`, `GET だけ` and so on, with an `Allow` header |
-| 413 | the body sent to the route that writes is over 64 KiB | `{"error":"本文が 65536 バイトを超えた"}` |
+| 413 | the body sent to the route that writes is over 1 MiB | `{"error":"本文が 1048576 バイトを超えた"}` |
 | 415 | the `content-type` sent to the route that writes is not JSON | `{"error":"JSON だけを受ける"}` |
 | as the ledger said | the ledger refused (such as a 404 for an archive you may not view) | the ledger's body |
 | 502 | the issuer, the ledger or the daemon cannot be reached, or the issuer refused the identity | `{"error":"… に届かない (…)。…"}`, with one sentence on how to fix it |

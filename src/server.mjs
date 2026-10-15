@@ -51,7 +51,16 @@ import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { userInfo } from "node:os";
 
-import { contentType, hostAllowed, optional, safePath, writeRefusal } from "./lib.mjs";
+import {
+  contentType,
+  hostAllowed,
+  optional,
+  readBody,
+  safePath,
+  TooLarge,
+  WRITE_LIMIT,
+  writeRefusal,
+} from "./lib.mjs";
 import { BadRequest, paramsFor, parseWaczRoute, viaSignedUrl } from "./wacz.mjs";
 
 const PUBLIC = fileURLToPath(new URL("../public", import.meta.url));
@@ -192,33 +201,6 @@ const sendJson = (reply, status, body) => {
   reply.end(JSON.stringify(body));
 };
 
-/**
- * 書く口が受ける本文の上限。起点の URL と、その場で書いた JS が入る。目録の TS は大きい物でも
- * 数 KB なので、手で書く JS ならこれで足りる。超えたら 413（台帳まで行かない）。
- */
-const WRITE_LIMIT = 64 * 1024;
-
-class TooLarge extends Error {}
-
-/**
- * 本文を読む。上限を超えたら**溜めるのをやめ**、読み切ってから TooLarge で断る ——
- * 途中で接続を切ると、413 を書く相手が居なくなる。
- */
-const readBody = (request, limit) =>
-  new Promise((resolve, reject) => {
-    const chunks = [];
-    let size = 0;
-    request.on("data", (chunk) => {
-      size += chunk.length;
-      if (size <= limit) chunks.push(chunk);
-    });
-    request.on("end", () => {
-      if (size > limit) reject(new TooLarge(`本文が ${String(limit)} バイトを超えた`));
-      else resolve(Buffer.concat(chunks).toString("utf8"));
-    });
-    request.on("error", reject);
-  });
-
 /** 失敗は、**何が居ないか**を言う。「見えない」と「立っていない」を混ぜない。 */
 const failed = (reply, err) => {
   // 流している途中で切れたら、もう頭は書けない。閉じるだけ。
@@ -252,6 +234,8 @@ const server = createServer((request, reply) => {
         replayOrigin: REPLAY,
         windmillOrigin: WINDMILL,
         windmillWorkspace: WORKSPACE,
+        // 書く口の上限。画面は欄の下に本文の大きさを出し、超えたら送る前に止める
+        writeLimit: WRITE_LIMIT,
       }),
     );
     return;

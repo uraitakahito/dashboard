@@ -7,8 +7,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
+import { Readable } from "node:stream";
 
-import { contentType, hostAllowed, optional, safePath, writeRefusal } from "../src/lib.mjs";
+import {
+  contentType,
+  hostAllowed,
+  optional,
+  readBody,
+  safePath,
+  TooLarge,
+  WRITE_LIMIT,
+  writeRefusal,
+} from "../src/lib.mjs";
 
 const ROOT = resolve("/tmp/public");
 
@@ -89,4 +99,16 @@ test("書く口は、ほかのオリジン・Origin の無い要求・JSON で�
   assert.equal(writeRefusal({ ...fromThisPage, "content-type": "text/plain" }, 7080)?.status, 415);
   assert.equal(writeRefusal({ ...fromThisPage, "content-type": undefined }, 7080)?.status, 415);
   assert.equal(writeRefusal({ ...fromThisPage, host: "evil.example:7080", origin: "http://evil.example:7080" }, 7080)?.status, 403);
+});
+
+test("書く口の本文は、上限ちょうどまで受け、1 バイト超えたら断る", async () => {
+  // 読み切ってから断る —— 途中で切ると、413 を書く相手が居なくなる
+  const body = (n) => Readable.from([Buffer.alloc(n, 0x61)]);
+  assert.equal((await readBody(body(1024), 1024)).length, 1024);
+  await assert.rejects(readBody(body(1025), 1024), TooLarge);
+});
+
+test("書く口の上限は、台帳の POST /api/crawls と同じ 1 MiB", () => {
+  // 片方だけを変えると、画面が通すのに台帳が 413 になる（capture-ledger の CRAWL_BODY_LIMIT）
+  assert.equal(WRITE_LIMIT, 1024 * 1024);
 });

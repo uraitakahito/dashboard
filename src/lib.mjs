@@ -82,3 +82,32 @@ export const writeRefusal = (headers, port) => {
   if (type !== "application/json") return { status: 415, error: "JSON だけを受ける" };
   return undefined;
 };
+
+/**
+ * 書く口が受ける本文の上限。起点の URL と、その場で書いた JS が入る。**capture-ledger の
+ * `POST /api/crawls` の上限（`src/api/crawls.ts` の `CRAWL_BODY_LIMIT`）と同じ 1 MiB** —— 片方だけを
+ * 変えると、画面が通すのに台帳が 413、の形になる。画面は `/healthz` の `writeLimit` で知り、
+ * 送る前に止める。超えたら 413（台帳まで行かない）。
+ */
+export const WRITE_LIMIT = 1024 * 1024;
+
+export class TooLarge extends Error {}
+
+/**
+ * 本文を読む。上限を超えたら**溜めるのをやめ**、読み切ってから TooLarge で断る ——
+ * 途中で接続を切ると、413 を書く相手が居なくなる。
+ */
+export const readBody = (request, limit) =>
+  new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    request.on("data", (chunk) => {
+      size += chunk.length;
+      if (size <= limit) chunks.push(chunk);
+    });
+    request.on("end", () => {
+      if (size > limit) reject(new TooLarge(`本文が ${String(limit)} バイトを超えた`));
+      else resolve(Buffer.concat(chunks).toString("utf8"));
+    });
+    request.on("error", reject);
+  });
