@@ -61,8 +61,8 @@ export const crawlRow = (c, now) => ({
 });
 
 /**
- * /api/crawls/:id の、走らせたもの 1 本。欄は capture-ledger v0.58.0 の src/api/crawls.ts と同じ ——
- * 目録の物は身元だけ、その場の物にだけ頼まれた要素 (`inline`) が付く。
+ * /api/crawls/:id の、走らせたもの 1 本。欄は capture-ledger v0.59.0 の src/api/crawls.ts と同じ ——
+ * 目録の物は身元だけ、その場の物にだけ `inline` が付く。**source は載せない**（名前・口・バイト数）。
  */
 const detailScript = (s) => ({
   id: s.id,
@@ -71,8 +71,25 @@ const detailScript = (s) => ({
   sha256: s.sha256,
   jsSha256: s.jsSha256 ?? null,
   compiledWith: s.compiledWith ?? null,
-  ...(s.inline !== undefined && { inline: s.inline }),
+  ...(s.inline !== undefined && {
+    inline: {
+      name: s.inline.name,
+      phase: s.inline.phase,
+      bytes: Buffer.byteLength(s.inline.source, "utf8"),
+    },
+  }),
 });
+
+/**
+ * /api/crawls/:id/inline/:name。欄は capture-ledger v0.59.0 の src/api/crawls.ts と同じ ——
+ * その場の JS 1 本の source を返す（画面の「欄に戻す」が使う）。目録の物と、知らない名前は 404。
+ */
+export const inlineSource = (scripts, name) => {
+  const script = (scripts ?? []).find((x) => x.inline?.name === name);
+  if (script === undefined) return { status: 404, body: { error: "not found" } };
+  const { phase, source } = script.inline;
+  return { status: 200, body: { name, phase, source, sha256: script.sha256 } };
+};
 
 /**
  * /api/crawls/:id。台帳はほかの欄 (範囲・上限など) も返すが、画面が読むのは seeds・
@@ -336,6 +353,15 @@ const handle = (req, res, raw) => {
     send(res, 200, {
       crawls: [...submitted.map((row) => submittedRow(row, now)), ...s.crawls.map((c) => crawlRow(c, STARTED))],
     });
+    return;
+  }
+  // その場の JS 1 本（「欄に戻す」の口）。受けた行と台本の行のどちらからでも引く
+  const back = /^\/api\/crawls\/([^/]+)\/inline\/([^/]+)$/.exec(pathname);
+  if (req.method === "GET" && back !== null) {
+    const mine = submitted.find((row) => row.crawlId === back[1]);
+    const scripts = mine?.scripts ?? s.crawls.find((x) => x.crawlId === back[1])?.scripts;
+    const answer = inlineSource(scripts, decodeURIComponent(back[2]));
+    send(res, answer.status, answer.body);
     return;
   }
   const one = /^\/api\/crawls\/([^/]+)$/.exec(pathname);

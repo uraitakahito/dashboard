@@ -127,7 +127,7 @@
       "pagesCaptured": 0,
       "pagesDiscovered": 0,
       "waczCount": 0,
-      "error": "[compile] compile 422 CompileFailed: [{\"code\":\"TS7006\",\"col\":18,\"file\":\"inline-close-banner.ts\",\"line\":2,\"message\":\"Parameter 'el' implicitly has an 'any' type.\"}]",
+      "error": "[compile] compile 422 CompileFailed: 型の誤り 1 件。最初の 1 件: inline-close-banner.ts:2:18 TS7006 Parameter 'el' implicitly has an 'any' type.",
       "failures": [],
       "scripts": [
         {
