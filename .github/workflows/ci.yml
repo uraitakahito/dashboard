@@ -1,9 +1,10 @@
 name: ci
 
-# **画面は依存を持たない。だからこの job は何も install しない** —— 在るのは node の
-# http サーバ 1 本と、ブラウザで素のまま走る JS だけで、監査する依存木が無い
-# (capture-scripts と同じ判断)。依存が在るのは docs-site/ だけで、その監査は audit.yml、
-# 検査は site.yml、公開は docs.yml が持つ。
+# **画面は npm の依存を持たない。だからこの job は何も install しない** —— 在るのは node の
+# http サーバ 1 本と、ブラウザで素のまま走る JS だけ (capture-scripts と同じ判断)。
+# 例外の public/vendor/shiki.js (読む所の色付けの束) は commit してあるので、試験はそれを
+# そのまま読む。依存が在るのは docs-site/ と highlighter/ (束を作る元) で、監査は audit.yml、
+# docs の検査は site.yml、公開は docs.yml、束の作り直しは vendor.yml が持つ。
 #
 # 走らせるのは `npm run check` (中身は package.json の `check`)。**中継と名乗りは
 # ここでは見ない** —— あれは台帳と issuer が立っていないと確かめられないので、
