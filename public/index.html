@@ -77,6 +77,7 @@
               strict の TypeScript として型を検査します（最初の段の compile）。IIFE で包み、要素には型を付けて
               <code>?.</code> で。束ねた JS は「型を検査しない」で（1 行目に <code>// @ts-nocheck</code> が入る）。
               <code>export</code> は書かない（ページで構文エラーになり、何も走らない）。
+              <a href="#scripts/types/host.d.ts">受け皿 <code>__bh</code> の型を読む</a>
             </p>
           </div>
           <div class="start-code">
@@ -129,18 +130,13 @@
         <p id="archives-empty" class="empty" hidden>見えるアーカイブがありません。</p>
       </section>
 
+      <!--
+        目録の面（読む所）。左に一覧（既定で走る版と受け皿の型）、右に書いたままの source。本文は
+        1 行 1 つの <li>（中身の面の行の並びと同じ組み方）で、押した行が URL になる
+        （#scripts/<id>[@版][:行]・履歴は増やさない）。版の札は見出しに、開いた id の分だけ。
+        source は他人が書いたもの —— 文字は textContent で。
+      -->
       <section id="face-scripts" hidden>
-        <table>
-          <thead>
-            <tr>
-              <th>走らせるもの</th>
-              <th>版</th>
-              <th>口</th>
-              <th>sha256</th>
-            </tr>
-          </thead>
-          <tbody id="scripts"></tbody>
-        </table>
         <!--
           空は「異常ではないが、たいてい間違い」。BrowserHive は顔ぶれを持たないので、
           目録が空だとページの中で何も走らない —— それでも取り込みは成功する。
@@ -150,6 +146,15 @@
           起きないまま、成功したアーカイブが出ます）。
           <code>cd ../capture-ledger &amp;&amp; pnpm run scripts import .upstream/capture-scripts</code>
         </p>
+        <div class="vgrid">
+          <nav id="reading-list" class="rlist" aria-label="目録"></nav>
+          <div class="vmain">
+            <div id="reading-head" class="vhead rhead"></div>
+            <p id="reading-note" class="reading-note" hidden></p>
+            <div id="reading-ask" class="reading-ask" hidden></div>
+            <ol id="reading-lines" class="vlines rlines"></ol>
+          </div>
+        </div>
       </section>
 
       <!--
