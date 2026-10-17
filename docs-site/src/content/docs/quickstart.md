@@ -58,9 +58,9 @@ pnpm run fga:grant submitter "$(whoami)" acme   # once
 ```
 
 If you followed capture-ledger's quickstart, this is already done. Without it, the top of the
-screen says `not found` in red and the tables stay empty. For an identity without the
+screen says `not found` in red and the lists stay empty. For an identity without the
 permission, the ledger returns an empty list of crawls and a 404 for the catalog, and the
-screen stops at that 404 without drawing the tables.
+screen stops at that 404 without drawing the lists.
 
 ## Fix it from the message
 
