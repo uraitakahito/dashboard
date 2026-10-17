@@ -7,6 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  asTemplate,
   bodyBytes,
   hasNocheck,
   NOCHECK,
@@ -172,4 +173,39 @@ test("貼った JS が印を持っていれば、付いた状態で始まる", (
   // 2 行目の印は数えない（ts-compile-service も 1 行目しか見ない）
   assert.equal(hasNocheck(`void 0;\n${NOCHECK}`), false);
   assert.equal(hasNocheck(""), false);
+});
+
+test("下敷き: __bh.opts[\"<id>\"] と __bh.report(\"<id>\" の 2 つの形を替え、替えた行を返す", () => {
+  const source = [
+    ' * 設定 (`options_json`) は `__bh.opts["autoscroll"]` から引く:',
+    "(async () => {",
+    '  const opts = globalThis.__bh.opts["autoscroll"] ?? {};',
+    '  globalThis.__bh.report("autoscroll", { steps: 1 });',
+    "})();",
+  ].join("\n");
+  const { source: out, changed } = asTemplate(source, "autoscroll", "my-autoscroll");
+  assert.deepEqual(changed, [1, 3, 4]);
+  assert.equal(
+    out,
+    [
+      ' * 設定 (`options_json`) は `__bh.opts["inline-my-autoscroll"]` から引く:',
+      "(async () => {",
+      '  const opts = globalThis.__bh.opts["inline-my-autoscroll"] ?? {};',
+      '  globalThis.__bh.report("inline-my-autoscroll", { steps: 1 });',
+      "})();",
+    ].join("\n"),
+  );
+});
+
+test("下敷き: ほかの綴りは触らない（ログ・地の文・__bh. の無い opts・別の id）", () => {
+  const source = [
+    'console.log("autoscroll");',
+    " * built-in の `autoscroll` を送る形に",
+    'const x = cfg.opts["autoscroll"];',
+    'const y = globalThis.__bh.opts["autofetch"];',
+    'globalThis.__bh.report("autoscroller", {});',
+  ].join("\n");
+  const { source: out, changed } = asTemplate(source, "autoscroll", "my-autoscroll");
+  assert.deepEqual(changed, []);
+  assert.equal(out, source);
 });
