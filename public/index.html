@@ -134,7 +134,8 @@
         目録の面（読む所）。左に一覧（既定で走る版と受け皿の型）、右に書いたままの source。本文は
         1 行 1 つの <li>（中身の面の行の並びと同じ組み方）で、押した行が URL になる
         （#scripts/<id>[@版][:行]・履歴は増やさない）。版の札は見出しに、開いた id の分だけ。
-        source は他人が書いたもの —— 文字は textContent で。
+        source は他人が書いたもの —— 文字は textContent で。色は worker（Shiki）が付け、1 色で描いた
+        同じ <li> に後から塗る。塗れないときは #reading-colors に 1 行（本文は 1 色のまま読める）。
       -->
       <section id="face-scripts" hidden>
         <!--
@@ -151,6 +152,7 @@
           <div class="vmain">
             <div id="reading-head" class="vhead rhead"></div>
             <p id="reading-note" class="reading-note" hidden></p>
+            <p id="reading-colors" class="reading-colors" hidden></p>
             <div id="reading-ask" class="reading-ask" hidden></div>
             <ol id="reading-lines" class="vlines rlines"></ol>
           </div>
