@@ -2,7 +2,7 @@
 
 crawler の開発用の画面。**1 本のクロールを 1 行で見る。**
 起こす（[capture-ledger](https://github.com/uraitakahito/capture-ledger)）・走らせる（[capture-scheduler](https://github.com/uraitakahito/capture-scheduler) の Windmill）・置く（[seaweedfs](https://github.com/uraitakahito/seaweedfs)）・読む（[replay](https://github.com/uraitakahito/replay)）の 4 枚に割れていた画面を、台帳の API から 1 枚に組み立てる。
-依存を持たず、秘密も持たない。loopback（既定は `127.0.0.1:7080`）でだけ待ち受ける。
+npm の依存を持たず（例外は commit した色付けの 1 ファイル）、秘密も持たない。loopback（既定は `127.0.0.1:7080`）でだけ待ち受ける。
 
 ## Documentation
 
@@ -20,4 +20,4 @@ crawler の開発用の画面。**1 本のクロールを 1 行で見る。**
 
 ## License
 
-Unlicense
+Unlicense。同梱した色付け（`public/vendor/shiki.js`）は Shiki ほかの MIT で、本文は `public/vendor/shiki.LICENSES.txt` に在る。

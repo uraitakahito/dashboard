@@ -160,6 +160,13 @@ The same default set appears as checkboxes under 目録から (from the catalog)
   browser history and does not redraw the view.
 - **写す (copy) puts the source on the clipboard.** 下敷きにして起こす (start from this) takes it to the
   [start view](#start-a-crawl) as a script of your own.
+- **The source is colored.** The colors come from [Shiki](https://shiki.style) with the same
+  TypeScript grammar as VS Code, in GitHub Light High Contrast or GitHub Dark Default to follow
+  the screen's light or dark scheme (the pair whose colors all stay readable on the screen's
+  backgrounds). The lines appear in one color first and the colors follow a moment later: the
+  coloring runs off the page's main thread (in a worker), so even a long file can be read and
+  scrolled at once. The marked line stays one color. If the colors cannot be loaded, a line above
+  the source says so, and the source stays readable in one color.
 - **The lines are the TypeScript's.** A crawl runs the compiled JavaScript, which is what the archive
   keeps in `behaviors/custom.jsonl`, and its lines are a few off from these in places.
 - **読む (read) in a crawl's detail opens the version that crawl ran,** and carries the start of its

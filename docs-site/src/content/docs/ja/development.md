@@ -5,12 +5,15 @@ description: 依存の線、検査と試験が見るもの・見ないもの、�
 
 ## 依存の線
 
-**画面（repo の根）は依存を持ちません。**
+**画面（repo の根）は npm の依存を持ちません。**
 在るのは node の http サーバ 1 本と、ブラウザで素のまま走る JS だけです。
-bundler も framework も通さないので、画面のためには install も lockfile も audit も要りません（[capture-scripts](https://github.com/uraitakahito/capture-scripts) と同じ判断）。
+framework は通さないので、画面のためには install も lockfile も audit も要りません（[capture-scripts](https://github.com/uraitakahito/capture-scripts) と同じ判断）。
 分割したくなるほど育ったら、そのとき入れます。
+**例外は `public/vendor/shiki.js` の 1 ファイルです。**
+目録の面の色付けを 1 ファイルに束ねて commit した物で（[同梱した色付け](#同梱した色付け)）、画面はそれを読むだけなので、install は今も要りません。
 
-依存が在るのは `docs-site/`（このサイトの原稿。Astro + Starlight）だけで、npm の別 project にしてあります。
+依存が在るのは 2 つで、どちらも npm の別 project にしてあります。
+`docs-site/`（このサイトの原稿。Astro + Starlight）と、`highlighter/`（`public/vendor/shiki.js` を作る元）です。
 lockfile も audit も Dependabot もそこに閉じ、root に `node_modules` を作りません。
 
 | 打つもの | 何をするか |
@@ -18,10 +21,32 @@ lockfile も audit も Dependabot もそこに閉じ、root に `node_modules` �
 | `npm run dev` | 画面を配り、`/api/*` を台帳へ、`/wacz/*` を daemon へ中継する |
 | `npm run check` | push の前に走らせる、画面の検査の全部。中身と並びは `package.json` の `check`（CI の `ci.yml` が走らせるのも同じ） |
 | `npm run site:check` | docs を build し、docs と repo のずれを見る（先に `npm ci --prefix docs-site`） |
+| `npm run vendor` | `highlighter/` の lockfile から `public/vendor/`（束と、束ねた物の license の本文）を作り直す |
+| `npm run vendor:check` | 作り直して、commit した物と 1 バイトでも違えば落ちる（CI の `vendor.yml` が走らせる） |
 
 root の script は `pnpm run` で打っても同じです（[capture-ledger](https://github.com/uraitakahito/capture-ledger) の `dev:up` は、この画面を `pnpm run dev` で起こします）。
 `check` に `site:check` は入れていません。
 `check` が install なしで走ることも、画面の性質の一部だからです。
+
+## 同梱した色付け
+
+目録の面は、`public/vendor/shiki.js` で source に色を付けます。
+[Shiki](https://shiki.style) を、TypeScript の文法と 2 つの配色（GitHub Light High Contrast と GitHub Dark Default）だけにして、esbuild で束ねた物です（何を入れるかは `highlighter/entry.mjs`）。
+束は詰めてあるので、差分を読んでレビューできません。
+読むのは lockfile と `highlighter/build.mjs` にして、束がそこから作った物どおりかは `vendor.yml` に見させます。
+
+- **`public/vendor/` を手で直さない。**
+  書くのは `npm run vendor` です。Shiki の版を上げたら走らせます。
+- **`highlighter/` への Dependabot の PR は、`package.json` と lockfile しか変えない。**
+  なので `vendor.yml` が赤になります。その枝で `npm run vendor` を走らせ、作り直した物を commit してから入れます。
+- **束ねる物に MIT 以外が混ざると、作り直しが止まる**（`highlighter/build.mjs`）。そのときは何も書きません。
+  束ねた物の license の本文は `public/vendor/shiki.LICENSES.txt` に在ります。
+- **色は、画面の地に対して測る。**
+  `test/highlight.test.mjs` が `public/app.css` の `--ground` を読み、目録のファイルで使う色が明暗とも 4.5:1 以上かを見ます。地や配色を替えれば、測り直しになります。
+- **`npm run check` は `innerHTML` を `public/` の下の全部で探す。** 束も含みます。
+- **色付けは worker で走る**（`public/highlight-worker.js`）。
+  Shiki は最初の 1 本で文法を組むので、画面の thread で走らせると 100 ms を優に超えて止まります。
+  色は描いてある行に、1 コマに数 ms ずつ塗ります。
 
 ## 試験が見るもの、見ないもの
 

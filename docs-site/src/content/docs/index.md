@@ -1,6 +1,6 @@
 ---
 title: dashboard
-description: The crawler's development screen — one row per crawl. It holds no secrets and no dependencies, and only relays the ledger's API
+description: The crawler's development screen — one row per crawl. It holds no secrets and no npm dependencies, and only relays the ledger's API
 ---
 
 dashboard is the crawler's development screen. **It shows one crawl as one row.**
@@ -47,9 +47,10 @@ the daemon, which reads the archive itself. replay and Windmill are only linked 
 - **So it is not a boundary.** The development issuer hands out a token for any name it is asked
   for. The identity here is a convenience, not a protection, and the screen says so in its
   header.
-- **It has no dependencies.** The screen is built from the Node standard library and plain
-  JavaScript that runs as-is in the browser. The only thing with dependencies is the source of
-  this site (`docs-site/`).
+- **It has no npm dependencies.** The screen is built from the Node standard library and plain
+  JavaScript that runs as-is in the browser, plus one committed file that colors the catalog
+  (`public/vendor/shiki.js`). What has dependencies is the source of this site (`docs-site/`) and
+  what that file is built from (`highlighter/`), see [Development](/development/).
 - **It only relays.** No screen logic lives on the server. The moment it did, there would be a
   copy of what the ledger knows.
 - **It owns no wording.** Validation messages, their Japanese text and the spec sections all come

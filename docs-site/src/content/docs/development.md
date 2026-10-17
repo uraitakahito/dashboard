@@ -5,25 +5,55 @@ description: Where the dependencies stop, what the checks and tests see and do n
 
 ## Where the dependencies stop
 
-**The screen (the repository root) has no dependencies.** It is one Node http server and
-JavaScript that runs as-is in the browser. Nothing goes through a bundler or a framework, so the
-screen needs no install, no lockfile and no audit (the same call as
+**The screen (the repository root) has no npm dependencies.** It is one Node http server and
+JavaScript that runs as-is in the browser. Nothing goes through a framework, so the screen needs
+no install, no lockfile and no audit (the same call as
 [capture-scripts](https://github.com/uraitakahito/capture-scripts)). If it grows enough to want
-splitting up, that is the time to add them.
+splitting up, that is the time to add them. **The one exception is `public/vendor/shiki.js`,** the
+coloring of the catalog view, bundled into a single file and committed (see
+[The bundled coloring](#the-bundled-coloring)). The screen only reads it, so it still needs no
+install.
 
-The only thing with dependencies is `docs-site/` (the source of this site, Astro + Starlight),
-kept as a separate npm project. Its lockfile, audit and Dependabot stay inside it, and no
-`node_modules` is created at the root.
+Two things have dependencies, each kept as a separate npm project: `docs-site/` (the source of
+this site, Astro + Starlight) and `highlighter/` (what `public/vendor/shiki.js` is built from).
+Their lockfiles, audits and Dependabot stay inside them, and no `node_modules` is created at the
+root.
 
 | Run | What it does |
 | --- | --- |
 | `npm run dev` | serves the screen, relaying `/api/*` to the ledger and `/wacz/*` to the daemon |
 | `npm run check` | every check for the screen to run before pushing; what it runs, and in which order, is `check` in `package.json` (the same thing CI's `ci.yml` runs) |
 | `npm run site:check` | builds the docs and checks that they match the repository (after `npm ci --prefix docs-site`) |
+| `npm run vendor` | rebuilds `public/vendor/` (the bundle and the license texts of what it bundles) from the lockfile in `highlighter/` |
+| `npm run vendor:check` | rebuilds, and fails if a single byte differs from what is committed (CI's `vendor.yml` runs it) |
 
 The root scripts work the same with `pnpm run` (the `dev:up` of
 [capture-ledger](https://github.com/uraitakahito/capture-ledger) starts the screen with `pnpm run dev`). `site:check` is deliberately not part of `check`: that `check` runs without
 installing anything is part of the screen's nature too.
+
+## The bundled coloring
+
+The catalog view colors the source with `public/vendor/shiki.js`:
+[Shiki](https://shiki.style) with only the TypeScript grammar and two themes (GitHub Light High
+Contrast and GitHub Dark Default), bundled by esbuild (`highlighter/entry.mjs` names what goes in).
+The bundle is minified, so its diff cannot be reviewed by reading it. Review the lockfile and
+`highlighter/build.mjs` instead, and let `vendor.yml` check that the bundle is exactly what they
+produce.
+
+- **Do not edit `public/vendor/` by hand.** `npm run vendor` writes it. Run it after raising
+  Shiki's version.
+- **A Dependabot PR for `highlighter/` only changes `package.json` and the lockfile,** so
+  `vendor.yml` fails on it. Run `npm run vendor` on that branch and commit the rebuilt files
+  before merging.
+- **The build stops if anything it bundles is not MIT** (`highlighter/build.mjs`), and then writes
+  nothing. The license texts of everything bundled are in `public/vendor/shiki.LICENSES.txt`.
+- **The colors are measured against the screen's backgrounds.** `test/highlight.test.mjs` reads
+  `--ground` from `public/app.css` and requires every color the catalog's files use to reach
+  4.5:1 in both schemes, so changing the background or the theme measures again.
+- **`npm run check` looks for `innerHTML` under all of `public/`,** the bundle included.
+- **The coloring runs in a worker** (`public/highlight-worker.js`): Shiki builds its grammar on
+  first use, which would stop the page for well over 100 ms. The colors are painted onto the
+  lines already drawn, a few milliseconds per frame.
 
 ## What the tests see, and what they do not
 

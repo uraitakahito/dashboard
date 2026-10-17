@@ -28,8 +28,8 @@ capture-ledger's [quickstart](https://uraitakahito.github.io/capture-ledger/quic
 
 ## When you only work on the screen
 
-If you only change the screen, start it from this repository. It has no dependencies, so there
-is nothing to install.
+If you only change the screen, start it from this repository. It has no npm dependencies, so
+there is nothing to install.
 
 ```sh
 npm run dev           # http://127.0.0.1:7080/
