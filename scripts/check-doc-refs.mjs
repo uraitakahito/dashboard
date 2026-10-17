@@ -57,7 +57,7 @@ for (const [locale, f] of [...en.map((f) => ["", f]), ...ja.map((f) => ["ja/", f
   // ─── 3. 名指した path の実在 ─────────────────────────────────────────
   // root の file は名前で見る。素の `package.json` は root のもの (docs-site のものは `docs-site/package.json`)
   for (const [, path] of text.matchAll(
-    /`((?:src|public|test|scripts|sandbox|docs-site|\.github)\/[A-Za-z0-9_./-]+|\.env\.example|package\.json|\.nvmrc|docker-compose\.yml)`/g,
+    /`((?:src|public|test|scripts|sandbox|docs-site|highlighter|\.github)\/[A-Za-z0-9_./-]+|\.env\.example|package\.json|\.nvmrc|docker-compose\.yml)`/g,
   )) {
     if (!existsSync(resolve(ROOT, path)))
       problems.push(`${rel}: \`${path}\` が無い (移した? 消した?)`);

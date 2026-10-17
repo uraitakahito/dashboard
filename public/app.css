@@ -926,3 +926,26 @@ body[data-face="scripts"] main {
 .rlines li.sel .n {
   background: var(--accent);
 }
+
+/* 色は Shiki の配色（明: github-light-high-contrast・暗: github-dark-default）。塗った span が --l と --d を持つ */
+.rlines .t span {
+  color: var(--l);
+}
+
+@media (prefers-color-scheme: dark) {
+  .rlines .t span {
+    color: var(--d);
+  }
+}
+
+/* 選んだ行は地が accent になるので、字の色を 1 つに戻す（.vlines li.sel .t の色を継ぐ） */
+.rlines li.sel .t span {
+  color: inherit;
+}
+
+/* 塗れないときの 1 行。本文は 1 色のまま読めるので、枠も色も付けずに言う。display は書かない（hidden が効かなくなる） */
+.reading-colors {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}

@@ -706,6 +706,85 @@ $("reading-lines").addEventListener("click", (event) => {
   markLine(n, { scroll: false });
 });
 
+// ── 色付け（読む所）──────────────────────────────────────────────
+/**
+ * 色を付ける worker。**読む所が初めて色を要るときに 1 つだけ作る**（Shiki の 374 KB を読むのも、そのとき）。
+ * 答えは sha256 で覚える —— 同じ版を開き直しても、もう 1 度は訊かない。
+ */
+const painter = { worker: undefined, broken: undefined, asked: 0, waiting: new Map(), kept: new Map() };
+
+const colorsOf = (doc) => {
+  const kept = painter.kept.get(doc.sha256);
+  if (kept !== undefined) return Promise.resolve(kept);
+  if (painter.broken !== undefined) return Promise.reject(painter.broken);
+  if (painter.worker === undefined) {
+    painter.worker = new Worker("/highlight-worker.js", { type: "module" });
+    painter.worker.onmessage = ({ data }) => {
+      const wait = painter.waiting.get(data.id);
+      painter.waiting.delete(data.id);
+      if (data.error !== undefined) wait?.reject(new Error(data.error));
+      else wait?.resolve(data.lines);
+    };
+    // 起こせない（/vendor/shiki.js が 404 など）。Chrome は message を空で寄こし、頼みには答えない ——
+    // 待っている物を全部断り、以後は訊かない
+    painter.worker.onerror = (event) => {
+      painter.broken = new Error(event.message || "色付けの worker を起こせない");
+      for (const wait of painter.waiting.values()) wait.reject(painter.broken);
+      painter.waiting.clear();
+    };
+  }
+  const id = ++painter.asked;
+  return new Promise((resolve, reject) => {
+    painter.waiting.set(id, { resolve, reject });
+    painter.worker.postMessage({ id, source: doc.source });
+  }).then((lines) => {
+    painter.kept.set(doc.sha256, lines);
+    return lines;
+  });
+};
+
+/**
+ * 描いた行に色を塗る。li はそのまま（押した行と流した位置が動かない）。**1 コマに 8 ms まで** ——
+ * 6,061 行を一度に塗ると、span を 1.7 万個組むので画面が 0.3 秒止まる（Chrome 153）。コマの間に
+ * 開き直したら、そこでやめる（遅れて届いた別の版の色を、いま描いている行に塗らない）。
+ * 行の数が合わなければ塗らない（Shiki の行の分け方が linesOf と違ったとき）。
+ */
+const paintLines = (lines, stale) => {
+  const items = $("reading-lines").children;
+  if (items.length !== lines.length) return;
+  let next = 0;
+  const slice = () => {
+    if (stale()) return;
+    const until = performance.now() + 8;
+    for (; next < lines.length && performance.now() < until; next++) {
+      const pieces = document.createDocumentFragment();
+      for (const [piece, light, dark] of lines[next]) {
+        const span = tag("span", piece);
+        span.style.setProperty("--l", light);
+        span.style.setProperty("--d", dark);
+        pieces.append(span);
+      }
+      items[next].lastElementChild.replaceChildren(pieces);
+    }
+    if (next < lines.length) requestAnimationFrame(slice);
+  };
+  // 次のコマから。覚えた色でも、1 色の行を先に見せる
+  requestAnimationFrame(slice);
+};
+
+/** 1 色で描いた後に呼ぶ。開き直していなければ塗る。塗れなければ、本文の上の 1 行で言う（本文は読めるまま）。 */
+const colorize = (doc, stale) =>
+  colorsOf(doc)
+    .then((lines) => {
+      paintLines(lines, stale);
+    })
+    .catch((err) => {
+      if (stale()) return;
+      const note = $("reading-colors");
+      note.textContent = `色を付けられません（${failedText(err)}）`;
+      note.hidden = false;
+    });
+
 /** 写す。http://127.0.0.1 は安全な文脈なので clipboard が使える。断られたら上の帯で言う。 */
 const copyButton = (source) => {
   const b = button("写す", async () => {
@@ -764,7 +843,7 @@ const docOf = async (id, version, sha256) => {
   return doc;
 };
 
-const openTypes = (target) => {
+const openTypes = (target, stale) => {
   const types = reading.types;
   reading.open = { target, doc: types ?? undefined };
   markListed();
@@ -788,6 +867,7 @@ const openTypes = (target) => {
   });
   readingNote(undefined);
   drawLines(types.source, target.line);
+  void colorize(types, stale);
 };
 
 const openScript = async (target, stale) => {
@@ -837,6 +917,7 @@ const openScript = async (target, stale) => {
     readingNote(undefined);
   }
   drawLines(doc.source, target.line);
+  void colorize(doc, stale); // 1 色で読めるようにしてから、worker の答えを同じ行に塗る
 };
 
 /**
@@ -847,6 +928,7 @@ const openReading = async (asked) => {
   const ticket = ++reading.ticket;
   const stale = () => ticket !== reading.ticket;
   $("reading-ask").hidden = true;
+  $("reading-colors").hidden = true;
   try {
     const askedTypes = asked !== undefined && asked.id === undefined;
     if (reading.types === undefined || (askedTypes && reading.types === null)) {
@@ -868,7 +950,7 @@ const openReading = async (asked) => {
       drawLines(undefined);
       return;
     }
-    if (target.id === undefined) openTypes(target);
+    if (target.id === undefined) openTypes(target, stale);
     else await openScript(target, stale);
   } catch (err) {
     if (!stale()) readingNote("読めません: ", failedText(err), "bad");

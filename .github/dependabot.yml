@@ -3,8 +3,8 @@
 # Dependabot が読むのは **default branch (main) に置かれたこのファイル** だけ。
 # PR も main へ出す (`target-branch` を書かなければ、default branch 宛てになる)。
 #
-# 画面 (repo の根) は依存を持たない。npm の lockfile は docs-site の 1 本だけなので、
-# npm の entry は `directory: /docs-site` だけを置く (root の entry はこの lockfile に届かない)。
+# 画面 (repo の根) は npm の依存を持たない。npm の lockfile は docs-site と highlighter の 2 本
+# なので、npm の entry はその 2 つの directory に置く (root の entry はどちらにも届かない)。
 version: 2
 updates:
   # ── docs-site (Astro) ──
@@ -35,6 +35,25 @@ updates:
         update-types: ["version-update:semver-major"]
     groups:
       docs-site:
+        patterns:
+          - "*"
+
+  # ── highlighter (public/vendor/shiki.js を作る元) ──
+  #
+  # PR は package.json と lockfile しか変えないので、vendor.yml が赤になる。その PR の枝で
+  # `npm run vendor` を走らせ、作り直した shiki.js と shiki.LICENSES.txt を commit してから入れる。
+  - package-ecosystem: npm
+    directory: /highlighter
+    schedule:
+      interval: weekly
+      day: monday
+    # 束ねて画面で走らせるので、docs-site より長く枯らす。security 更新には適用されない
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 1
+    versioning-strategy: increase
+    groups:
+      highlighter:
         patterns:
           - "*"
 

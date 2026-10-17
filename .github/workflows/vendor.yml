@@ -1,0 +1,32 @@
+name: vendor
+
+# public/vendor/ (shiki.js と license の一覧) が、highlighter/ の lockfile から作り直した物と
+# 1 バイトも違わないことを見る。手で直した・作り直し忘れた・別の版から作った、のどれでも赤になる。
+# npm ci が要るので、install しない ci.yml とは分ける (docs-site の site.yml と同じ判断)。
+
+on:
+  push:
+    branches: [main]
+    paths: ["highlighter/**", "public/vendor/**", ".github/workflows/vendor.yml"]
+  pull_request:
+    paths: ["highlighter/**", "public/vendor/**", ".github/workflows/vendor.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  rebuild:
+    name: Rebuild the bundled highlighter
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: highlighter/package-lock.json
+
+      - name: Rebuild and compare
+        run: npm run vendor:check
