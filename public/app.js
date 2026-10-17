@@ -8,7 +8,16 @@
  * `<img>` で。生の HTML を差し込む API はこのファイルに無い（`check` が見張る）。
  */
 import { judgedUnder, severityKind, stateOf, statsOf, took, verdict } from "/format.js";
-import { bodyBytes, hasNocheck, sizeOf, startAnswer, startBody, withNocheck } from "/start.js";
+import { asTemplate, bodyBytes, hasNocheck, sizeOf, startAnswer, startBody, withNocheck } from "/start.js";
+import {
+  linesOf,
+  metaOf,
+  optionsText,
+  parseReading,
+  readingHash,
+  standingOf,
+  TYPES_HASH,
+} from "/reading.js";
 import {
   bodyLabel,
   buildTree,
@@ -146,6 +155,11 @@ const ranOf = (one) => {
     // 無いので、押したときに名前の口から取る
     if (script.inline !== undefined) {
       item.append(button("欄に戻す", () => void putBack(one.crawlId, script.inline.name)));
+    } else {
+      // 走った版を読む。番号は使い回されうるので sha256 の頭も渡し、読む所が食い違いを言う
+      const read = tag("a", "読む");
+      read.href = readingHash({ id: script.id, version: script.version, sha: script.sha256.slice(0, 12) });
+      item.append(read);
     }
     list.append(item);
   }
@@ -564,19 +578,352 @@ const drawArchives = () => {
   }
 };
 
-// ── 目録 ───────────────────────────────────────────────────────────
-const drawScripts = (scripts) => {
-  const body = $("scripts");
-  body.replaceChildren();
-  $("scripts-empty").hidden = scripts.length > 0;
-  for (const script of scripts) {
-    const row = document.createElement("tr");
-    row.append(cell(script.id));
-    row.append(cell(`v${String(script.version)}`, "mono"));
-    row.append(cell(script.phase));
-    row.append(cell(`${script.sha256.slice(0, 12)}…`, "mono"));
-    body.append(row);
+// ── 目録（読む所）─────────────────────────────────────────────────
+/**
+ * 読む所の状態。**取るのは開いたときだけ** —— 一覧（既定の顔ぶれ）は引き直しの答えを使い、版の札と
+ * 1 版の中身は開いた id の分だけ取る。受け皿の型は面を最初に開いたとき 1 回で、refresh には入れない
+ * （入れると、型を取り込んでいない台帳で引き直し全体が落ちる）。
+ */
+const reading = {
+  /** 最後に開いた URL。タブ「目録」はここへ戻る（中身の面の wacz.hash と同じ） */
+  hash: undefined,
+  /** 開いている物: URL が名指した物（target）と、その中身（doc。版か型） */
+  open: undefined,
+  /** 1 版の中身。`id@版` で覚え、版の札の sha256 と食い違えば取り直す（番号は使い回される） */
+  docs: new Map(),
+  /** 既定の顔ぶれ（GET /api/scripts の最後の答え） */
+  defaults: [],
+  /** 受け皿の型。undefined はまだ訊いていない、null は台帳に無い（404） */
+  types: undefined,
+  /** 最後に描いた一覧の形。同じなら描き直さない */
+  listKey: undefined,
+  /** 開くたびに増やす。遅れて届いた答えが、後から開いた物を描き潰さないように */
+  ticket: 0,
+};
+
+const TYPES_KEY = "types";
+const keyOf = (target) => target.id ?? TYPES_KEY;
+
+/** 404 なら undefined（在らないのは誤りではなく、言い方を変えるだけ）。ほかの失敗は投げる。 */
+const find = async (path) => {
+  const res = await fetch(path);
+  if (res.status === 404) return undefined;
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error ?? body.message ?? `${path} → ${String(res.status)}`);
+  return body;
+};
+
+/** 一覧の 1 項目。ふつうの <a> なので、中ボタンで別の窓に開ける（書く欄と並べる道） */
+const listItem = (href, name, version, key) => {
+  const a = document.createElement("a");
+  a.href = href;
+  a.className = "ritem";
+  a.dataset.key = key;
+  a.append(document.createTextNode(name), tag("small", version));
+  return a;
+};
+
+/** 一覧で、開いている物に印を付ける。描き直さずに class だけ替える。 */
+const markListed = () => {
+  const key = reading.open === undefined ? undefined : keyOf(reading.open.target);
+  for (const a of $("reading-list").querySelectorAll("a.ritem")) {
+    a.classList.toggle("on", a.dataset.key === key);
   }
+};
+
+/**
+ * 一覧（既定で走る版と、書くための受け皿の型）。**変わったときだけ描き直す** —— 一覧は走行中なら
+ * 2 秒ごとに引くので、毎回作り直すと、押そうとしている項目が手の下で入れ替わる（drawPicks と同じ）。
+ */
+const drawReadingList = () => {
+  $("scripts-empty").hidden = reading.defaults.length > 0;
+  const types = reading.types;
+  const key = [
+    ...reading.defaults.map((s) => `${s.id}@${String(s.version)}~${s.sha256}`),
+    `types@${types === undefined ? "?" : types === null ? "-" : `${String(types.version)}~${types.sha256}`}`,
+  ].join(",");
+  if (key !== reading.listKey) {
+    reading.listKey = key;
+    const nav = $("reading-list");
+    nav.replaceChildren(tag("span", "既定で走る", "grp"));
+    if (reading.defaults.length === 0) nav.append(tag("span", "（目録が空）", "muted"));
+    for (const s of reading.defaults) {
+      nav.append(listItem(readingHash({ id: s.id }), s.id, `v${String(s.version)}`, s.id));
+    }
+    nav.append(tag("span", "書くための型", "grp"));
+    if (types === null) nav.append(tag("span", "host.d.ts（台帳に無い）", "muted"));
+    if (types !== null && types !== undefined) {
+      nav.append(listItem(TYPES_HASH, "host.d.ts", `v${String(types.version)}`, TYPES_KEY));
+    }
+  }
+  markListed();
+};
+
+/** 本文の上の 1 行。太字の文と、続く文。undefined なら隠す。 */
+const readingNote = (bold, rest = "", kind = "warn") => {
+  const p = $("reading-note");
+  p.hidden = bold === undefined;
+  if (bold === undefined) return;
+  p.className = `reading-note ${kind}`;
+  p.replaceChildren(tag("b", bold), document.createTextNode(rest));
+};
+
+/** 行に印を付ける。印は 1 つだけなので、付いている物を外して付け直す（5 千行を回さない）。 */
+const markLine = (n, { scroll }) => {
+  const list = $("reading-lines");
+  for (const li of list.querySelectorAll("li.sel")) li.classList.remove("sel");
+  const li = list.children[n - 1];
+  if (li === undefined) return;
+  li.classList.add("sel");
+  if (scroll) li.scrollIntoView({ block: "center" });
+};
+
+/** 本文。1 行 1 つの <li>（中身の面の行の並びと同じ組み方）。行の印は class 1 つ。 */
+const drawLines = (source, line) => {
+  const list = $("reading-lines");
+  if (source === undefined) {
+    list.replaceChildren();
+    return;
+  }
+  const lines = document.createDocumentFragment();
+  linesOf(source).forEach((text, i) => {
+    const li = document.createElement("li");
+    li.dataset.n = String(i + 1);
+    li.append(tag("span", String(i + 1), "n"), tag("span", text, "t"));
+    lines.append(li);
+  });
+  list.replaceChildren(lines);
+  if (line !== undefined) markLine(line, { scroll: true });
+};
+
+// 押した行を URL に。**hashchange を起こさずに**（中身の面の remember と同じ。起こすと読み直す）
+$("reading-lines").addEventListener("click", (event) => {
+  const li = event.target.closest("li");
+  if (li === null || reading.open?.doc === undefined) return;
+  const n = Number(li.dataset.n);
+  reading.hash = readingHash({ ...reading.open.target, line: n });
+  history.replaceState(null, "", reading.hash);
+  markLine(n, { scroll: false });
+});
+
+/** 写す。http://127.0.0.1 は安全な文脈なので clipboard が使える。断られたら上の帯で言う。 */
+const copyButton = (source) => {
+  const b = button("写す", async () => {
+    try {
+      await navigator.clipboard.writeText(source);
+      b.textContent = "写しました";
+      setTimeout(() => {
+        b.textContent = "写す";
+      }, 1500);
+    } catch (err) {
+      trouble(`写せません: ${failedText(err)}`);
+    }
+  });
+  return b;
+};
+
+/** 見出し: 名前（と版の札）・事実の 1 行・ボタンと注記。 */
+const drawReadingHead = ({ name, chips, facts, standing, actions = [], aside }) => {
+  const title = document.createElement("div");
+  title.className = "rtitle";
+  title.append(tag("b", name));
+  if (chips !== undefined) title.append(chips);
+  const meta = tag("div", facts.join(" · "), "rmeta");
+  if (standing !== undefined) {
+    meta.append(document.createTextNode(" · "), tag("span", standing.text, `state ${standing.kind}`));
+  }
+  const row = document.createElement("div");
+  row.className = "ractions";
+  row.append(...actions);
+  if (aside !== undefined) row.append(tag("span", aside, "muted"));
+  $("reading-head").replaceChildren(title, meta, row);
+};
+
+/** 版の札。押すとその版の URL へ（版を替えるのは移動なので、履歴に残す）。 */
+const chipsOf = (id, versions, shown, defaultVersion) => {
+  const box = document.createElement("span");
+  box.className = "rchips";
+  for (const v of versions) {
+    const a = document.createElement("a");
+    a.href = readingHash({ id, version: v.version });
+    const mark = v.version === defaultVersion ? "（既定）" : v.enabled ? "" : "（無効）";
+    a.textContent = `v${String(v.version)}${mark}`;
+    if (v.version === shown) a.className = "on";
+    box.append(a);
+  }
+  return box;
+};
+
+/** 1 版の中身。覚えた物の sha256 が版の札と違えば（番号が使い回された）取り直す。 */
+const docOf = async (id, version, sha256) => {
+  const key = `${id}@${String(version)}`;
+  const kept = reading.docs.get(key);
+  if (kept !== undefined && kept.sha256 === sha256) return kept;
+  const doc = await api(`/api/scripts/${enc(id)}/versions/${String(version)}`);
+  reading.docs.set(key, doc);
+  return doc;
+};
+
+const openTypes = (target) => {
+  const types = reading.types;
+  reading.open = { target, doc: types ?? undefined };
+  markListed();
+  if (types === null) {
+    drawReadingHead({ name: "host.d.ts", facts: [] });
+    readingNote(
+      "受け皿の型はまだ台帳に在りません。",
+      "cd ../capture-ledger && pnpm run scripts import .upstream/capture-scripts で入ります。",
+      "bad",
+    );
+    drawLines(undefined);
+    return;
+  }
+  drawReadingHead({
+    name: `host.d.ts v${String(types.version)}`,
+    facts: metaOf(types),
+    actions: [copyButton(types.source)],
+    aside:
+      "受け皿 __bh の型（capture-scripts の types/host.d.ts の写し）。クロールの変換が使う型は " +
+      "ts-compile-service の pin で、クロールの compiledWith.hostTypes に出ます",
+  });
+  readingNote(undefined);
+  drawLines(types.source, target.line);
+};
+
+const openScript = async (target, stale) => {
+  reading.open = { target, doc: undefined };
+  markListed();
+  const listed = await find(`/api/scripts/${enc(target.id)}/versions`);
+  if (stale()) return;
+  if (listed === undefined) {
+    drawReadingHead({ name: target.id, facts: [] });
+    readingNote(`目録に ${target.id} はありません。`, "", "bad");
+    drawLines(undefined);
+    return;
+  }
+  const defaultVersion = reading.defaults.find((s) => s.id === target.id)?.version;
+  const version = target.version ?? defaultVersion ?? listed.versions[0].version;
+  const chips = chipsOf(target.id, listed.versions, version, defaultVersion);
+  const entry = listed.versions.find((v) => v.version === version);
+  if (entry === undefined) {
+    drawReadingHead({ name: `${target.id} v${String(version)}`, chips, facts: [] });
+    readingNote(
+      `v${String(version)} は目録に在りません（消されています）。`,
+      "走った物はアーカイブの behaviors/custom.jsonl に在ります（変換後の JS）。",
+    );
+    drawLines(undefined);
+    return;
+  }
+  const doc = await docOf(target.id, version, entry.sha256);
+  if (stale()) return;
+  reading.open = { target, doc };
+  drawReadingHead({
+    name: `${doc.id} v${String(doc.version)}`,
+    chips,
+    facts: [...metaOf(doc), optionsText(doc.options)],
+    standing: standingOf(doc, defaultVersion),
+    actions: [copyButton(doc.source), button("下敷きにして起こす", () => putTemplate(doc))],
+    aside: "走った JS（アーカイブの custom.jsonl）とは行が合いません",
+  });
+  // URL の sha256 の頭（クロールの「読む」が付ける）が、開いた版と食い違えば言う。本文は出す
+  if (target.sha !== undefined && !doc.sha256.startsWith(target.sha)) {
+    readingNote(
+      `このクロールが走らせた v${String(version)} とは中身が違います。`,
+      `クロールの記録は sha256 ${target.sha}…、目録の v${String(version)} は ` +
+        `${doc.sha256.slice(0, 12)}… です。v${String(version)} は目録から消され、別の中身で足し直されて` +
+        "います。走った物はアーカイブの behaviors/custom.jsonl に在ります（変換後の JS）。",
+    );
+  } else {
+    readingNote(undefined);
+  }
+  drawLines(doc.source, target.line);
+};
+
+/**
+ * 読む所を開く。何も名指さなければ（`#scripts`）一覧の頭を開き、URL をそれに替える（履歴は
+ * 増やさない）。型は最初の 1 回だけ訊く（台帳に無かったら、型を名指したときに訊き直す）。
+ */
+const openReading = async (asked) => {
+  const ticket = ++reading.ticket;
+  const stale = () => ticket !== reading.ticket;
+  $("reading-ask").hidden = true;
+  try {
+    const askedTypes = asked !== undefined && asked.id === undefined;
+    if (reading.types === undefined || (askedTypes && reading.types === null)) {
+      reading.types = (await find("/api/host-types")) ?? null;
+      if (stale()) return;
+    }
+    let target = asked;
+    if (target === undefined) {
+      const first = reading.defaults[0];
+      target = first !== undefined ? { id: first.id } : reading.types !== null ? {} : undefined;
+      if (target !== undefined) history.replaceState(null, "", readingHash(target));
+    }
+    reading.hash = location.hash;
+    drawReadingList();
+    if (target === undefined) {
+      reading.open = undefined;
+      drawReadingHead({ name: "目録", facts: [] });
+      readingNote(undefined);
+      drawLines(undefined);
+      return;
+    }
+    if (target.id === undefined) openTypes(target);
+    else await openScript(target, stale);
+  } catch (err) {
+    if (!stale()) readingNote("読めません: ", failedText(err), "bad");
+  }
+};
+
+/** 欄に書きかけがあるとき、置き換えるかを本文の上で訊く。 */
+const askReplace = (doc, lines) => {
+  const box = $("reading-ask");
+  box.hidden = false;
+  box.replaceChildren(
+    tag("span", `起こす面の欄に書きかけの JS（${count(lines)} 行）があります。`),
+    button("置き換える", () => {
+      box.hidden = true;
+      putTemplate(doc, true);
+    }),
+    button("やめる", () => {
+      box.hidden = true;
+    }),
+  );
+};
+
+/**
+ * 目録の 1 版を、その場の JS の欄に写して起こす面へ移る。**書きかけを黙って消さない** —— 欄が空で
+ * なければ、置き換えるかを本文の上で訊く（replace は「置き換える」を押したときだけ true）。
+ * 入れ方は「欄に戻す」（putBack）と同じ。
+ */
+const putTemplate = (doc, replace = false) => {
+  const box = $("start-inline-source");
+  if (!replace && box.value.trim() !== "") {
+    askReplace(doc, linesOf(box.value).length);
+    return;
+  }
+  const name = $("start-inline-name").value.trim() || `my-${doc.id}`;
+  const { source, changed } = asTemplate(doc.source, doc.id, name);
+  $("start-inline-name").value = name;
+  $(doc.phase === "preload" ? "start-inline-preload" : "start-inline-behavior").checked = true;
+  box.value = source;
+  // 元を外す。両方走ると 2 回走り、coverage は id を見ずに、先に走る写しの報告を採る
+  unpicked.add(doc.id);
+  catalogKey = undefined; // drawPicks は目録が変わったときだけ描くので、ここで描き直させる
+  drawPicks(reading.defaults);
+  const said = $("start-answer");
+  said.hidden = false;
+  said.className = "start-answer muted";
+  said.textContent =
+    `下敷き: ${doc.id} v${String(doc.version)} を写しました。` +
+    (changed.length === 0
+      ? "id を替える所はありませんでした。"
+      : `${changed.join("・")} 行目の id を inline-${name} に替えました。`) +
+    `目録の ${doc.id} は外しました（両方走ると 2 回走ります）。`;
+  location.hash = "start";
+  drawSource();
+  syncStart();
+  box.focus();
 };
 
 // ── 中身（WACZ の 1 本）────────────────────────────────────────────
@@ -912,20 +1259,32 @@ const show = (face) => {
   document.body.dataset.face = face; // 起こす面だけ、CSS が窓の高さに収める
 };
 
-/** URL が面を決める。`#wacz/…` は中身の面、それ以外は 3 つの面のどれか。 */
+/**
+ * URL が面を決める。`#wacz/…` は中身の面、`#scripts` と `#scripts/…` は目録の面（読む所）、
+ * それ以外はほかの面のどれか。
+ */
 const route = () => {
   const target = parseWaczHash(location.hash);
   if (target !== undefined) {
     void openWacz(target);
     return;
   }
+  const asked = parseReading(location.hash);
+  if (asked !== undefined || location.hash === "#scripts") {
+    show("scripts");
+    void openReading(asked);
+    return;
+  }
   const face = location.hash.slice(1);
-  show(FACES.includes(face) && face !== "wacz" ? face : "crawls");
+  show(FACES.includes(face) && face !== "wacz" && face !== "scripts" ? face : "crawls");
 };
 
+// 中身の面と目録の面は、最後に読んだ所へ戻る
 for (const b of document.querySelectorAll("#tabs button")) {
   b.onclick = () => {
-    location.hash = b.dataset.face === "wacz" ? (wacz.hash ?? "archives") : b.dataset.face;
+    const face = b.dataset.face;
+    location.hash =
+      face === "wacz" ? (wacz.hash ?? "archives") : face === "scripts" ? (reading.hash ?? "scripts") : face;
   };
 }
 window.addEventListener("hashchange", route);
@@ -952,7 +1311,8 @@ const refresh = async () => {
     drawCrawls();
     refreshOpened();
     drawArchives();
-    drawScripts(s.scripts);
+    reading.defaults = s.scripts;
+    drawReadingList();
     drawPicks(s.scripts);
     trouble(undefined);
     $("pulse").textContent =

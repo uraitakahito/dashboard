@@ -105,3 +105,26 @@ export const withNocheck = (source, on) => {
   const end = source.indexOf("\n");
   return end === -1 ? "" : source.slice(end + 1);
 };
+
+/**
+ * 目録の 1 本を、その場の JS の下敷きにする（目録の面の「下敷きにして起こす」）。**替えるのは 2 つの
+ * 形だけ** —— `__bh.opts["<id>"]` と `__bh.report("<id>"` の id を `inline-<名前>` に。台帳は
+ * その場の JS を `inline-<名前>` の id で走らせるので、替えないと設定も報告も元の id のまま届く。
+ *
+ * ほかの綴り（ログの文字列・コメントの地の文・`__bh.` の無い `opts["…"]`・別の id）は触らない。
+ * 替えた行の番号（1 から）を返す。名前の綴りは検査しない（台帳が 400 で言う）。
+ */
+export const asTemplate = (source, fromId, name) => {
+  const to = `inline-${name}`;
+  const forms = [
+    [`__bh.opts["${fromId}"]`, `__bh.opts["${to}"]`],
+    [`__bh.report("${fromId}"`, `__bh.report("${to}"`],
+  ];
+  const changed = [];
+  const lines = source.split("\n").map((line, i) => {
+    const out = forms.reduce((text, [from, into]) => text.split(from).join(into), line);
+    if (out !== line) changed.push(i + 1);
+    return out;
+  });
+  return { source: lines.join("\n"), changed };
+};

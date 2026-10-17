@@ -7,11 +7,17 @@
     "        crawlId は頭の 8 字で違える (画面の id の欄は、頭の 8 字しか出さない)。",
     "archives: アーカイブの行は WACZ の置き場から作る。ここに書いた名前の行は、欄を上書きする。",
     "hidden: 一覧には出るが、署名は出ない行 (台帳の「見てよくない archive」と同じ 404 になる)。",
-    "emptyCatalog: true にすると、目録が空のときの赤い文が出る。",
+    "emptyCatalog: true にすると、目録が空のときの赤い文が出る（読む所には受け皿の型だけが残る）。",
     "submit: 画面の欄から起こした行は runsSeconds 秒走ってから完走する。走っている間にもう 1 度起こすと 409。",
     "        受けた行は代役が起きている間だけ在り、台本の走行中の行は「走行中 1 本」に数えない。",
     "crawls の scripts: 1 本の詳しい所の「走らせたもの」(並びが実行順)。その場の JS は id を inline-<name> にし、",
-    "        頼まれた要素 inline (name・phase・source) を付ける (台帳は、その場の物にだけ返す)。"
+    "        頼まれた要素 inline (name・phase・source) を付ける (台帳は、その場の物にだけ返す)。",
+    "        目録の物の sha256 は、目録のその版と同じ値にする。**5b0c0008 の autoscroll だけはわざと違う** ——",
+    "        読む所が「このクロールが走らせた v1 とは中身が違う」と言うのを見る場 (版の番号は使い回される)。",
+    "catalog: 目録の版の並び。source は file (sandbox/catalog の写し・capture-scripts v0.2.1) から読み、",
+    "         sha256 と bytes は代役が source から数える。options と enabled は省けば {} と true。",
+    "         既定の顔ぶれ (/api/scripts) は、有効な各 id の最新版。autoscroll v2 は中身が同じで設定だけ違う版。",
+    "hostTypes: 受け皿の型 (/api/host-types)。消すと、型を取り込んでいない台帳の 404 になる。"
   ],
   "capturedAt": "2026-10-12T09:00:00.000Z",
   "emptyCatalog": false,
@@ -113,8 +119,8 @@
           "sha256": "fcd4fe8635bb18fcb48e91ce50a0316b1b590ff6ab9fb705520831dcd4f37ebe",
           "inline": { "name": "close-banner", "phase": "behavior", "source": "(() => {\n  document.querySelector<HTMLButtonElement>(\"#onetrust-accept-btn-handler\")?.click();\n})();\n" }
         },
-        { "id": "autofetch", "version": 1, "phase": "behavior", "sha256": "7fd0dcb323965753ac9fe264be306ebb54a5699dee3d9a6e45f1a299b10736d7" },
-        { "id": "autoscroll", "version": 1, "phase": "behavior", "sha256": "0e1f829de9ba863b754d83186765e225c7ebc4972dde4808e85656cd5032e3b4" }
+        { "id": "autofetch", "version": 1, "phase": "behavior", "sha256": "6aa6f4459d9276c748b0a30c789e27cf224e2db75e949116789aecf2995aa384" },
+        { "id": "autoscroll", "version": 1, "phase": "behavior", "sha256": "c9956819ffeadf3aa1cd138247330e1662372c2d47d4416bfefd4848e1bedc03" }
       ]
     },
     {
@@ -137,7 +143,7 @@
           "sha256": "50ec1c71cd89b42c2bd98d313372fd49f01dabda740dd67d07b08c0c9c84fdf6",
           "inline": { "name": "close-banner", "phase": "behavior", "source": "(() => {\n  const close = (el) => el.click();\n  close(document.querySelector(\"#onetrust-accept-btn-handler\"));\n})();\n" }
         },
-        { "id": "autofetch", "version": 1, "phase": "behavior", "sha256": "7fd0dcb323965753ac9fe264be306ebb54a5699dee3d9a6e45f1a299b10736d7" },
+        { "id": "autofetch", "version": 1, "phase": "behavior", "sha256": "6aa6f4459d9276c748b0a30c789e27cf224e2db75e949116789aecf2995aa384" },
         { "id": "autoscroll", "version": 1, "phase": "behavior", "sha256": "0e1f829de9ba863b754d83186765e225c7ebc4972dde4808e85656cd5032e3b4" }
       ]
     }
@@ -147,18 +153,17 @@
     "wacz-missing-indexes.wacz": { "waczComplete": null }
   },
   "hidden": ["ghost.wacz"],
-  "scripts": [
-    {
-      "id": "autofetch",
-      "version": 1,
-      "phase": "behavior",
-      "sha256": "7fd0dcb323965753ac9fe264be306ebb54a5699dee3d9a6e45f1a299b10736d7"
-    },
+  "catalog": [
+    { "id": "autofetch", "version": 1, "phase": "behavior", "file": "catalog/autofetch.ts", "createdAt": "2026-10-14T12:26:38.668Z" },
+    { "id": "autoscroll", "version": 1, "phase": "behavior", "file": "catalog/autoscroll.ts", "createdAt": "2026-10-14T12:26:38.656Z" },
     {
       "id": "autoscroll",
-      "version": 1,
+      "version": 2,
       "phase": "behavior",
-      "sha256": "0e1f829de9ba863b754d83186765e225c7ebc4972dde4808e85656cd5032e3b4"
+      "file": "catalog/autoscroll.ts",
+      "createdAt": "2026-10-16T09:00:00.000Z",
+      "options": { "maxSteps": 60 }
     }
-  ]
+  ],
+  "hostTypes": { "version": 1, "file": "catalog/host.d.ts", "createdAt": "2026-10-17T00:36:15.178Z" }
 }

@@ -12,6 +12,9 @@
  * 台本の `submit.runsSeconds` 秒走ってから完走になる (台本の行とは別に持つ)。走らせるもの
  * (`scripts`。目録の名指しとその場の JS) も台帳と同じ形で受け、1 本の詳しい所に返す。
  *
+ * 目録 (台本の `catalog`) は版の並びで、source は sandbox/catalog の写しから読む。目録を読む口
+ * (版の一覧・1 版・受け皿の型) にも答える。
+ *
  * 試験から関数を import できるように、server は直に走らせたときだけ立てる。
  */
 import { createHash, randomUUID } from "node:crypto";
@@ -23,6 +26,10 @@ import { pathToFileURL } from "node:url";
 /** WACZ の置き場。compose の中では /samples (daemon も同じ path で読む)。 */
 const SAMPLES = process.env.SANDBOX_SAMPLES ?? "/samples";
 const SCENARIO = new URL("./scenario.json", import.meta.url);
+
+/** 台本が `file` で名指すファイル (sandbox/ からの相対)。 */
+const readBeside = (file) => readFileSync(new URL(`./${file}`, SCENARIO), "utf8");
+const sha256Of = (text) => createHash("sha256").update(text, "utf8").digest("hex");
 
 /**
  * 台本の時刻の基準。代役が起きた時刻に固定する —— 要求のたびの「いま」を基準にすると、
@@ -205,10 +212,85 @@ const resolveRun = (scripts, catalog) => {
             id: `inline-${r.inline.name}`,
             version: 1,
             phase: r.inline.phase,
-            sha256: createHash("sha256").update(r.inline.source, "utf8").digest("hex"),
+            sha256: sha256Of(r.inline.source),
             inline: r.inline,
           },
     ),
+  };
+};
+
+/**
+ * 台本の目録（版の並び）に source を読み込む。source は sandbox/catalog の写しで、sha256 と bytes は
+ * 台帳と同じく source から数える（手で書いた sha256 は、本物の中身と結び付かない）。欄は
+ * capture-ledger v0.60.0 の 1 版の口（`GET /api/scripts/:id/versions/:version`）と同じ。
+ */
+export const catalogOf = (s, read = readBeside) =>
+  (s.catalog ?? []).map((v) => {
+    const source = read(v.file);
+    return {
+      id: v.id,
+      version: v.version,
+      phase: v.phase,
+      sha256: sha256Of(source),
+      enabled: v.enabled ?? true,
+      bytes: Buffer.byteLength(source, "utf8"),
+      createdAt: v.createdAt,
+      source,
+      options: v.options ?? {},
+    };
+  });
+
+/** 既定の顔ぶれ: 有効な各 id の最新版を id 順で（台帳の resolveScripts と同じ選び方）。 */
+export const defaultSet = (versions) =>
+  [...new Set(versions.map((v) => v.id))].sort().flatMap((id) => {
+    const mine = versions.filter((v) => v.id === id && v.enabled);
+    return mine.length === 0 ? [] : [mine.reduce((a, b) => (b.version > a.version ? b : a))];
+  });
+
+/** GET /api/scripts/:id/versions。新しい順、**source は返さない**。無い id は 404。 */
+export const versionsOf = (versions, id) => {
+  const mine = versions.filter((v) => v.id === id).sort((a, b) => b.version - a.version);
+  if (mine.length === 0) return { status: 404, body: { error: "not found" } };
+  return {
+    status: 200,
+    body: {
+      id,
+      versions: mine.map(({ version, phase, sha256, enabled, bytes, createdAt }) => ({
+        version,
+        phase,
+        sha256,
+        enabled,
+        bytes,
+        createdAt,
+      })),
+    },
+  };
+};
+
+/**
+ * GET /api/scripts/:id/versions/:version。版が 1 以上の整数でなければ 400（文は台帳 v0.60.0 の実物から
+ * 写した）、無ければ 404。有効かどうかは見ない。
+ */
+export const versionOf = (versions, id, raw) => {
+  if (!/^\d+$/.test(raw)) return schemaError("params/version must be integer");
+  if (Number(raw) < 1) return schemaError("params/version must be >= 1");
+  const one = versions.find((v) => v.id === id && v.version === Number(raw));
+  return one === undefined ? { status: 404, body: { error: "not found" } } : { status: 200, body: one };
+};
+
+/** GET /api/host-types。台本の `hostTypes` の file を読む。台本に無ければ 404（取り込んでいない台帳）。 */
+export const hostTypesOf = (s, read = readBeside) => {
+  if (s.hostTypes === undefined) return { status: 404, body: { error: "not found" } };
+  const source = read(s.hostTypes.file);
+  return {
+    status: 200,
+    body: {
+      version: s.hostTypes.version,
+      sha256: sha256Of(source),
+      createdAt: s.hostTypes.createdAt,
+      source,
+      bytes: Buffer.byteLength(source, "utf8"),
+    },
   };
 };
 
@@ -219,7 +301,7 @@ const resolveRun = (scripts, catalog) => {
  * **走行中の 1 本は、受けた行だけで数える** —— 台本の走行中の行は飾りで、それで 409 に
  * すると何も起こせない。409 を見たいなら、走っている間にもう 1 度起こす。
  *
- * `catalog` は台本の目録 (既定の集合)。走らせたものは受けた行の `scripts` に持ち、
+ * `catalog` は目録の既定の顔ぶれ (`defaultSet`)。走らせたものは受けた行の `scripts` に持ち、
  * 一覧の行 (`submittedRow`) には出さない。
  */
 export const submitCrawl = (rows, body, now, runsSeconds, catalog = []) => {
@@ -328,6 +410,9 @@ const scenario = readingLastGood(() => JSON.parse(readFileSync(SCENARIO, "utf8")
 /** 画面の欄から受けた行。代役が起きている間だけ在る (台本には書かない)。 */
 const submitted = [];
 
+/** 台本の目録の版の並び。`emptyCatalog` なら空 (目録が空の台帳。読む所には受け皿の型だけが残る)。 */
+const versionsIn = (s) => (s.emptyCatalog === true ? [] : catalogOf(s));
+
 const handle = (req, res, raw) => {
   const { pathname } = new URL(req.url ?? "/", "http://sandbox");
   const s = scenario();
@@ -343,7 +428,7 @@ const handle = (req, res, raw) => {
       send(res, 400, { error: "body is not valid JSON" });
       return;
     }
-    const catalog = s.emptyCatalog === true ? [] : s.scripts;
+    const catalog = defaultSet(versionsIn(s));
     const answer = submitCrawl(submitted, body, Date.now(), s.submit?.runsSeconds ?? 15, catalog);
     send(res, answer.status, answer.body);
     return;
@@ -382,7 +467,29 @@ const handle = (req, res, raw) => {
     return;
   }
   if (req.method === "GET" && pathname === "/api/scripts") {
-    send(res, 200, { scripts: s.emptyCatalog === true ? [] : s.scripts });
+    const scripts = defaultSet(versionsIn(s)).map(({ id, version, phase, sha256 }) => ({
+      id,
+      version,
+      phase,
+      sha256,
+    }));
+    send(res, 200, { scripts });
+    return;
+  }
+  // 目録を読む口（台帳 v0.60.0）。id は % を解いてから引く
+  const versions = /^\/api\/scripts\/([^/]+)\/versions(?:\/([^/]+))?$/.exec(pathname);
+  if (req.method === "GET" && versions !== null) {
+    const id = decodeURIComponent(versions[1]);
+    const answer =
+      versions[2] === undefined
+        ? versionsOf(versionsIn(s), id)
+        : versionOf(versionsIn(s), id, versions[2]);
+    send(res, answer.status, answer.body);
+    return;
+  }
+  if (req.method === "GET" && pathname === "/api/host-types") {
+    const answer = hostTypesOf(s);
+    send(res, answer.status, answer.body);
     return;
   }
   const sign = /^\/api\/archives\/([^/]+)\/url$/.exec(pathname);

@@ -20,6 +20,8 @@
  *
  *   - lockfile。この repo の言葉ではない
  *   - この file 自身。説明と、探す字そのものを書くため
+ *   - sandbox/catalog/。capture-scripts の目録の写しで、別の repo の言葉（autofetch.ts の「変種」は
+ *     seed ではない）。直すと行番号が実物とずれる（読む所の行と下敷きの行を、代役で実物どおりに見るため）
  *   - 「名乗り」を誰として見るかの意味で使っているか、「起点」を seed の意味で使っているか。
  *     語の意味は機械には見えない
  *
@@ -32,6 +34,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const SELF = "scripts/check-terms.mjs";
+/** 別の repo の言葉の写し（上の「見ないもの」）。 */
+const COPIED = "sandbox/catalog/";
 
 /** 名乗り（誰として）とトークン（物）を混ぜた形。足すときは、正しい使い方に当たらないことを確かめる。 */
 const MIXED = /名乗りのトークン|名乗りを取|名乗るトークン|identity token/iu;
@@ -53,7 +57,9 @@ const RULES = [
 
 const files = execFileSync("git", ["-C", ROOT, "ls-files", "-z"], { encoding: "utf8" })
   .split("\0")
-  .filter((f) => f !== "" && f !== SELF && !f.endsWith("package-lock.json"));
+  .filter(
+    (f) => f !== "" && f !== SELF && !f.endsWith("package-lock.json") && !f.startsWith(COPIED),
+  );
 
 const hits = RULES.map(() => []);
 for (const file of files) {
