@@ -29,12 +29,12 @@
   },
   "dependencies": {
     "@astrojs/starlight": "^0.42.5",
-    "astro": "^7.3.8",
+    "astro": "^7.4.0",
     "astro-mermaid": "^2.0.2",
     "mermaid": "^11.17.2"
   },
   "devDependencies": {
-    "@astrojs/markdown-satteri": "^0.4.3",
+    "@astrojs/markdown-satteri": "^0.4.4",
     "satteri": "^0.10.5"
   },
   "overrides": {
