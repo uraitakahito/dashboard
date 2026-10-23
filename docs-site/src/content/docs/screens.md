@@ -49,7 +49,8 @@ WACZ files and the time taken. "run ↗" at the right end opens the Windmill run
   catalog scripts with their version and a 読む (read) link to the [catalog view](#catalog) at the
   version the crawl ran, and scripts written in the form marked その場 (written on the spot) with
   their size in bytes, each with a 欄に戻す (back to the form) button that takes you to the
-  [start view](#start-a-crawl). Last are the pages that failed, as many
+  [start view](#start-a-crawl). A site script carries its sites, as a chip such as
+  `example.com 用`. Last are the pages that failed, as many
   as the ledger returns; if none did, it says so and lists the seed URLs.
 - **An opened row stays open.** The table is rebuilt on every fetch, so the screen remembers the
   open rows by id and opens them again from the last answer. It fetches a row again only while the
@@ -75,11 +76,20 @@ page only) or リンクを辿る (follow links, the ledger's default), and press
 
 - **It sends the seed URLs, whether the depth is 0, and what runs — the last only when it differs
   from the default.** このページだけ sends `maxDepth: 0`; リンクを辿る adds nothing (the depth and
-  the page limit are the ledger's defaults). With every catalog script ticked and no script of your
-  own, the form sends no `scripts`, so the ledger's default applies and an empty catalog is still a
-  400. Otherwise it sends `scripts`: your script first, then the ticked catalog scripts in catalog
+  the page limit are the ledger's defaults). With the default set the seeds decide (the scripts
+  without sites, and the site scripts for a seed's host) ticked and no script of your own, the form
+  sends no `scripts`, and the ledger picks the same set from the seeds. An empty catalog is still a
+  400, and so, with its own message, is a catalog in which nothing fits the seeds. Otherwise it
+  sends `scripts`: your script first, then the ticked catalog scripts in catalog
   order; unticking all of them sends `[]`, which runs nothing. The screen checks neither the URLs
   nor the script's name; the ledger says what is wrong with a 400, naming the ids it refused.
+- **A site script can be ticked only when a seed is on its site.** A script with sites can be
+  ticked only while one of the seeds is on one of those hosts. The seed's hostname must match
+  exactly and its port is ignored (`example.com` and `www.example.com` are different hosts).
+  Writing a seed ticks the site scripts that fit it; the others cannot be ticked and say why, as in
+  起点に example.com がありません (no seed on example.com). With no seed yet, they say
+  起点を書くと選べます (write a seed to choose). A box you unticked stays unticked when the seeds
+  change. The rule is the ledger's: naming a site script that fits no seed gets a 400 from it.
 - **It shows the size before sending.** Under the box are the number of lines, the size of the body
   it will send (UTF-8 bytes) and how much of the limit that is. The limit is the one the writing
   route enforces, handed out by the server as `writeLimit` in `/healthz`. Over it, the line turns
@@ -112,7 +122,9 @@ page only) or リンクを辿る (follow links, the ledger's default), and press
   forms that name the script's own id, `__bh.opts["<id>"]` and `__bh.report("<id>"`, are changed to
   `inline-<name>`; the message under the left column says on which lines. The original is unticked,
   so it does not run twice. If the box already holds a script, the catalog view asks before
-  replacing it.
+  replacing it. A site script's sites do not come along: a script of your own runs from any seed,
+  and the check at the top of the script (comparing `location.hostname`) keeps it idle on other
+  sites.
 - **The types of `__bh` are one link away.** The note under the left column links to them
   (`#scripts/types/host.d.ts`).
 - **The row gets a mark, and is not opened.** The mark is remembered by id and put back each time
@@ -137,12 +149,13 @@ The WACZ files you can see, newest capture first.
 ## Catalog
 
 The scripts that run inside the pages being captured, to read before writing one of your own, or
-to see exactly what a crawl ran. On the left is a list: the scripts that run by default (the newest
-enabled version of each id, which is what a crawl runs when it names none) and, under 書くための型
-(types to write against), `host.d.ts`, the types of `__bh`, the object the capture server puts in
-the page for scripts to use. On the right is the TypeScript as it was written, with line numbers.
-The same default set appears as checkboxes under 目録から (from the catalog) in the
-[start view](#start-a-crawl).
+to see exactly what a crawl ran. On the left is a list in three groups: the scripts that run by
+default (the newest enabled version of each id without sites, which is what a crawl runs when it
+names none), the site scripts (those with sites, which run only when a seed is on their site), and,
+under 書くための型 (types to write against), `host.d.ts`, the types of `__bh`, the object the
+capture server puts in the page for scripts to use. On the right is the TypeScript as it was
+written, with line numbers. The default scripts and the site scripts also appear as checkboxes
+under 目録から (from the catalog) in the [start view](#start-a-crawl).
 
 | URL | Opens |
 | --- | --- |
@@ -155,7 +168,16 @@ The same default set appears as checkboxes under 目録から (from the catalog)
 - **The heading says which version you are reading.** Chips list every version of the id, the
   default one marked 既定. Under them are the line count, the size, the start of the sha256, the day
   it was imported, the options it is given (`{}` means the defaults written in the code), and
-  whether it is the version that runs by default.
+  whether it is the version that runs by default. A site script has its sites beside its name, and
+  its default version reads 起点に example.com があれば既定で走る版 (runs by default when a seed
+  is on example.com).
+- **Sites mark a script that only makes sense on certain sites.** The sites (`sites`) are a list
+  of hostnames, written in the `catalog.json` of
+  [capture-scripts](https://github.com/uraitakahito/capture-scripts) and kept by the ledger with
+  each version. A site script runs by default only when one of the crawl's seeds is on one of those
+  hosts. The rule holds for the whole crawl, so the script also runs on pages of other hosts the
+  crawl reaches by following links; the script checks the hostname first and does nothing
+  elsewhere.
 - **Click a line to put it in the URL,** to send someone straight to it. This adds nothing to the
   browser history and does not redraw the view.
 - **写す (copy) puts the source on the clipboard.** 下敷きにして起こす (start from this) takes it to the
@@ -176,7 +198,8 @@ The same default set appears as checkboxes under 目録から (from the catalog)
   it changes. The versions and the source of a script are fetched when you open it, and the types
   of `__bh` once, when you first open the view. The routes are capture-ledger's
   `GET /api/scripts/:id/versions`, `GET /api/scripts/:id/versions/:version` and
-  `GET /api/host-types` (from v0.60.0), passed through as in [Routes](/routes/).
+  `GET /api/host-types` (from v0.60.0; the sites from v0.61.0), passed through as in
+  [Routes](/routes/).
 
 **An empty catalog is shown in red.** The capture server (BrowserHive) does not bring any scripts
 of its own, so with an empty catalog nothing runs inside the page. Nothing scrolls and nothing
