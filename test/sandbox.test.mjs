@@ -3,14 +3,14 @@
  *
  * 欄の集合を台帳の応答と揃えておくことと、同梱の台本が画面の状態を全部出せることを固定する。
  * 台帳の欄は capture-ledger v0.57.4 から写した —— 台帳が欄を足したら、ここと代役を直す。
- * 目録を読む口（版の一覧・1 版・受け皿の型）は v0.60.0 から。
+ * 目録を読む口（版の一覧・1 版・受け皿の型）は v0.60.0 から、札（`sites`）と起点で選ぶ既定は v0.61.0 から。
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { stateOf } from "../public/format.js";
-import { asTemplate } from "../public/start.js";
+import { asTemplate, defaultIds, seedHosts } from "../public/start.js";
 import {
   archiveRows,
   catalogOf,
@@ -20,6 +20,7 @@ import {
   hostTypesOf,
   idOf,
   inlineSource,
+  latestEnabled,
   readingLastGood,
   signedUrlOf,
   submitCrawl,
@@ -29,9 +30,10 @@ import {
 } from "../sandbox/fake-ledger.mjs";
 
 const scenario = JSON.parse(readFileSync(new URL("../sandbox/scenario.json", import.meta.url), "utf8"));
-/** 台本の目録（版の並び。source は sandbox/catalog の写し）と、そこから選ぶ既定の顔ぶれ。 */
+/** 台本の目録（版の並び。source は sandbox/catalog の写しと、見本の sandbox/sites）。 */
 const versions = catalogOf(scenario);
-const catalog = defaultSet(versions);
+/** 版を `id@版` で並べる（既定の顔ぶれ・走らせたものを 1 行で比べる）。 */
+const at = (list) => list.map((v) => `${v.id}@${String(v.version)}`);
 const NOW = Date.parse("2026-10-12T12:00:00.000Z");
 
 /** capture-ledger の src/api/crawls.ts が /api/crawls の 1 行に返す欄 (v0.57.4)。 */
@@ -76,7 +78,7 @@ test("起こすと 202 で、受けた行が走行中として先頭に出る", 
   // 台本には走行中の行が在るが、受けた行だけで数えるので塞がない
   assert.ok(scenario.crawls.some((c) => c.state === "running"));
   const rows = [];
-  const answer = submitCrawl(rows, { seeds: ["https://example.com/"], maxDepth: 0 }, NOW, RUNS);
+  const answer = submitCrawl(rows, { seeds: ["https://example.com/"], maxDepth: 0 }, NOW, RUNS, versions);
   assert.equal(answer.status, 202);
   assert.deepEqual(Object.keys(answer.body), ["crawlId"]);
   assert.equal(rows[0].crawlId, answer.body.crawlId);
@@ -88,8 +90,8 @@ test("起こすと 202 で、受けた行が走行中として先頭に出る", 
 
 test("走っている間の 2 本目は 409 で、塞いでいる行を名指す", () => {
   const rows = [];
-  const first = submitCrawl(rows, { seeds: ["https://example.com/"] }, NOW, RUNS);
-  const second = submitCrawl(rows, { seeds: ["https://example.org/"] }, NOW + 5000, RUNS);
+  const first = submitCrawl(rows, { seeds: ["https://example.com/"] }, NOW, RUNS, versions);
+  const second = submitCrawl(rows, { seeds: ["https://example.org/"] }, NOW + 5000, RUNS, versions);
   assert.equal(second.status, 409);
   assert.deepEqual(second.body, {
     error: "a crawl is already in progress",
@@ -101,21 +103,21 @@ test("走っている間の 2 本目は 409 で、塞いでいる行を名指す
 
 test("runsSeconds を過ぎると完走になり、次を受ける", () => {
   const rows = [];
-  submitCrawl(rows, { seeds: ["https://example.com/", "https://example.com/docs/"] }, NOW, RUNS);
+  submitCrawl(rows, { seeds: ["https://example.com/", "https://example.com/docs/"] }, NOW, RUNS, versions);
   const done = submittedRow(rows[0], NOW + RUNS * 1000);
   assert.equal(done.state, "succeeded");
   assert.equal(done.stopReason, "completed");
   assert.equal(done.finishedAt, "2026-10-12T12:00:15.000Z");
   assert.equal(done.pagesCaptured, 2);
   assert.equal(stateOf(done).text, "完走");
-  const next = submitCrawl(rows, { seeds: ["https://example.org/"] }, NOW + RUNS * 1000, RUNS);
+  const next = submitCrawl(rows, { seeds: ["https://example.org/"] }, NOW + RUNS * 1000, RUNS, versions);
   assert.equal(next.status, 202);
   assert.equal(rows[0].crawlId, next.body.crawlId, "新しい順の先頭");
 });
 
 test("読めない起点・空の起点・seeds の無い body は、台帳と同じ文で 400", () => {
   const rows = [];
-  const say = (body) => submitCrawl(rows, body, NOW, RUNS);
+  const say = (body) => submitCrawl(rows, body, NOW, RUNS, versions);
   assert.deepEqual(say({}), { status: 400, body: { error: "provide exactly one of seeds or fromTargets" } });
   assert.deepEqual(say({ seeds: [] }), { status: 400, body: { error: "seeds must not be empty" } });
   for (const seed of ["ftp://example.com/", "not a url", "example.com"]) {
@@ -129,7 +131,7 @@ test("読めない起点・空の起点・seeds の無い body は、台帳と�
 
 test("受けた行も、台帳の /api/crawls と同じ欄を持つ", () => {
   const rows = [];
-  submitCrawl(rows, { seeds: ["https://example.com/"] }, NOW, RUNS);
+  submitCrawl(rows, { seeds: ["https://example.com/"] }, NOW, RUNS, versions);
   assert.deepEqual(Object.keys(submittedRow(rows[0], NOW)).sort(), LEDGER_CRAWL_KEYS);
   assert.deepEqual(Object.keys(submittedRow(rows[0], NOW + RUNS * 1000)).sort(), LEDGER_CRAWL_KEYS);
 });
@@ -227,7 +229,7 @@ test("scripts を受けると、その場の JS は inline- の id・版 1 で�
     { seeds: ["https://example.com/"], scripts: [{ inline }, { catalog: "autofetch" }] },
     NOW,
     RUNS,
-    catalog,
+    versions,
   );
   assert.equal(answer.status, 202);
   const detail = crawlDetail(submittedRow(rows[0], NOW), rows[0].scripts);
@@ -254,7 +256,7 @@ test("名前の口は、受けた行と台本の行の両方で、その場の J
     { seeds: ["https://example.com/"], scripts: [{ inline }] },
     NOW,
     RUNS,
-    catalog,
+    versions,
   );
   const mine = inlineSource(rows[0].scripts, "close-banner");
   assert.equal(mine.status, 200);
@@ -280,7 +282,7 @@ test("名前の口は、目録の物・知らない名前・知らない行に�
     },
     NOW,
     RUNS,
-    catalog,
+    versions,
   );
   for (const name of ["autofetch", "nope"]) {
     assert.deepEqual(inlineSource(rows[0].scripts, name), {
@@ -293,40 +295,120 @@ test("名前の口は、目録の物・知らない名前・知らない行に�
 
 test("走行中でも、走らせるものの誤りは 409 より先に 400 —— 台帳と同じ順", () => {
   const rows = [];
-  submitCrawl(rows, { seeds: ["https://example.com/"] }, NOW, RUNS, catalog);
+  submitCrawl(rows, { seeds: ["https://example.com/"] }, NOW, RUNS, versions);
   const busy = submitCrawl(
     rows,
     { seeds: ["https://example.com/"], scripts: [{ catalog: "typo-scroll" }] },
     NOW + 1000,
     RUNS,
-    catalog,
+    versions,
   );
   assert.equal(busy.status, 400);
   // 形が合っていれば、走行中は 409（今までどおり）
-  const ok = submitCrawl(rows, { seeds: ["https://example.com/"], scripts: [] }, NOW + 1000, RUNS, catalog);
+  const ok = submitCrawl(rows, { seeds: ["https://example.com/"], scripts: [] }, NOW + 1000, RUNS, versions);
   assert.equal(ok.status, 409);
 });
 
-test("scripts を省くと、目録の既定（有効な各 id の最新版）を走らせたものとして返す", () => {
-  const rows = [];
-  submitCrawl(rows, { seeds: ["https://example.com/"] }, NOW, RUNS, catalog);
-  const detail = crawlDetail(submittedRow(rows[0], NOW), rows[0].scripts);
+test("scripts を省くと、起点で選んだ既定を走らせたものとして返す —— 合うサイト用の台本は札ごと", () => {
+  const ranFrom = (seed) => {
+    const rows = [];
+    submitCrawl(rows, { seeds: [seed] }, NOW, RUNS, versions);
+    return crawlDetail(submittedRow(rows[0], NOW), rows[0].scripts).scripts;
+  };
+  assert.deepEqual(at(ranFrom("https://example.org/")), ["autofetch@1", "autoscroll@2"]);
+  const onSite = ranFrom("https://example.com/");
+  assert.deepEqual(at(onSite), ["autofetch@1", "autoscroll@2", "example-title@1"]);
+  // 札は台帳 v0.61.0 と同じく詳しい所に出る。札の無い物は空の並び
   assert.deepEqual(
-    detail.scripts.map((s) => `${s.id}@${String(s.version)}`),
-    ["autofetch@1", "autoscroll@2"],
+    onSite.map((s) => s.sites),
+    [[], [], ["example.com"]],
   );
 });
 
-test("既定の顔ぶれは、有効な各 id の最新版を id 順で（無効な版は飛ばす）", () => {
-  assert.deepEqual(
-    catalog.map((v) => `${v.id}@${String(v.version)}`),
-    ["autofetch@1", "autoscroll@2"],
-  );
+test("一覧の口（有効な各 id の最新版）は、サイト用の台本も札つきで返す（無効な版は飛ばす）", () => {
+  assert.deepEqual(at(latestEnabled(versions)), ["autofetch@1", "autoscroll@2", "example-title@1"]);
+  assert.deepEqual(latestEnabled(versions)[2].sites, ["example.com"]);
   const off = versions.map((v) => (v.id === "autoscroll" && v.version === 2 ? { ...v, enabled: false } : v));
-  assert.deepEqual(
-    defaultSet(off).map((v) => `${v.id}@${String(v.version)}`),
-    ["autofetch@1", "autoscroll@1"],
-  );
+  assert.deepEqual(at(latestEnabled(off)), ["autofetch@1", "autoscroll@1", "example-title@1"]);
+});
+
+test("既定の顔ぶれは、札の無い物と、起点に合うサイト用の物 —— ポートは見ない", () => {
+  assert.deepEqual(at(defaultSet(versions, new Set())), ["autofetch@1", "autoscroll@2"]);
+  assert.deepEqual(at(defaultSet(versions, seedHosts("https://example.com:8443/a"))), [
+    "autofetch@1",
+    "autoscroll@2",
+    "example-title@1",
+  ]);
+  // 完全一致。www. の付いたホストは別
+  assert.deepEqual(at(defaultSet(versions, seedHosts("https://www.example.com/"))), ["autofetch@1", "autoscroll@2"]);
+});
+
+test("既定は最新版を選んでから札で絞る —— 札を付け直した id の、札の無い古い版は出てこない", () => {
+  // 台帳 v0.61.0 の resolveScripts と同じ順。逆にすると v1 が出てくる
+  const resited = [
+    ...versions,
+    { ...versions[0], id: "google-results", version: 1, sites: [] },
+    { ...versions[0], id: "google-results", version: 2, sites: ["www.google.com"] },
+  ];
+  assert.deepEqual(at(defaultSet(resited, seedHosts("https://example.org/"))), ["autofetch@1", "autoscroll@2"]);
+});
+
+test("代役の既定と、起こす面の既定（public/start.js）は、同じ起点に同じ顔ぶれを出す", () => {
+  // 決まりの正は台帳。2 つの写しが食い違えば、画面が「省いても同じ」と送った頼みで別の物が走る
+  const seeds = [
+    "",
+    "https://example.org/",
+    "https://example.com/",
+    "http://example.com:8080/a\nhttps://example.org/",
+    "https://www.example.com/",
+    "not a url\nHTTPS://EXAMPLE.COM/",
+  ];
+  for (const text of seeds) {
+    const hosts = seedHosts(text);
+    assert.deepEqual(
+      defaultSet(versions, hosts).map((v) => v.id),
+      defaultIds(latestEnabled(versions), hosts),
+      JSON.stringify(text),
+    );
+  }
+});
+
+test("起点に合わないサイト用の台本を名指すと、台帳と同じ文で 400 —— 走行中でも 409 より先", () => {
+  const rows = [];
+  const post = (seeds) =>
+    submitCrawl(rows, { seeds, scripts: [{ catalog: "autofetch" }, { catalog: "example-title" }] }, NOW, RUNS, versions);
+  assert.deepEqual(post(["https://example.org/"]), {
+    status: 400,
+    body: {
+      error: "site scripts need a seed on their site",
+      ids: ["example-title"],
+      hint: "example-title: example.com",
+    },
+  });
+  // 起点のどれかが合えば通る（ポートは見ない）
+  assert.equal(post(["https://example.org/", "https://example.com:8443/"]).status, 202);
+  assert.equal(post(["https://example.org/"]).status, 400);
+});
+
+test("既定が空なら 400 —— 目録が空と、全部が別のサイト用とで文を分ける（台帳と同じ文）", () => {
+  const post = (list, body = {}) => submitCrawl([], { seeds: ["https://example.org/"], ...body }, NOW, RUNS, list);
+  assert.deepEqual(post([]), {
+    status: 400,
+    body: {
+      error: "the script catalog is empty",
+      hint: "pnpm run scripts import .upstream/capture-scripts (run nothing on purpose: send scripts: [])",
+    },
+  });
+  const onlySite = versions.filter((v) => v.id === "example-title");
+  assert.deepEqual(post(onlySite), {
+    status: 400,
+    body: {
+      error: "no default scripts for these seeds",
+      hint: "example-title: example.com (run nothing on purpose: send scripts: [])",
+    },
+  });
+  // 「何も走らせない」は書ける
+  assert.equal(post(onlySite, { scripts: [] }).status, 202);
 });
 
 test("版の一覧は新しい順で、どの版にも source が無い。知らない id は 404", () => {
@@ -337,7 +419,7 @@ test("版の一覧は新しい順で、どの版にも source が無い。知ら
     [2, 1],
   );
   for (const v of answer.body.versions) {
-    assert.deepEqual(Object.keys(v).sort(), ["bytes", "createdAt", "enabled", "phase", "sha256", "version"]);
+    assert.deepEqual(Object.keys(v).sort(), ["bytes", "createdAt", "enabled", "phase", "sha256", "sites", "version"]);
   }
   assert.deepEqual(versionsOf(versions, "nope"), { status: 404, body: { error: "not found" } });
 });
@@ -389,7 +471,7 @@ test("下敷きを実物の写しに掛けると、替わるのは autoscroll �
 
 test("知らない目録の id・重ね・形の誤り・scriptIds は、台帳と同じ文で 400", () => {
   const post = (body) =>
-    submitCrawl([], { seeds: ["https://example.com/"], ...body }, NOW, RUNS, catalog);
+    submitCrawl([], { seeds: ["https://example.com/"], ...body }, NOW, RUNS, versions);
   const inline = (name) => ({ inline: { name, phase: "behavior", source: "x;" } });
   assert.deepEqual(post({ scripts: [{ catalog: "typo-scroll" }] }), {
     status: 400,
