@@ -70,11 +70,11 @@ test("クロールの 1 行は、台帳の /api/crawls と同じ欄を持つ", (
   }
 });
 
-// ── 起こす口（POST /api/crawls）。文は capture-ledger v0.57.5 の src/api/crawls.ts から写した ──
+// ── 始める口（POST /api/crawls）。文は capture-ledger v0.57.5 の src/api/crawls.ts から写した ──
 
 const RUNS = 15;
 
-test("起こすと 202 で、受けた行が走行中として先頭に出る", () => {
+test("始めると 202 で、受けた行が走行中として先頭に出る", () => {
   // 台本には走行中の行が在るが、受けた行だけで数えるので塞がない
   assert.ok(scenario.crawls.some((c) => c.state === "running"));
   const rows = [];
@@ -353,7 +353,7 @@ test("既定は最新版を選んでから札で絞る —— 札を付け直し
   assert.deepEqual(at(defaultSet(resited, seedHosts("https://example.org/"))), ["autofetch@1", "autoscroll@2"]);
 });
 
-test("代役の既定と、起こす面の既定（public/start.js）は、同じ起点に同じ顔ぶれを出す", () => {
+test("代役の既定と、新しいクロールの面の既定（public/start.js）は、同じ起点に同じ顔ぶれを出す", () => {
   // 決まりの正は台帳。2 つの写しが食い違えば、画面が「省いても同じ」と送った頼みで別の物が走る
   const seeds = [
     "",

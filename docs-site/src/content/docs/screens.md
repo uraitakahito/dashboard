@@ -7,12 +7,12 @@ The screen has five views. You switch with the tabs at the top, and the `#` in t
 which view is shown (`#crawls`, `#start`, `#archives`, `#scripts`; in the catalog view it also names
 what you are reading). The contents tab only appears once you
 enter it with 開く (open) on an archive row. The screen itself is in Japanese; the tab names are
-クロール, 起こす, アーカイブ, 目録 and 中身.
+クロール, 新しいクロール, アーカイブ, 目録 and 中身.
 
 | View | What it lists |
 | --- | --- |
 | Crawls | one row per crawl: state, pages captured, pages discovered, number of WACZ files (the archive format that packs captured pages into one ZIP), time taken, link to the run |
-| Start | the form that starts a crawl: seed URLs, catalog scripts, depth, and a script of your own in a box as tall as the window |
+| New crawl | the form that starts a crawl: seed URLs, catalog scripts, depth, and a script of your own in a box as tall as the window |
 | Archives | the WACZ files you can see; from a row, validate, open the contents, or open in [replay](https://github.com/uraitakahito/replay) (which plays a WACZ back in the browser) |
 | Catalog | the scripts that run inside the captured page and the types they are written against, to read line by line, older versions too; says so in red when it is empty |
 | Contents | inside one WACZ; see [Inspecting a WACZ](/wacz/) |
@@ -49,7 +49,7 @@ WACZ files and the time taken. "run ↗" at the right end opens the Windmill run
   catalog scripts with their version and a 読む (read) link to the [catalog view](#catalog) at the
   version the crawl ran, and scripts written in the form marked その場 (written on the spot) with
   their size in bytes, each with a 欄に戻す (back to the form) button that takes you to the
-  [start view](#start-a-crawl). A site script carries its sites, as a chip such as
+  [new crawl view](#start-a-crawl). A site script carries its sites, as a chip such as
   `example.com 用`. Last are the pages that failed, as many
   as the ledger returns; if none did, it says so and lists the seed URLs.
 - **An opened row stays open.** The table is rebuilt on every fetch, so the screen remembers the
@@ -68,11 +68,11 @@ tests read the same file the browser reads, so there is no copy to rot.
 
 ## Start a crawl
 
-The 起こす (start) view starts a crawl. The left column holds the seed URLs, the catalog scripts,
-the depth and the 起こす button; the right column holds the box for a script of your own. The box
+The 新しいクロール (new crawl) view starts a crawl. The left column holds the seed URLs, the catalog scripts,
+the depth and the 始める (start) button; the right column holds the box for a script of your own. The box
 stretches to the bottom of the window and has line numbers on its left, so a large script can be
 pasted, read, fixed a little and run. Write the seed URLs one per line, choose このページだけ (this
-page only) or リンクを辿る (follow links, the ledger's default), and press 起こす.
+page only) or リンクを辿る (follow links, the ledger's default), and press 始める.
 
 - **It sends the seed URLs, whether the depth is 0, and what runs — the last only when it differs
   from the default.** このページだけ sends `maxDepth: 0`; リンクを辿る adds nothing (the depth and
@@ -93,7 +93,7 @@ page only) or リンクを辿る (follow links, the ledger's default), and press
 - **It shows the size before sending.** Under the box are the number of lines, the size of the body
   it will send (UTF-8 bytes) and how much of the limit that is. The limit is the one the writing
   route enforces, handed out by the server as `writeLimit` in `/healthz`. Over it, the line turns
-  red and 起こす cannot be pressed.
+  red and 始める cannot be pressed.
 - **A script of your own is type-checked as strict TypeScript** at the first level's compile step,
   and a single error fails the crawl; open its row to read the number of diagnostics and the first
   five. Wrap it in an IIFE, give the elements you look up a type, and use `?.`. Do not write
@@ -117,7 +117,7 @@ page only) or リンクを辿る (follow links, the ledger's default), and press
   欄に戻す on a script of your own: this view opens with its name, phase and source. The source
   comes from the ledger's `/api/crawls/:id/inline/:name` (a crawl's detail only carries its size).
   The seed URLs and the catalog choice are left alone.
-- **下敷きにして起こす (start from this) in the [catalog view](#catalog) brings a catalog script
+- **下敷きにする (use as a template) in the [catalog view](#catalog) brings a catalog script
   here** as a script of your own, named `my-<id>` unless the name box already has one. Only the two
   forms that name the script's own id, `__bh.opts["<id>"]` and `__bh.report("<id>"`, are changed to
   `inline-<name>`; the message under the left column says on which lines. The original is unticked,
@@ -155,7 +155,7 @@ names none), the site scripts (those with sites, which run only when a seed is o
 under 書くための型 (types to write against), `host.d.ts`, the types of `__bh`, the object the
 capture server puts in the page for scripts to use. On the right is the TypeScript as it was
 written, with line numbers. The default scripts and the site scripts also appear as checkboxes
-under 目録から (from the catalog) in the [start view](#start-a-crawl).
+under 目録から (from the catalog) in the [new crawl view](#start-a-crawl).
 
 | URL | Opens |
 | --- | --- |
@@ -180,8 +180,8 @@ under 目録から (from the catalog) in the [start view](#start-a-crawl).
   elsewhere.
 - **Click a line to put it in the URL,** to send someone straight to it. This adds nothing to the
   browser history and does not redraw the view.
-- **写す (copy) puts the source on the clipboard.** 下敷きにして起こす (start from this) takes it to the
-  [start view](#start-a-crawl) as a script of your own.
+- **写す (copy) puts the source on the clipboard.** 下敷きにする (use as a template) takes it to the
+  [new crawl view](#start-a-crawl) as a script of your own.
 - **The source is colored.** The colors come from [Shiki](https://shiki.style) with the same
   TypeScript grammar as VS Code, in GitHub Light High Contrast or GitHub Dark Default to follow
   the screen's light or dark scheme (the pair whose colors all stay readable on the screen's

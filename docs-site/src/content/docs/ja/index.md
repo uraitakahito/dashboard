@@ -5,7 +5,7 @@ description: crawler の開発用の画面。1 本のクロールを 1 行で見
 
 dashboard は crawler の開発用の画面です。**1 本のクロールを 1 行で見ます。**
 
-クロールを起こすのは [capture-ledger](https://github.com/uraitakahito/capture-ledger)（どの URL を撮るかを決め、撮れたものを記録する台帳）、
+クロールを始めるのは [capture-ledger](https://github.com/uraitakahito/capture-ledger)（どの URL を撮るかを決め、撮れたものを記録する台帳）、
 走らせるのは [capture-scheduler](https://github.com/uraitakahito/capture-scheduler)（クロールを Windmill の flow で回す）、
 撮れたものを置くのは [seaweedfs](https://github.com/uraitakahito/seaweedfs)（crawler が共有する S3 互換の store）、
 開いて読むのは [replay](https://github.com/uraitakahito/replay)（WACZ をブラウザで再生する画面）です。
@@ -31,7 +31,7 @@ flowchart LR
 
 ブラウザが話す相手は dashboard だけです（同一オリジン）。
 dashboard は開発用の issuer からアクセストークンを取得し、それを付けて `/api/*` をそのまま台帳へ通します。
-書くのは、クロールの面の欄から起こすときの `POST /api/crawls` だけで、同じ道で台帳へ通します。
+書くのは、新しいクロールの面から始めるときの `POST /api/crawls` だけで、同じ道で台帳へ通します。
 WACZ の検証と中身は、台帳に署名してもらった URL を daemon に渡して読ませます。
 replay と Windmill へは、画面の行からリンクで飛ぶだけです。
 

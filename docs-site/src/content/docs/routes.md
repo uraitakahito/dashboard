@@ -40,7 +40,7 @@ Returns liveness and the settings the screen needs.
 ```
 
 The screen reads it when it opens, to learn who it is looking as and where the deep links go.
-`writeLimit` is the largest body, in bytes, the route that writes accepts; the start view stops
+`writeLimit` is the largest body, in bytes, the route that writes accepts; the new crawl view stops
 before sending a bigger one.
 It does not live under `/api/`: that is where the ledger is passed through, and mixing this
 server's answers in would make it unclear who answered.
