@@ -311,6 +311,7 @@ const drawPicks = (scripts) => {
 const runOf = () => ({
   catalog: catalogIds,
   picked: catalogIds.filter((id) => !unpicked.has(id)),
+  defaults: catalogIds,
   inline: {
     name: $("start-inline-name").value,
     phase: $("start-inline-preload").checked ? "preload" : "behavior",
