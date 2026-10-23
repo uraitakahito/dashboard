@@ -218,7 +218,7 @@ tr.head {
   cursor: pointer;
 }
 
-/* 起こした 1 本（409 なら塞いでいる 1 本）。描き直しのたびに id から付け直す。 */
+/* 始めた 1 本（409 なら塞いでいる 1 本）。描き直しのたびに id から付け直す。 */
 tr.head.spot td {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
@@ -226,8 +226,8 @@ tr.head.spot td:first-child {
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
-/* ── 起こす面 ── 左に設定、右にその場の JS。窓の高さに収め、ページは縦に流さない ───── */
-/* 収めるのは起こす面にいる間だけ（app.js の show が body に data-face を書く） */
+/* ── 新しいクロールの面 ── 左に設定、右にその場の JS。窓の高さに収め、ページは縦に流さない ─ */
+/* 収めるのは新しいクロールの面にいる間だけ（app.js の show が body に data-face を書く） */
 body[data-face="start"] {
   height: 100dvh;
   display: flex;
@@ -444,7 +444,7 @@ body[data-face="start"] main {
 }
 
 /*
- * 札（サイト用の台本のホスト名）。一覧・見出し・起こす面・クロールの詳しい所で同じ形。どこでも flex の
+ * 札（サイト用の台本のホスト名）。一覧・見出し・新しいクロールの面・クロールの詳しい所で同じ形。どこでも flex の
  * 中に置くので、行に収まらなければ札ごと次の行へ移り、行より長いときだけ札の中で折り返す
  */
 .site {

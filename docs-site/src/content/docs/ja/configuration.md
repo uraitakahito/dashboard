@@ -13,7 +13,7 @@ description: .env は要らない。変えるのは「誰として見るか」�
 cp -n .env.example .env    # 要る行のコメントを外す
 ```
 
-[capture-ledger](https://github.com/uraitakahito/capture-ledger)（クロールを起こし、撮れたものを記録する台帳）と違うのは、ここには既定値を持てない値が 1 つも無いからです。
+[capture-ledger](https://github.com/uraitakahito/capture-ledger)（クロールを始め、撮れたものを記録する台帳）と違うのは、ここには既定値を持てない値が 1 つも無いからです。
 capture-ledger は、OpenFGA（認可のサービス）の id のように「走らせてみないと決まらない値」を必須で持つので、`.env` が要ります。
 こちらが持つのは名乗り（誰として見るか）と宛先だけで、アクセストークンは要るときに issuer から取得し、宛先は loopback の決め打ちで足ります。
 秘密は 1 つもありません。

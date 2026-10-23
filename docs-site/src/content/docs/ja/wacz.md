@@ -76,7 +76,7 @@ BrowserHive の規定で見たいなら、画面から profile を渡す口が�
 
 wacz-validator を出しても、動いている daemon は起こしたときの build のまま動き続けます。
 古いまま動いていれば、報告に出る版で分かります。
-[capture-ledger](https://github.com/uraitakahito/capture-ledger)（クロールを起こし、撮れたものを記録する台帳）の `pnpm run dev:status` も、動いている build を checkout と比べて言います。
+[capture-ledger](https://github.com/uraitakahito/capture-ledger)（クロールを始め、撮れたものを記録する台帳）の `pnpm run dev:status` も、動いている build を checkout と比べて言います。
 起こし直すのは、capture-ledger で `pnpm run dev:up --from validator` です。
 
 ## 中身の面

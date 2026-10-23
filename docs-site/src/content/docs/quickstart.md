@@ -76,8 +76,8 @@ The screen itself is in Japanese, so the messages below are quoted as they appea
 | identity line | `この画面自身に届きません` | The screen's own server has stopped. Start it again |
 | footer | `取りに行けませんでした（上の表は最後に描けたもの）` | The reason is the red message at the top. The tables are the last ones that could be drawn |
 | catalog view (red) | `目録が空です。…` | The ledger has no scripts to run. Import them with the command in the message |
-| start view, under 起こす | `404 —— not found` | The identity may not start crawls. Run the `fga:grant` above |
-| start view, under 起こす | `404 —— Route POST:/api/crawls not found` | The ledger does not know where to send crawls (Windmill). The `dev:up` stack has it |
+| new crawl view, under 始める | `404 —— not found` | The identity may not start crawls. Run the `fga:grant` above |
+| new crawl view, under 始める | `404 —— Route POST:/api/crawls not found` | The ledger does not know where to send crawls (Windmill). The `dev:up` stack has it |
 | crawls view (it moves there) | the running row is marked | A 409: only one crawl runs at a time, overall. Wait for the marked row to finish |
 | terminal | `127.0.0.1:7080 は、既に動いているこの画面です (pid …)。` | Just open it. To restart it, `pnpm run dev:up --from dashboard` |
 | terminal | `127.0.0.1:7080 は別のものが握っています …` | Find out what it is with `pnpm run dev:status`, clean up with `pnpm run dev:down` |

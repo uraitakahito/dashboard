@@ -122,7 +122,7 @@ const failedText = (err) => (err instanceof Error ? err.message : String(err));
 let crawls = [];
 
 /**
- * 起こした 1 本か、409 で塞いでいた 1 本。**行は開かずに印を付ける** —— 表は引くたびに
+ * 始めた 1 本か、409 で塞いでいた 1 本。**行は開かずに印を付ける** —— 表は引くたびに
  * 作り直すので、開いた行は次の引きで消える。id で覚えておけば、描き直しのたびに付け直せる。
  */
 let spotlight;
@@ -146,7 +146,7 @@ const failuresText = (one) => {
     : failures.map((f) => `${f.url} — ${f.reason ?? "理由なし"}`).join("\n");
 };
 
-/** 札の印（サイト用の台本のホスト名）。一覧・見出し・起こす面・クロールの詳しい所で同じ形。 */
+/** 札の印（サイト用の台本のホスト名）。一覧・見出し・新しいクロールの面・クロールの詳しい所で同じ形。 */
 const siteChip = (sites, suffix = " 用") => tag("span", `${sites.join("・")}${suffix}`, "site");
 
 /**
@@ -283,7 +283,7 @@ const drawCrawls = () => {
   }
 };
 
-// ── 起こす ─────────────────────────────────────────────────────────
+// ── 新しいクロール ─────────────────────────────────────────────────
 /**
  * 描いた目録のチェック（目録の面と同じ並び。札の無い物もサイト用の物も）。チェックはこの並びで描き、
  * 送るときもこの並び。`why` はサイト用の台本にだけ在る、押せない理由の欄。
@@ -375,7 +375,7 @@ const runOf = () => {
 };
 
 /**
- * その場の JS を欄に戻し、起こす面へ移る。直して撮り直すため。**起点と目録の選びは触らない。**
+ * その場の JS を欄に戻し、新しいクロールの面へ移る。直して撮り直すため。**起点と目録の選びは触らない。**
  * source は詳しい所に無い（capture-ledger v0.59.0）ので、名前の口から取る。
  */
 const putBack = async (crawlId, name) => {
@@ -435,7 +435,7 @@ const syncStart = () => {
   const size = sizeOf($("start-inline-source").value, bodyBytes(body), limit);
   const line = $("start-size");
   line.textContent = size.over
-    ? `本文が上限（${count(limit)} バイト）を ${count(size.bytes - limit)} バイト超えています。起こせません`
+    ? `本文が上限（${count(limit)} バイト）を ${count(size.bytes - limit)} バイト超えています。始められません`
     : `${count(size.lines)} 行 · 本文 ${count(size.bytes)} バイト` +
       (limit === Infinity ? "" : ` · 上限の ${String(size.percent)}%`);
   line.classList.toggle("bad", size.over);
@@ -453,7 +453,7 @@ const drawSource = () => {
 };
 
 /**
- * 欄から 1 本起こす。**送る前に検査しない** —— 読めない URL は台帳が 400 で言う。
+ * 欄から 1 本始める。**送る前に検査しない** —— 読めない URL は台帳が 400 で言う。
  * 答えは欄の下に 1 行で、台帳の文は言い換えずに出す（`start.js` の `startAnswer`）。
  */
 const startCrawl = async (event) => {
@@ -485,7 +485,7 @@ const startCrawl = async (event) => {
     syncPicks();
   }
   syncStart();
-  // 202 は起こした 1 本、409 は塞いでいる 1 本。どちらも印を付けて、すぐ引き直す
+  // 202 は始めた 1 本、409 は塞いでいる 1 本。どちらも印を付けて、すぐ引き直す
   if (typeof answer.crawlId === "string") {
     spotlight = answer.crawlId;
     location.hash = "crawls"; // 印は一覧の面で見る
@@ -493,7 +493,7 @@ const startCrawl = async (event) => {
   }
 };
 
-// 箱・起点・チェック・2 択のどれが変わっても、大きさの行と「起こす」を合わせる。溝と「型を検査しない」は
+// 箱・起点・チェック・2 択のどれが変わっても、大きさの行と「始める」を合わせる。溝と「型を検査しない」は
 // 箱のときだけ、サイト用のチェックは起点のときだけ
 $("start").addEventListener("input", (event) => {
   if (event.target === $("start-inline-source")) drawSource();
@@ -765,7 +765,7 @@ const drawLines = (source, line) => {
   if (line !== undefined) markLine(line, { scroll: true });
 };
 
-// 押した行を URL に。**hashchange を起こさずに**（中身の面の remember と同じ。起こすと読み直す）
+// 押した行を URL に。**hashchange を発火させずに**（中身の面の remember と同じ。発火すると読み直す）
 $("reading-lines").addEventListener("click", (event) => {
   const li = event.target.closest("li");
   if (li === null || reading.open?.doc === undefined) return;
@@ -794,10 +794,10 @@ const colorsOf = (doc) => {
       if (data.error !== undefined) wait?.reject(new Error(data.error));
       else wait?.resolve(data.lines);
     };
-    // 起こせない（/vendor/shiki.js が 404 など）。Chrome は message を空で寄こし、頼みには答えない ——
+    // 起動できない（/vendor/shiki.js が 404 など）。Chrome は message を空で寄こし、頼みには答えない ——
     // 待っている物を全部断り、以後は訊かない
     painter.worker.onerror = (event) => {
-      painter.broken = new Error(event.message || "色付けの worker を起こせない");
+      painter.broken = new Error(event.message || "色付けの worker を起動できない");
       for (const wait of painter.waiting.values()) wait.reject(painter.broken);
       painter.waiting.clear();
     };
@@ -973,7 +973,7 @@ const openScript = async (target, stale) => {
     sites: doc.sites,
     facts: [...metaOf(doc), optionsText(doc.options)],
     standing: standingOf(doc, defaultVersion),
-    actions: [copyButton(doc.source), button("下敷きにして起こす", () => putTemplate(doc))],
+    actions: [copyButton(doc.source), button("下敷きにする", () => putTemplate(doc))],
     aside: "走った JS（アーカイブの custom.jsonl）とは行が合いません",
   });
   // URL の sha256 の頭（クロールの「読む」が付ける）が、開いた版と食い違えば言う。本文は出す
@@ -1034,7 +1034,7 @@ const askReplace = (doc, lines) => {
   const box = $("reading-ask");
   box.hidden = false;
   box.replaceChildren(
-    tag("span", `起こす面の欄に書きかけの JS（${count(lines)} 行）があります。`),
+    tag("span", `新しいクロールの欄に書きかけの JS（${count(lines)} 行）があります。`),
     button("置き換える", () => {
       box.hidden = true;
       putTemplate(doc, true);
@@ -1046,7 +1046,7 @@ const askReplace = (doc, lines) => {
 };
 
 /**
- * 目録の 1 版を、その場の JS の欄に写して起こす面へ移る。**書きかけを黙って消さない** —— 欄が空で
+ * 目録の 1 版を、その場の JS の欄に写して新しいクロールの面へ移る。**書きかけを黙って消さない** —— 欄が空で
  * なければ、置き換えるかを本文の上で訊く（replace は「置き換える」を押したときだけ true）。
  * 入れ方は「欄に戻す」（putBack）と同じ。
  */
@@ -1104,7 +1104,7 @@ const wacz = {
 
 const remember = (path, n) => {
   wacz.hash = waczHash(wacz.archive.id, path, n);
-  // **hashchange を起こさずに** URL だけ替える（起こすと route が検証をやり直す）。
+  // **hashchange を発火させずに** URL だけ替える（発火すると route が検証をやり直す）。
   history.replaceState(null, "", wacz.hash);
 };
 
@@ -1414,7 +1414,7 @@ const show = (face) => {
     b.classList.toggle("on", b.dataset.face === face);
   }
   for (const name of FACES) $(`face-${name}`).hidden = name !== face;
-  document.body.dataset.face = face; // 起こす面だけ、CSS が窓の高さに収める
+  document.body.dataset.face = face; // 新しいクロールの面だけ、CSS が窓の高さに収める
 };
 
 /**
@@ -1454,7 +1454,7 @@ window.addEventListener("hashchange", route);
  */
 const pace = () => (crawls.some((c) => c.state === "running") ? 2_000 : 30_000);
 
-/** 次の引きの予約。**1 つだけ** —— 起こした直後に引き直しても、引く輪が 2 本にならない。 */
+/** 次の引きの予約。**1 つだけ** —— 始めた直後に引き直しても、引く輪が 2 本にならない。 */
 let timer;
 
 const refresh = async () => {

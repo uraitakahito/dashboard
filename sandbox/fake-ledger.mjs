@@ -8,7 +8,7 @@
  * 署名付き URL の代わりに、置き場の `file://` の URL を返す。検証の daemon
  * (sandbox-validator) も同じ置き場を同じ path に mount しているので、それを読める。
  *
- * `POST /api/crawls` (画面の起こす欄) にも答える。受けた行は代役が起きている間だけ在り、
+ * `POST /api/crawls` (画面の新しいクロールの面) にも答える。受けた行は代役が起きている間だけ在り、
  * 台本の `submit.runsSeconds` 秒走ってから完走になる (台本の行とは別に持つ)。走らせるもの
  * (`scripts`。目録の名指しとその場の JS) も台帳と同じ形で受け、1 本の詳しい所に返す。
  *
@@ -356,7 +356,7 @@ export const hostTypesOf = (s, read = readBeside) => {
  * 答えの文と形は capture-ledger の src/api/crawls.ts から写した (v0.58.0。札の 400 と既定が空の 400 は
  * v0.61.0。試験が固定する)。
  * **走行中の 1 本は、受けた行だけで数える** —— 台本の走行中の行は飾りで、それで 409 に
- * すると何も起こせない。409 を見たいなら、走っている間にもう 1 度起こす。
+ * すると何も始められない。409 を見たいなら、走っている間にもう 1 度始める。
  *
  * `versions` は目録の版の並び (`catalogOf`)。起点のホスト (台帳と同じく `hostname`。ポートは見ない) で
  * 既定を選び、名指しを照らす。走らせたものは受けた行の `scripts` に持ち、一覧の行 (`submittedRow`) には
@@ -566,7 +566,7 @@ if (import.meta.main) {
   // コンテナの中では外向きに待つ。host への口は compose が 127.0.0.1 にだけ出す
   const host = process.env.SANDBOX_HOST ?? "0.0.0.0";
   createServer((req, res) => {
-    // 本文を読み切ってから答える (起こす口だけが使う。画面の欄が送る本文は小さい)
+    // 本文を読み切ってから答える (始める口だけが使う。画面の欄が送る本文は小さい)
     const chunks = [];
     req.on("data", (chunk) => chunks.push(chunk));
     req.on("end", () => {
