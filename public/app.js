@@ -316,9 +316,16 @@ const drawPicks = (scripts) => {
     };
     const label = document.createElement("label");
     label.className = "pick";
-    label.append(input, tag("span", `${script.id} v${String(script.version)}`, "mono"));
+    const name = tag("span", `${script.id} v${String(script.version)}`, "mono");
     const why = script.sites.length === 0 ? undefined : tag("span", "", "why");
-    if (why !== undefined) label.append(siteChip(script.sites), why);
+    if (why === undefined) {
+      label.append(input, name);
+    } else {
+      // 名前と札をまとめる。長いホスト名で札が折り返しても、名前の下に揃う（理由の行と同じ）
+      const head = tag("span", "", "phead");
+      head.append(name, siteChip(script.sites));
+      label.append(input, head, why);
+    }
     box.append(label);
     picks.push({ script, input, why });
   }

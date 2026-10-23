@@ -400,7 +400,6 @@ body[data-face="start"] main {
 }
 
 .start-row .pick {
-  flex-wrap: wrap;
   font-size: 12.5px;
 }
 
@@ -409,7 +408,33 @@ body[data-face="start"] main {
   white-space: nowrap;
 }
 
-/* 起点に合わないサイト用の台本は押せない。名前を薄くし、理由を名前の下の 1 行に添える */
+/*
+ * サイト用の台本は 1 行を取る。チェックの右の列に、名前と札、その下に押せない理由を揃える
+ * （長いホスト名で札が折り返しても、名前の下に来る）
+ */
+.start-row .pick:has(.phead) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 4px;
+  flex-basis: 100%;
+}
+
+.start-row .pick .phead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  min-width: 0;
+}
+
+.start-row .pick .why {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* 起点に合わないサイト用の台本は押せない。名前を薄くし、理由を添える */
 .start-row .pick:has(input:disabled) {
   cursor: not-allowed;
 }
@@ -418,20 +443,13 @@ body[data-face="start"] main {
   color: var(--muted);
 }
 
-.start-row .pick .why {
-  flex-basis: 100%;
-  padding-left: 22px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.start-row .pick .why:empty {
-  display: none;
-}
-
-/* 札（サイト用の台本のホスト名）。一覧・見出し・起こす面・クロールの詳しい所で同じ形 */
+/*
+ * 札（サイト用の台本のホスト名）。一覧・見出し・起こす面・クロールの詳しい所で同じ形。どこでも flex の
+ * 中に置くので、行に収まらなければ札ごと次の行へ移り、行より長いときだけ札の中で折り返す
+ */
 .site {
   display: inline-block;
+  max-width: 100%;
   padding: 0 7px;
   border: 1px solid var(--accent);
   border-radius: 10px;
@@ -439,7 +457,7 @@ body[data-face="start"] main {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11.5px;
   line-height: 1.6;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .start-name {
