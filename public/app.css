@@ -400,7 +400,46 @@ body[data-face="start"] main {
 }
 
 .start-row .pick {
+  flex-wrap: wrap;
   font-size: 12.5px;
+}
+
+/* 名前は途中で折らない（左の列は狭い） */
+.start-row .pick .mono {
+  white-space: nowrap;
+}
+
+/* 起点に合わないサイト用の台本は押せない。名前を薄くし、理由を名前の下の 1 行に添える */
+.start-row .pick:has(input:disabled) {
+  cursor: not-allowed;
+}
+
+.start-row .pick:has(input:disabled) .mono {
+  color: var(--muted);
+}
+
+.start-row .pick .why {
+  flex-basis: 100%;
+  padding-left: 22px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.start-row .pick .why:empty {
+  display: none;
+}
+
+/* 札（サイト用の台本のホスト名）。一覧・見出し・起こす面・クロールの詳しい所で同じ形 */
+.site {
+  display: inline-block;
+  padding: 0 7px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  color: var(--accent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  line-height: 1.6;
+  white-space: nowrap;
 }
 
 .start-name {
@@ -810,6 +849,15 @@ body[data-face="scripts"] main {
   color: var(--muted);
 }
 
+/* 名前と札。長いホスト名は名前の下へ折り返す */
+.rlist .ritem .rname {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  min-width: 0;
+}
+
 .rlist .ritem:hover {
   color: var(--accent);
 }
@@ -817,6 +865,11 @@ body[data-face="scripts"] main {
 .rlist .ritem.on,
 .rlist .ritem.on small {
   background: var(--accent);
+  color: var(--surface);
+}
+
+.rlist .ritem.on .site {
+  border-color: var(--surface);
   color: var(--surface);
 }
 

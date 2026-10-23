@@ -95,13 +95,20 @@ test("渡す値が空なら「既定のまま」と言い、あればそのま�
 });
 
 test("既定の顔ぶれとの関係を 3 通りに言う（既定の版・ほかの版が既定・無効）", () => {
-  assert.deepEqual(standingOf({ version: 2, enabled: true }, 2), { text: "既定で走る版", kind: "ok" });
-  assert.deepEqual(standingOf({ version: 1, enabled: true }, 2), {
+  assert.deepEqual(standingOf({ version: 2, enabled: true, sites: [] }, 2), { text: "既定で走る版", kind: "ok" });
+  assert.deepEqual(standingOf({ version: 1, enabled: true, sites: [] }, 2), {
     text: "既定で走るのは v2",
     kind: "muted",
   });
-  assert.deepEqual(standingOf({ version: 1, enabled: false }, 2), {
+  assert.deepEqual(standingOf({ version: 1, enabled: false, sites: [] }, 2), {
     text: "無効（既定では走らない）",
     kind: "warn",
+  });
+});
+
+test("サイト用の台本の既定の版は、起点が札のホストにあるときだけ既定で走ると言う", () => {
+  assert.deepEqual(standingOf({ version: 1, enabled: true, sites: ["example.com", "www.example.com"] }, 1), {
+    text: "起点に example.com・www.example.com があれば既定で走る版",
+    kind: "ok",
   });
 });

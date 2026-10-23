@@ -77,11 +77,16 @@ export const optionsText = (options) =>
 
 /**
  * この版と既定の顔ぶれの関係。`defaultVersion` は `GET /api/scripts` がその id に言う版（無ければ
- * undefined）。無効な版は、名指せば走るが、既定では走らない。
+ * undefined）。無効な版は、名指せば走るが、既定では走らない。サイト用の台本（札のある版）が既定で
+ * 走るのは、起点のどれかが札のホストにあるときだけ。
  */
 export const standingOf = (doc, defaultVersion) => {
   if (doc.enabled === false) return { text: "無効（既定では走らない）", kind: "warn" };
-  if (defaultVersion === doc.version) return { text: "既定で走る版", kind: "ok" };
+  if (defaultVersion === doc.version) {
+    return doc.sites.length === 0
+      ? { text: "既定で走る版", kind: "ok" }
+      : { text: `起点に ${doc.sites.join("・")} があれば既定で走る版`, kind: "ok" };
+  }
   if (defaultVersion === undefined) return { text: "既定には入っていない", kind: "warn" };
   return { text: `既定で走るのは v${String(defaultVersion)}`, kind: "muted" };
 };
