@@ -8,7 +8,18 @@
  * `<img>` で。生の HTML を差し込む API はこのファイルに無い（`check` が見張る）。
  */
 import { judgedUnder, severityKind, stateOf, statsOf, took, verdict } from "/format.js";
-import { asTemplate, bodyBytes, hasNocheck, sizeOf, startAnswer, startBody, withNocheck } from "/start.js";
+import {
+  asTemplate,
+  bodyBytes,
+  defaultIds,
+  hasNocheck,
+  onSeed,
+  seedHosts,
+  sizeOf,
+  startAnswer,
+  startBody,
+  withNocheck,
+} from "/start.js";
 import {
   linesOf,
   metaOf,
@@ -135,9 +146,12 @@ const failuresText = (one) => {
     : failures.map((f) => `${f.url} — ${f.reason ?? "理由なし"}`).join("\n");
 };
 
+/** 札の印（サイト用の台本のホスト名）。一覧・見出し・起こす面・クロールの詳しい所で同じ形。 */
+const siteChip = (sites, suffix = " 用") => tag("span", `${sites.join("・")}${suffix}`, "site");
+
 /**
  * 走らせたもの。**並びが実行順。** 目録の物は版を、その場で書いた物は「その場」と出す ——
- * その場の物にだけ、台帳は頼まれた要素（`inline`）を返す。
+ * その場の物にだけ、台帳は頼まれた要素（`inline`）を返す。サイト用の台本には札を添える。
  */
 const ranOf = (one) => {
   const scripts = one.scripts ?? [];
@@ -150,7 +164,9 @@ const ranOf = (one) => {
       script.inline === undefined
         ? `目録 v${String(script.version)}・${script.phase}`
         : `その場・${script.phase}・${count(script.inline.bytes)} バイト`;
-    item.append(tag("span", script.id, "mono"), tag("span", where, "muted"));
+    item.append(tag("span", script.id, "mono"));
+    if (script.sites.length > 0) item.append(siteChip(script.sites));
+    item.append(tag("span", where, "muted"));
     // その場の JS は、直して撮り直せるように欄へ戻せる（目録の物は目録に在る）。source は詳しい所に
     // 無いので、押したときに名前の口から取る
     if (script.inline !== undefined) {
@@ -268,55 +284,95 @@ const drawCrawls = () => {
 };
 
 // ── 起こす ─────────────────────────────────────────────────────────
-/** 目録の id（目録の面と同じ並び）。チェックはこの並びで描き、送るときもこの並び。 */
-let catalogIds = [];
+/**
+ * 描いた目録のチェック（目録の面と同じ並び。札の無い物もサイト用の物も）。チェックはこの並びで描き、
+ * 送るときもこの並び。`why` はサイト用の台本にだけ在る、押せない理由の欄。
+ */
+let picks = [];
 
 /** 外した目録の id。**引き直しても覚えておく。** 新しく現れた id は、選んだ状態で出る。 */
 const unpicked = new Set();
 
-/** 最後に描いた目録の形（id と版）。同じなら描き直さない。 */
+/** 最後に描いた目録の形（id と版と札）。同じなら描き直さない。 */
 let catalogKey;
 
 /**
  * 目録のチェックを描く。**目録が変わったときだけ描き直す** —— 一覧は走行中なら 2 秒ごとに
- * 引くので、毎回作り直すと、押そうとしているチェックが手の下で入れ替わる。
+ * 引くので、毎回作り直すと、押そうとしているチェックが手の下で入れ替わる。付け外しは `syncPicks`。
  */
 const drawPicks = (scripts) => {
-  const key = scripts.map((s) => `${s.id}@${String(s.version)}`).join(",");
+  const key = scripts.map((s) => `${s.id}@${String(s.version)}~${s.sites.join(" ")}`).join(",");
   if (key === catalogKey) return;
   catalogKey = key;
-  catalogIds = scripts.map((s) => s.id);
   const box = $("start-picks");
   box.replaceChildren();
-  if (scripts.length === 0) {
-    box.append(tag("span", "目録が空です（目録の面を見てください）", "muted"));
-    return;
-  }
+  picks = [];
   for (const script of scripts) {
     const input = document.createElement("input");
     input.type = "checkbox";
-    input.checked = !unpicked.has(script.id);
     input.onchange = () => {
       if (input.checked) unpicked.delete(script.id);
       else unpicked.add(script.id);
     };
     const label = document.createElement("label");
     label.className = "pick";
-    label.append(input, tag("span", `${script.id} v${String(script.version)}`, "mono"));
+    const name = tag("span", `${script.id} v${String(script.version)}`, "mono");
+    const why = script.sites.length === 0 ? undefined : tag("span", "", "why");
+    if (why === undefined) {
+      label.append(input, name);
+    } else {
+      // 名前と札をまとめる。長いホスト名で札が折り返しても、名前の下に揃う（理由の行と同じ）
+      const head = tag("span", "", "phead");
+      head.append(name, siteChip(script.sites));
+      label.append(input, head, why);
+    }
     box.append(label);
+    picks.push({ script, input, why });
+  }
+  if (scripts.length === 0) box.append(tag("span", "目録が空です（目録の面を見てください）", "muted"));
+  syncPicks();
+};
+
+/**
+ * チェックを起点に合わせる。サイト用の台本は、起点のどれかが札のホストにあるときだけ押せる
+ * （台帳の決まりの写し。`start.js` の `onSeed`）。**人が外したチェックは覚えたまま** —— 起点を
+ * 書き換えて合わなくなれば押せなくなり、合うようになれば、外していない限り付く。
+ */
+const syncPicks = () => {
+  const hosts = seedHosts($("start-seeds").value);
+  for (const { script, input, why } of picks) {
+    const allowed = onSeed(script, hosts);
+    input.disabled = !allowed;
+    input.checked = allowed && !unpicked.has(script.id);
+    if (why === undefined) continue;
+    why.textContent = allowed
+      ? ""
+      : hosts.size === 0
+        ? "起点を書くと選べます"
+        : `起点に ${script.sites.join("・")} がありません`;
   }
 };
 
-/** 欄の「走らせるもの」。組み立ては `start.js` の `scriptsOf`（試験から呼べる）。 */
-const runOf = () => ({
-  catalog: catalogIds,
-  picked: catalogIds.filter((id) => !unpicked.has(id)),
-  inline: {
-    name: $("start-inline-name").value,
-    phase: $("start-inline-preload").checked ? "preload" : "behavior",
-    source: $("start-inline-source").value,
-  },
-});
+/**
+ * 欄の「走らせるもの」。組み立ては `start.js` の `scriptsOf`（試験から呼べる）。選んだ物は、起点に合い、
+ * 外していない物。既定の顔ぶれ（台帳が `scripts` を省いた頼みに選ぶ物）と同じなら、送らずに済む。
+ */
+const runOf = () => {
+  const hosts = seedHosts($("start-seeds").value);
+  const scripts = picks.map((pick) => pick.script);
+  return {
+    catalog: scripts.map((script) => script.id),
+    picked: scripts
+      .filter((script) => onSeed(script, hosts) && !unpicked.has(script.id))
+      .map((script) => script.id),
+    defaults: defaultIds(scripts, hosts),
+    inline: {
+      name: $("start-inline-name").value,
+      phase: $("start-inline-preload").checked ? "preload" : "behavior",
+      source: $("start-inline-source").value,
+    },
+  };
+};
 
 /**
  * その場の JS を欄に戻し、起こす面へ移る。直して撮り直すため。**起点と目録の選びは触らない。**
@@ -423,8 +479,11 @@ const startCrawl = async (event) => {
   line.hidden = false;
   line.className = `start-answer state ${said.kind}`;
   line.textContent = said.text;
-  // 起点は消す。その場の JS は残す —— 直して撮り直すことが多い
-  if (status === 202) $("start-seeds").value = "";
+  // 起点は消す。その場の JS は残す —— 直して撮り直すことが多い。サイト用のチェックは起点に合わせる
+  if (status === 202) {
+    $("start-seeds").value = "";
+    syncPicks();
+  }
   syncStart();
   // 202 は起こした 1 本、409 は塞いでいる 1 本。どちらも印を付けて、すぐ引き直す
   if (typeof answer.crawlId === "string") {
@@ -434,9 +493,11 @@ const startCrawl = async (event) => {
   }
 };
 
-// 箱・起点・チェック・2 択のどれが変わっても、大きさの行と「起こす」を合わせる。溝とチェックは箱のときだけ
+// 箱・起点・チェック・2 択のどれが変わっても、大きさの行と「起こす」を合わせる。溝と「型を検査しない」は
+// 箱のときだけ、サイト用のチェックは起点のときだけ
 $("start").addEventListener("input", (event) => {
   if (event.target === $("start-inline-source")) drawSource();
+  if (event.target === $("start-seeds")) syncPicks();
   syncStart();
 });
 $("start-inline-source").addEventListener("scroll", (event) => {
@@ -580,7 +641,7 @@ const drawArchives = () => {
 
 // ── 目録（読む所）─────────────────────────────────────────────────
 /**
- * 読む所の状態。**取るのは開いたときだけ** —— 一覧（既定の顔ぶれ）は引き直しの答えを使い、版の札と
+ * 読む所の状態。**取るのは開いたときだけ** —— 一覧（有効な各 id の最新版）は引き直しの答えを使い、版の札と
  * 1 版の中身は開いた id の分だけ取る。受け皿の型は面を最初に開いたとき 1 回で、refresh には入れない
  * （入れると、型を取り込んでいない台帳で引き直し全体が落ちる）。
  */
@@ -591,8 +652,8 @@ const reading = {
   open: undefined,
   /** 1 版の中身。`id@版` で覚え、版の札の sha256 と食い違えば取り直す（番号は使い回される） */
   docs: new Map(),
-  /** 既定の顔ぶれ（GET /api/scripts の最後の答え） */
-  defaults: [],
+  /** 有効な各 id の最新版（GET /api/scripts の最後の答え）。サイト用の台本も札つきで入る */
+  latest: [],
   /** 受け皿の型。undefined はまだ訊いていない、null は台帳に無い（404） */
   types: undefined,
   /** 最後に描いた一覧の形。同じなら描き直さない */
@@ -613,13 +674,15 @@ const find = async (path) => {
   return body;
 };
 
-/** 一覧の 1 項目。ふつうの <a> なので、中ボタンで別の窓に開ける（書く欄と並べる道） */
-const listItem = (href, name, version, key) => {
+/** 一覧の 1 項目。ふつうの <a> なので、中ボタンで別の窓に開ける（書く欄と並べる道）。札があれば名前に添える */
+const listItem = (href, name, version, key, sites = []) => {
   const a = document.createElement("a");
   a.href = href;
   a.className = "ritem";
   a.dataset.key = key;
-  a.append(document.createTextNode(name), tag("small", version));
+  const label = tag("span", name, "rname");
+  if (sites.length > 0) label.append(siteChip(sites, ""));
+  a.append(label, tag("small", version));
   return a;
 };
 
@@ -632,23 +695,29 @@ const markListed = () => {
 };
 
 /**
- * 一覧（既定で走る版と、書くための受け皿の型）。**変わったときだけ描き直す** —— 一覧は走行中なら
- * 2 秒ごとに引くので、毎回作り直すと、押そうとしている項目が手の下で入れ替わる（drawPicks と同じ）。
+ * 一覧（既定で走る版・サイト用の版・書くための受け皿の型）。**変わったときだけ描き直す** —— 一覧は
+ * 走行中なら 2 秒ごとに引くので、毎回作り直すと、押そうとしている項目が手の下で入れ替わる（drawPicks と同じ）。
  */
 const drawReadingList = () => {
-  $("scripts-empty").hidden = reading.defaults.length > 0;
+  $("scripts-empty").hidden = reading.latest.length > 0;
   const types = reading.types;
   const key = [
-    ...reading.defaults.map((s) => `${s.id}@${String(s.version)}~${s.sha256}`),
+    ...reading.latest.map((s) => `${s.id}@${String(s.version)}~${s.sha256}~${s.sites.join(" ")}`),
     `types@${types === undefined ? "?" : types === null ? "-" : `${String(types.version)}~${types.sha256}`}`,
   ].join(",");
   if (key !== reading.listKey) {
     reading.listKey = key;
     const nav = $("reading-list");
+    const item = (s) => listItem(readingHash({ id: s.id }), s.id, `v${String(s.version)}`, s.id, s.sites);
+    const anywhere = reading.latest.filter((s) => s.sites.length === 0);
+    const onSites = reading.latest.filter((s) => s.sites.length > 0);
     nav.replaceChildren(tag("span", "既定で走る", "grp"));
-    if (reading.defaults.length === 0) nav.append(tag("span", "（目録が空）", "muted"));
-    for (const s of reading.defaults) {
-      nav.append(listItem(readingHash({ id: s.id }), s.id, `v${String(s.version)}`, s.id));
+    if (anywhere.length === 0) {
+      nav.append(tag("span", reading.latest.length === 0 ? "（目録が空）" : "（無し）", "muted"));
+    }
+    nav.append(...anywhere.map(item));
+    if (onSites.length > 0) {
+      nav.append(tag("span", "サイト用（起点がそのサイトのとき）", "grp"), ...onSites.map(item));
     }
     nav.append(tag("span", "書くための型", "grp"));
     if (types === null) nav.append(tag("span", "host.d.ts（台帳に無い）", "muted"));
@@ -801,11 +870,12 @@ const copyButton = (source) => {
   return b;
 };
 
-/** 見出し: 名前（と版の札）・事実の 1 行・ボタンと注記。 */
-const drawReadingHead = ({ name, chips, facts, standing, actions = [], aside }) => {
+/** 見出し: 名前（と版の札・サイト用なら札）・事実の 1 行・ボタンと注記。 */
+const drawReadingHead = ({ name, chips, sites = [], facts, standing, actions = [], aside }) => {
   const title = document.createElement("div");
   title.className = "rtitle";
   title.append(tag("b", name));
+  if (sites.length > 0) title.append(siteChip(sites));
   if (chips !== undefined) title.append(chips);
   const meta = tag("div", facts.join(" · "), "rmeta");
   if (standing !== undefined) {
@@ -881,7 +951,7 @@ const openScript = async (target, stale) => {
     drawLines(undefined);
     return;
   }
-  const defaultVersion = reading.defaults.find((s) => s.id === target.id)?.version;
+  const defaultVersion = reading.latest.find((s) => s.id === target.id)?.version;
   const version = target.version ?? defaultVersion ?? listed.versions[0].version;
   const chips = chipsOf(target.id, listed.versions, version, defaultVersion);
   const entry = listed.versions.find((v) => v.version === version);
@@ -900,6 +970,7 @@ const openScript = async (target, stale) => {
   drawReadingHead({
     name: `${doc.id} v${String(doc.version)}`,
     chips,
+    sites: doc.sites,
     facts: [...metaOf(doc), optionsText(doc.options)],
     standing: standingOf(doc, defaultVersion),
     actions: [copyButton(doc.source), button("下敷きにして起こす", () => putTemplate(doc))],
@@ -937,7 +1008,8 @@ const openReading = async (asked) => {
     }
     let target = asked;
     if (target === undefined) {
-      const first = reading.defaults[0];
+      // 一覧の頭（札の無い物が先に並ぶ）
+      const first = reading.latest.find((s) => s.sites.length === 0) ?? reading.latest[0];
       target = first !== undefined ? { id: first.id } : reading.types !== null ? {} : undefined;
       if (target !== undefined) history.replaceState(null, "", readingHash(target));
     }
@@ -992,7 +1064,7 @@ const putTemplate = (doc, replace = false) => {
   // 元を外す。両方走ると 2 回走り、coverage は id を見ずに、先に走る写しの報告を採る
   unpicked.add(doc.id);
   catalogKey = undefined; // drawPicks は目録が変わったときだけ描くので、ここで描き直させる
-  drawPicks(reading.defaults);
+  drawPicks(reading.latest);
   const said = $("start-answer");
   said.hidden = false;
   said.className = "start-answer muted";
@@ -1001,7 +1073,11 @@ const putTemplate = (doc, replace = false) => {
     (changed.length === 0
       ? "id を替える所はありませんでした。"
       : `${changed.join("・")} 行目の id を inline-${name} に替えました。`) +
-    `目録の ${doc.id} は外しました（両方走ると 2 回走ります）。`;
+    `目録の ${doc.id} は外しました（両方走ると 2 回走ります）。` +
+    // その場の JS は札を持たない。台本の冒頭の見分けが、ほかのサイトでは何もさせない
+    (doc.sites.length === 0
+      ? ""
+      : `札（${doc.sites.join("・")}）は写しに付きません。その場の JS は、どの起点でも走ります。`);
   location.hash = "start";
   drawSource();
   syncStart();
@@ -1393,7 +1469,7 @@ const refresh = async () => {
     drawCrawls();
     refreshOpened();
     drawArchives();
-    reading.defaults = s.scripts;
+    reading.latest = s.scripts;
     drawReadingList();
     drawPicks(s.scripts);
     trouble(undefined);

@@ -9,9 +9,12 @@ import assert from "node:assert/strict";
 import {
   asTemplate,
   bodyBytes,
+  defaultIds,
   hasNocheck,
   NOCHECK,
+  onSeed,
   scriptsOf,
+  seedHosts,
   sizeOf,
   startAnswer,
   startBody,
@@ -79,25 +82,68 @@ test("この画面のサーバに届かなければ、そう言う", () => {
   assert.equal(startAnswer(0, { error: "Failed to fetch" }).text, "この画面自身に届きません（Failed to fetch）");
 });
 
-/** 走らせるものの欄。目録は autofetch・autoscroll の 2 本（目録の面と同じ id 順）。 */
+/**
+ * 走らせるものの欄。目録は札の無い autofetch・autoscroll の 2 本（目録の面と同じ id 順）で、
+ * どちらも既定の顔ぶれ。
+ */
 const CATALOG = ["autofetch", "autoscroll"];
 const NO_INLINE = { name: "", phase: "behavior", source: "" };
-const run = (picked, inline = NO_INLINE) => ({ catalog: CATALOG, picked, inline });
+const run = (picked, inline = NO_INLINE) => ({ catalog: CATALOG, picked, defaults: CATALOG, inline });
 
-test("走らせるものが既定のまま（目録を全部選び、その場の JS が空）なら scripts を送らない", () => {
+test("走らせるものが既定のまま（既定の顔ぶれを全部選び、その場の JS が空）なら scripts を送らない", () => {
   // 台帳の既定と、目録が空のときの 400 を生かす
   assert.equal("scripts" in startBody("https://example.com/", true, run(CATALOG)), false);
   // 目録が空で、その場の JS も無いときも送らない（台帳が「目録が空」と言う）
-  assert.equal(scriptsOf({ catalog: [], picked: [], inline: NO_INLINE }), undefined);
+  assert.equal(scriptsOf({ catalog: [], picked: [], defaults: [], inline: NO_INLINE }), undefined);
 });
 
 test("目録を 1 つ外すと、選んだ物だけを目録の並びで送る", () => {
   // 押した順ではなく、目録の並び
   assert.deepEqual(scriptsOf(run(["autoscroll"])), [{ catalog: "autoscroll" }]);
-  assert.deepEqual(scriptsOf({ catalog: CATALOG, picked: ["autoscroll", "autofetch"], inline: { ...NO_INLINE, source: "x;" } }).slice(1), [
+  assert.deepEqual(scriptsOf(run(["autoscroll", "autofetch"], { ...NO_INLINE, source: "x;" })).slice(1), [
     { catalog: "autofetch" },
     { catalog: "autoscroll" },
   ]);
+});
+
+test("起点のホストは台帳と同じく hostname —— 小文字になり、IDN は punycode になる", () => {
+  assert.deepEqual([...seedHosts("HTTPS://WWW.Example.com/a\nhttps://日本.jp/")], ["www.example.com", "xn--wgv71a.jp"]);
+});
+
+test("読めない行と空行は、起点のホストに数えない（台帳が 400 で言う）", () => {
+  assert.deepEqual([...seedHosts(" \nnot a url\n\n https://example.com/ \n")], ["example.com"]);
+  assert.equal(seedHosts("").size, 0);
+});
+
+/** 札の無い 2 本と、example.com 用の 1 本（id 順）。 */
+const SITE = { id: "example-title", sites: ["example.com"] };
+const SCRIPTS = [{ id: "autofetch", sites: [] }, { id: "autoscroll", sites: [] }, SITE];
+const IDS = SCRIPTS.map((script) => script.id);
+
+test("札の無い台本は、起点が無くても、どの起点でも既定", () => {
+  assert.deepEqual(defaultIds(SCRIPTS, new Set()), ["autofetch", "autoscroll"]);
+  assert.deepEqual(defaultIds(SCRIPTS, seedHosts("https://example.org/")), ["autofetch", "autoscroll"]);
+});
+
+test("サイト用の台本は、起点のどれかが札のホストにあるときだけ既定 —— ポートは見ない", () => {
+  assert.deepEqual(defaultIds(SCRIPTS, seedHosts("https://example.org/\nhttp://example.com:8080/a")), IDS);
+  // 完全一致。www. の付いたホストは別
+  assert.equal(onSeed(SITE, seedHosts("https://www.example.com/")), false);
+});
+
+test("起点に合わないサイト用の台本は既定に数えない —— 残りを全部選んでいれば scripts を省く", () => {
+  const defaults = defaultIds(SCRIPTS, seedHosts("https://example.org/"));
+  assert.equal(scriptsOf({ catalog: IDS, picked: defaults, defaults, inline: NO_INLINE }), undefined);
+});
+
+test("起点に合うサイト用の台本を外したら scripts を送る —— 省くと台帳が既定で入れる", () => {
+  const defaults = defaultIds(SCRIPTS, seedHosts("https://example.com/"));
+  assert.deepEqual(scriptsOf({ catalog: IDS, picked: ["autofetch", "autoscroll"], defaults, inline: NO_INLINE }), [
+    { catalog: "autofetch" },
+    { catalog: "autoscroll" },
+  ]);
+  // 付けたままなら省く（台帳が同じ 3 本を選ぶ）
+  assert.equal(scriptsOf({ catalog: IDS, picked: IDS, defaults, inline: NO_INLINE }), undefined);
 });
 
 test("全部外すと scripts: [] を送る —— 何も走らせない", () => {

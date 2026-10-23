@@ -13,7 +13,8 @@
  * (`scripts`。目録の名指しとその場の JS) も台帳と同じ形で受け、1 本の詳しい所に返す。
  *
  * 目録 (台本の `catalog`) は版の並びで、source は sandbox/catalog の写しから読む。目録を読む口
- * (版の一覧・1 版・受け皿の型) にも答える。
+ * (版の一覧・1 版・受け皿の型) にも答える。札 (`sites`) のある版はサイト用の台本で、台帳と同じく
+ * 起点のホストで選び、合わない名指しは 400 で断る。見本の台本は sandbox/sites に置く。
  *
  * 試験から関数を import できるように、server は直に走らせたときだけ立てる。
  */
@@ -68,14 +69,16 @@ export const crawlRow = (c, now) => ({
 });
 
 /**
- * /api/crawls/:id の、走らせたもの 1 本。欄は capture-ledger v0.59.0 の src/api/crawls.ts と同じ ——
- * 目録の物は身元だけ、その場の物にだけ `inline` が付く。**source は載せない**（名前・口・バイト数）。
+ * /api/crawls/:id の、走らせたもの 1 本。欄は capture-ledger v0.61.0 の src/api/crawls.ts と同じ ——
+ * 目録の物は身元と札だけ、その場の物にだけ `inline` が付く。**source は載せない**（名前・口・バイト数）。
  */
 const detailScript = (s) => ({
   id: s.id,
   version: s.version,
   phase: s.phase,
   sha256: s.sha256,
+  // 札。その場の JS と、札の無い物は空
+  sites: s.sites ?? [],
   jsSha256: s.jsSha256 ?? null,
   compiledWith: s.compiledWith ?? null,
   ...(s.inline !== undefined && {
@@ -179,11 +182,15 @@ const elementRefusal = (element, i) => {
 };
 
 /**
- * 走らせるものを、台帳と同じ順で解く: 形 (schema) → 重ね → 目録に無い id。省けば目録の既定。
- * その場の JS は `inline-<name>`・版 1 で、sha256 は source から打つ (台帳と同じ)。
+ * 走らせるものを、台帳 (capture-ledger v0.61.0) と同じ順で解く: 形 (schema) → 重ね → 目録に無い id →
+ * 起点に合わないサイト用の台本。省けば既定の顔ぶれ (`defaultSet`) で、それが空なら 400。
+ * その場の JS は `inline-<name>`・版 1 で、sha256 は source から打つ (台帳と同じ)。札は持たない。
  */
-const resolveRun = (scripts, catalog) => {
-  if (scripts === undefined) return { scripts: catalog };
+const resolveRun = (scripts, versions, hosts) => {
+  if (scripts === undefined) {
+    const chosen = defaultSet(versions, hosts);
+    return chosen.length > 0 ? { scripts: chosen } : emptyDefault(versions);
+  }
   if (!Array.isArray(scripts)) return schemaError("body/scripts must be array");
   for (const [i, element] of scripts.entries()) {
     const refused = elementRefusal(element, i);
@@ -194,6 +201,7 @@ const resolveRun = (scripts, catalog) => {
   if (twice.length > 0) {
     return { status: 400, body: { error: "duplicate script ids", ids: twice } };
   }
+  const catalog = latestEnabled(versions);
   const missing = [
     ...new Set(
       scripts
@@ -204,25 +212,61 @@ const resolveRun = (scripts, catalog) => {
   if (missing.length > 0) {
     return { status: 400, body: { error: "unknown catalog scripts", ids: missing } };
   }
+  const run = scripts.map((r) =>
+    "catalog" in r
+      ? catalog.find((c) => c.id === r.catalog)
+      : {
+          id: `inline-${r.inline.name}`,
+          version: 1,
+          phase: r.inline.phase,
+          sha256: sha256Of(r.inline.source),
+          inline: r.inline,
+        },
+  );
+  const offsite = run.filter((s) => !onSeed(s.sites ?? [], hosts));
+  if (offsite.length > 0) {
+    return {
+      status: 400,
+      body: {
+        error: "site scripts need a seed on their site",
+        ids: offsite.map((s) => s.id),
+        hint: offsite.map((s) => `${s.id}: ${s.sites.join(", ")}`).join(" / "),
+      },
+    };
+  }
+  return { scripts: run };
+};
+
+/**
+ * 既定を頼まれたのに、既定が空。文は台帳 v0.61.0 の src/api/crawls.ts と同じ —— 目録は在るのに
+ * 全部が別のサイト用なら、「目録が空」とは言わない (取り込み直しても直らない)。
+ */
+const emptyDefault = (versions) => {
+  const enabled = latestEnabled(versions);
+  if (enabled.length > 0) {
+    return {
+      status: 400,
+      body: {
+        error: "no default scripts for these seeds",
+        hint:
+          enabled.map((s) => `${s.id}: ${s.sites.join(", ")}`).join(" / ") +
+          " (run nothing on purpose: send scripts: [])",
+      },
+    };
+  }
   return {
-    scripts: scripts.map((r) =>
-      "catalog" in r
-        ? catalog.find((c) => c.id === r.catalog)
-        : {
-            id: `inline-${r.inline.name}`,
-            version: 1,
-            phase: r.inline.phase,
-            sha256: sha256Of(r.inline.source),
-            inline: r.inline,
-          },
-    ),
+    status: 400,
+    body: {
+      error: "the script catalog is empty",
+      hint: "pnpm run scripts import .upstream/capture-scripts (run nothing on purpose: send scripts: [])",
+    },
   };
 };
 
 /**
- * 台本の目録（版の並び）に source を読み込む。source は sandbox/catalog の写しで、sha256 と bytes は
- * 台帳と同じく source から数える（手で書いた sha256 は、本物の中身と結び付かない）。欄は
- * capture-ledger v0.60.0 の 1 版の口（`GET /api/scripts/:id/versions/:version`）と同じ。
+ * 台本の目録（版の並び）に source を読み込む。source は sandbox/catalog の写し（見本のサイト用の台本は
+ * sandbox/sites）で、sha256 と bytes は台帳と同じく source から数える（手で書いた sha256 は、本物の
+ * 中身と結び付かない）。欄は capture-ledger v0.61.0 の 1 版の口（`GET /api/scripts/:id/versions/:version`）と同じ。
  */
 export const catalogOf = (s, read = readBeside) =>
   (s.catalog ?? []).map((v) => {
@@ -232,6 +276,7 @@ export const catalogOf = (s, read = readBeside) =>
       version: v.version,
       phase: v.phase,
       sha256: sha256Of(source),
+      sites: v.sites ?? [],
       enabled: v.enabled ?? true,
       bytes: Buffer.byteLength(source, "utf8"),
       createdAt: v.createdAt,
@@ -240,12 +285,22 @@ export const catalogOf = (s, read = readBeside) =>
     };
   });
 
-/** 既定の顔ぶれ: 有効な各 id の最新版を id 順で（台帳の resolveScripts と同じ選び方）。 */
-export const defaultSet = (versions) =>
+/** 有効な各 id の最新版を id 順で。サイト用の台本も入る（台帳の enabledLatest。`GET /api/scripts` の答え）。 */
+export const latestEnabled = (versions) =>
   [...new Set(versions.map((v) => v.id))].sort().flatMap((id) => {
     const mine = versions.filter((v) => v.id === id && v.enabled);
     return mine.length === 0 ? [] : [mine.reduce((a, b) => (b.version > a.version ? b : a))];
   });
+
+/** 札の無い台本はいつでも、サイト用の台本は札のどれかが起点のホストにあるとき（台帳の onSeed）。 */
+const onSeed = (sites, hosts) => sites.length === 0 || sites.some((site) => hosts.has(site));
+
+/**
+ * 既定の顔ぶれ: 有効な各 id の最新版のうち、札の無い物と、起点に合うサイト用の物（id 順）。
+ * **最新版を選んでから札で絞る** —— 台帳の resolveScripts と同じ順。逆にすると、札を付け直した id の
+ * 札の無い古い版が出てくる。
+ */
+export const defaultSet = (versions, hosts) => latestEnabled(versions).filter((v) => onSeed(v.sites, hosts));
 
 /** GET /api/scripts/:id/versions。新しい順、**source は返さない**。無い id は 404。 */
 export const versionsOf = (versions, id) => {
@@ -255,10 +310,11 @@ export const versionsOf = (versions, id) => {
     status: 200,
     body: {
       id,
-      versions: mine.map(({ version, phase, sha256, enabled, bytes, createdAt }) => ({
+      versions: mine.map(({ version, phase, sha256, sites, enabled, bytes, createdAt }) => ({
         version,
         phase,
         sha256,
+        sites,
         enabled,
         bytes,
         createdAt,
@@ -297,14 +353,16 @@ export const hostTypesOf = (s, read = readBeside) => {
 /**
  * `POST /api/crawls` を真似る。受けたら `rows` の先頭に足す (新しい順)。
  *
- * 答えの文と形は capture-ledger v0.58.0 の src/api/crawls.ts から写した (試験が固定する)。
+ * 答えの文と形は capture-ledger の src/api/crawls.ts から写した (v0.58.0。札の 400 と既定が空の 400 は
+ * v0.61.0。試験が固定する)。
  * **走行中の 1 本は、受けた行だけで数える** —— 台本の走行中の行は飾りで、それで 409 に
  * すると何も起こせない。409 を見たいなら、走っている間にもう 1 度起こす。
  *
- * `catalog` は目録の既定の顔ぶれ (`defaultSet`)。走らせたものは受けた行の `scripts` に持ち、
- * 一覧の行 (`submittedRow`) には出さない。
+ * `versions` は目録の版の並び (`catalogOf`)。起点のホスト (台帳と同じく `hostname`。ポートは見ない) で
+ * 既定を選び、名指しを照らす。走らせたものは受けた行の `scripts` に持ち、一覧の行 (`submittedRow`) には
+ * 出さない。
  */
-export const submitCrawl = (rows, body, now, runsSeconds, catalog = []) => {
+export const submitCrawl = (rows, body, now, runsSeconds, versions) => {
   if (body !== null && typeof body === "object" && "scriptIds" in body) {
     return schemaError("body must NOT have additional properties");
   }
@@ -316,7 +374,8 @@ export const submitCrawl = (rows, body, now, runsSeconds, catalog = []) => {
     return { status: 400, body: { error: "every seed must be an http(s) URL" } };
   }
   // 走らせるものの誤りは、走行中でも 400 が先 —— 台帳は解いてから行を立て、409 は行を立てる所で出る
-  const run = resolveRun(body.scripts, catalog);
+  const hosts = new Set(body.seeds.map((seed) => new URL(seed).hostname));
+  const run = resolveRun(body.scripts, versions, hosts);
   if (run.status !== undefined) return run;
   const running = rows.find((row) => now < row.startedAt + row.runsSeconds * 1000);
   if (running !== undefined) {
@@ -428,8 +487,7 @@ const handle = (req, res, raw) => {
       send(res, 400, { error: "body is not valid JSON" });
       return;
     }
-    const catalog = defaultSet(versionsIn(s));
-    const answer = submitCrawl(submitted, body, Date.now(), s.submit?.runsSeconds ?? 15, catalog);
+    const answer = submitCrawl(submitted, body, Date.now(), s.submit?.runsSeconds ?? 15, versionsIn(s));
     send(res, answer.status, answer.body);
     return;
   }
@@ -467,11 +525,13 @@ const handle = (req, res, raw) => {
     return;
   }
   if (req.method === "GET" && pathname === "/api/scripts") {
-    const scripts = defaultSet(versionsIn(s)).map(({ id, version, phase, sha256 }) => ({
+    // 有効な各 id の最新版を全部、札つきで（台帳 v0.61.0。既定で走るのは、札の無い物と起点に合う物）
+    const scripts = latestEnabled(versionsIn(s)).map(({ id, version, phase, sha256, sites }) => ({
       id,
       version,
       phase,
       sha256,
+      sites,
     }));
     send(res, 200, { scripts });
     return;

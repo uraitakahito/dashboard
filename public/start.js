@@ -9,19 +9,51 @@
  */
 
 /** 走らせるものの欄が、何も選んでいない形（目録が空で、その場の JS も無い）。 */
-const NOTHING_CHOSEN = { catalog: [], picked: [], inline: { name: "", phase: "behavior", source: "" } };
+const NOTHING_CHOSEN = {
+  catalog: [],
+  picked: [],
+  defaults: [],
+  inline: { name: "", phase: "behavior", source: "" },
+};
 
 /**
- * 走らせるもの（台帳の `scripts`）。**既定のまま —— 目録を全部選び、その場の JS が空 —— なら
- * 送らない**（`undefined`）。台帳の既定（有効な各 id の最新版）と、目録が空のときの 400 を生かす。
+ * 起点の欄から、ホスト名の集合。**台帳と同じく `new URL(…).hostname`** —— 小文字になり、IDN は
+ * punycode になり、ポートは落ちる。読めない行は数えない（台帳が 400 で言う）。
+ */
+export const seedHosts = (text) =>
+  new Set(
+    text
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line !== "" && URL.canParse(line))
+      .map((line) => new URL(line).hostname),
+  );
+
+/**
+ * その台本を、この起点で選べるか。**札（`sites`）が無ければいつでも**、あれば札のどれかが起点の
+ * ホストにあるとき（完全一致。`example.com` と `www.example.com` は別）。台帳（capture-ledger
+ * v0.61.0）の決まりの写しで、正は台帳 —— 合わない物を名指せば、台帳が 400 で断る。
+ */
+export const onSeed = (script, hosts) =>
+  script.sites.length === 0 || script.sites.some((site) => hosts.has(site));
+
+/** 起点だけで決まる顔ぶれ —— 台帳が `scripts` を省いた頼みに選ぶ物と同じ。並びは目録の並び。 */
+export const defaultIds = (scripts, hosts) =>
+  scripts.filter((script) => onSeed(script, hosts)).map((script) => script.id);
+
+/**
+ * 走らせるもの（台帳の `scripts`）。**既定のまま —— 選んだ物が既定の顔ぶれ（`defaultIds`）と同じで、
+ * その場の JS が空 —— なら送らない**（`undefined`）。台帳も起点から同じ物を選ぶので、省いても走る物は
+ * 変わらない。省くのは、目録が空のときと、起点に合う物が無いときの 400 を台帳に言わせるため。
  *
  * 送るときは、その場の JS を先に、選んだ目録を目録の並び（`catalog` の順）で。全部外せば `[]` ——
  * 「何も走らせない」。source は削らない —— 台帳が打つ sha256 は、書いたバイト列の物。名前は前後の
  * 空白だけ落とす。綴りは検査しない（台帳が 400 で言う）。
  */
-export const scriptsOf = ({ catalog, picked, inline }) => {
+export const scriptsOf = ({ catalog, picked, defaults, inline }) => {
   const written = inline.source.trim() !== "";
-  if (!written && picked.length === catalog.length) return undefined;
+  const asDefault = picked.length === defaults.length && defaults.every((id) => picked.includes(id));
+  if (!written && asDefault) return undefined;
   return [
     ...(written
       ? [{ inline: { name: inline.name.trim(), phase: inline.phase, source: inline.source } }]
