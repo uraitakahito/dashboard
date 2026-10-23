@@ -1,5 +1,5 @@
 /**
- * 「起こす」欄の部品（`public/start.js`）。送る body と、答えの言い方。
+ * 新しいクロールの面の部品（`public/start.js`）。送る body と、答えの言い方。
  *
  * 送る道（`POST /api/crawls` の中継）と門は http の口に在り、門の判定は `lib.test.mjs` が見る。
  */
@@ -41,17 +41,17 @@ test("空の欄は、空の seeds になる（画面はこれを送らない）"
   assert.deepEqual(startBody(" \n \n", true).seeds, []);
 });
 
-test("202 は起こした 1 本を、409 は塞いでいる 1 本を名指す", () => {
+test("202 は始めた 1 本を、409 は塞いでいる 1 本を、決めた文で名指す", () => {
   const ok = startAnswer(202, { crawlId: "9072b625-1111-4000-8000-000000000000" });
   assert.equal(ok.kind, "ok");
-  assert.match(ok.text, /crawl 9072b625/);
+  assert.equal(ok.text, "始めました（crawl 9072b625）。一覧の行に印を付けました。");
   const busy = startAnswer(409, {
     error: "a crawl is already in progress",
     crawlId: "5b0c0001-6a1e-4000-8000-000000000001",
     startedAt: "2026-10-13T00:00:00.000Z",
   });
   assert.equal(busy.kind, "run");
-  assert.match(busy.text, /crawl 5b0c0001/);
+  assert.equal(busy.text, "走行中のクロールがあります（crawl 5b0c0001）。終わるまで次は始められません。");
   // 塞いでいる行が見つからなかった 409 は id を持たない。空の括弧を出さない
   assert.doesNotMatch(startAnswer(409, { error: "a crawl is already in progress" }).text, /（crawl /);
 });

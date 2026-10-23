@@ -1,5 +1,5 @@
 /**
- * クロールの面の「起こす」欄の部品。**画面から切り出してあるのは、ここだけ試験から呼べるようにするため。**
+ * 新しいクロールの面の部品。**画面から切り出してあるのは、ここだけ試験から呼べるようにするため。**
  *
  * ブラウザは `/start.js` として読み、試験は `node --test` から import する ——
  * 同じファイルを両方が読むので、写しが腐ることがない。
@@ -92,9 +92,9 @@ export const startBody = (text, onlyThisPage, run = NOTHING_CHOSEN) => {
  */
 export const startAnswer = (status, answer) => {
   const id = typeof answer.crawlId === "string" ? `（crawl ${answer.crawlId.slice(0, 8)}）` : "";
-  if (status === 202) return { kind: "ok", text: `起こしました${id}。一覧の行に印を付けました。` };
+  if (status === 202) return { kind: "ok", text: `始めました${id}。一覧の行に印を付けました。` };
   if (status === 409) {
-    return { kind: "run", text: `走行中のクロールがあります${id}。終わるまで次は起こせません。` };
+    return { kind: "run", text: `走行中のクロールがあります${id}。終わるまで次は始められません。` };
   }
   const said = answer.message ?? answer.error ?? "答えに文がありません";
   if (status === 0) return { kind: "bad", text: `この画面自身に届きません（${said}）` };
@@ -139,7 +139,7 @@ export const withNocheck = (source, on) => {
 };
 
 /**
- * 目録の 1 本を、その場の JS の下敷きにする（目録の面の「下敷きにして起こす」）。**替えるのは 2 つの
+ * 目録の 1 本を、その場の JS の下敷きにする（目録の面の「下敷きにする」）。**替えるのは 2 つの
  * 形だけ** —— `__bh.opts["<id>"]` と `__bh.report("<id>"` の id を `inline-<名前>` に。台帳は
  * その場の JS を `inline-<名前>` の id で走らせるので、替えないと設定も報告も元の id のまま届く。
  *

@@ -11,7 +11,7 @@
       <h1>crawler</h1>
       <nav id="tabs">
         <button type="button" id="tab-crawls" class="on" data-face="crawls">クロール</button>
-        <button type="button" id="tab-start" data-face="start">起こす</button>
+        <button type="button" id="tab-start" data-face="start">新しいクロール</button>
         <button type="button" id="tab-archives" data-face="archives">アーカイブ</button>
         <button type="button" id="tab-scripts" data-face="scripts">目録</button>
         <button type="button" id="tab-wacz" data-face="wacz" hidden>中身</button>
@@ -32,7 +32,7 @@
             <tr>
               <th>状態</th>
               <th>id</th>
-              <th>起こした人</th>
+              <th>始めた人</th>
               <th>起点</th>
               <th class="num">撮れた</th>
               <th class="num">見つけた</th>
@@ -47,8 +47,8 @@
       </section>
 
       <!--
-        起こす面。左に設定、右にその場の JS。面は窓の高さに収め、JS の箱がその残りを全部使う
-        （巨大な JS を貼って、読んで、少し直して起こすため）。送るのは起点の URL・「このページだけ
+        新しいクロールの面。左に設定、右にその場の JS。面は窓の高さに収め、JS の箱がその残りを全部使う
+        （巨大な JS を貼って、読んで、少し直して始めるため）。送るのは起点の URL・「このページだけ
         （maxDepth: 0）」・走らせるもので、ほかは台帳の既定。走らせるものは、既定のまま（起点で決まる
         既定の顔ぶれを全部選び、その場の JS が空）なら送らない。URL も JS の名前も検査しない（台帳が 400 で言う）。
         本文が上限（/healthz の writeLimit）を超えたら、送る前に止める。答えは左の列の下に 1 行で。
@@ -72,7 +72,7 @@
               <label><input type="radio" name="start-depth" id="start-follow" /> リンクを辿る（台帳の既定）</label>
             </div>
             <div class="start-row">
-              <button type="submit" id="start-go" disabled>起こす</button>
+              <button type="submit" id="start-go" disabled>始める</button>
             </div>
             <p id="start-answer" class="start-answer" hidden></p>
             <!-- 書き方の注意は左に置く。右の列の高さは、全部 JS の箱に渡す -->
