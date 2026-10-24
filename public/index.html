@@ -52,7 +52,8 @@
         （maxDepth: 0）」・走らせるもので、ほかは台帳の既定。走らせるものは、既定のまま（起点で決まる
         既定の顔ぶれを全部選び、その場の JS が空）なら送らない。URL も JS の名前も検査しない（台帳が 400 で言う）。
         本文が上限（/healthz の writeLimit）を超えたら、送る前に止める。答えは左の列の下に 1 行で。
-        202 と 409 は一覧の面へ移り、行に印を付ける。
+        202 と 409 は一覧の面へ移り、行に印を付ける。右の列はタブで、その場の JS と読む窓（目録の 1 版か
+        受け皿の型を、チェックの横の「読む」で開く）を切り替える。面は移らず、JS の箱は隠れるだけ。
       -->
       <section id="face-start" hidden>
         <form id="start" class="start" autocomplete="off">
@@ -63,7 +64,8 @@
               <legend>目録から</legend>
               <!--
                 目録のチェック。app.js が目録の面と同じ一覧から描く。外した物は、このクロールでは走らない。
-                サイト用の台本（札のある物）は、起点のどれかが札のホストにあるときだけ押せる（台帳の決まり）
+                サイト用の台本（札のある物）は、起点のどれかが札のホストにあるときだけ押せる（台帳の決まり）。
+                名前の横の「読む」は、その版を右の列で開く（押せないチェックの横でも）
               -->
               <div class="start-row" id="start-picks"></div>
             </fieldset>
@@ -79,37 +81,57 @@
             <p class="start-hint">
               strict の TypeScript として型を検査します（最初の段の compile）。IIFE で包み、要素には型を付けて
               <code>?.</code> で。束ねた JS は「型を検査しない」で（1 行目に <code>// @ts-nocheck</code> が入る）。
-              <code>export</code> は書かない（ページで構文エラーになり、何も走らない）。
-              <a href="#scripts/types/host.d.ts">受け皿 <code>__bh</code> の型を読む</a>
+              <code>export</code> は書かない（ページで構文エラーになり、何も走らない）。その場の JS は目録より先に走ります。
+              <!-- data-read: ふつうに押せば右の列で開く（app.js）。修飾キーなら目録の面を別のタブで -->
+              <a href="#scripts/types/host.d.ts" data-read>受け皿 <code>__bh</code> の型を読む</a>
             </p>
           </div>
           <div class="start-code">
-            <div class="start-row">
-              <label for="start-inline-name">その場の JS（目録より先に走る）</label>
-              <span class="start-name"
-                ><span class="prefix">inline-</span
-                ><input type="text" id="start-inline-name" spellcheck="false" placeholder="close-banner"
-              /></span>
-              <label><input type="radio" name="start-phase" id="start-inline-behavior" checked /> 読み込みの後</label>
-              <label><input type="radio" name="start-phase" id="start-inline-preload" /> 遷移の前</label>
-              <label class="start-file"
-                >ファイルを読む<input type="file" id="start-inline-file" accept=".ts,.js,.mjs,text/plain,text/javascript"
-              /></label>
-              <!-- 1 行目の // @ts-nocheck を足し引きする。見えている物が送る物 -->
-              <label><input type="checkbox" id="start-nocheck" /> 型を検査しない</label>
+            <!-- 右の列のタブ。読む窓のタブと × は、目録の「読む」で開いている間だけ出る（app.js の showStartTab） -->
+            <div class="start-tabs">
+              <button type="button" id="start-tab-js" class="on">その場の JS</button>
+              <button type="button" id="start-tab-read" hidden></button>
+              <button type="button" id="start-tab-close" aria-label="読む窓を閉じる" hidden>×</button>
             </div>
-            <!-- 行番号の溝と箱。折り返さない（折り返すと溝の番号と行がずれる） -->
-            <div class="start-editor">
-              <pre id="start-gutter" class="gutter" aria-hidden="true">1</pre>
-              <textarea
-                id="start-inline-source"
-                wrap="off"
-                spellcheck="false"
-                aria-label="その場の JS"
-                placeholder="(() => {&#10;  document.querySelector&lt;HTMLButtonElement&gt;(&quot;#accept&quot;)?.click();&#10;})();"
-              ></textarea>
+            <div id="start-js" class="start-js">
+              <div class="start-row">
+                <label for="start-inline-name">名前</label>
+                <span class="start-name"
+                  ><span class="prefix">inline-</span
+                  ><input type="text" id="start-inline-name" spellcheck="false" placeholder="close-banner"
+                /></span>
+                <label><input type="radio" name="start-phase" id="start-inline-behavior" checked /> 読み込みの後</label>
+                <label><input type="radio" name="start-phase" id="start-inline-preload" /> 遷移の前</label>
+                <label class="start-file"
+                  >ファイルを読む<input type="file" id="start-inline-file" accept=".ts,.js,.mjs,text/plain,text/javascript"
+                /></label>
+                <!-- 1 行目の // @ts-nocheck を足し引きする。見えている物が送る物 -->
+                <label><input type="checkbox" id="start-nocheck" /> 型を検査しない</label>
+              </div>
+              <!-- 行番号の溝と箱。折り返さない（折り返すと溝の番号と行がずれる） -->
+              <div class="start-editor">
+                <pre id="start-gutter" class="gutter" aria-hidden="true">1</pre>
+                <textarea
+                  id="start-inline-source"
+                  wrap="off"
+                  spellcheck="false"
+                  aria-label="その場の JS"
+                  placeholder="(() => {&#10;  document.querySelector&lt;HTMLButtonElement&gt;(&quot;#accept&quot;)?.click();&#10;})();"
+                ></textarea>
+              </div>
+              <p id="start-size" class="start-size">0 行</p>
             </div>
-            <p id="start-size" class="start-size">0 行</p>
+            <!--
+              読む窓。目録の 1 版か受け皿の型を、目録の面と同じ部品で出す（app.js の IN_START）。版の札と
+              行の URL は持たない —— 要るなら「目録の面で開く」。source は他人が書いたもの。文字は textContent で
+            -->
+            <div id="start-read" class="start-read" hidden>
+              <div id="start-read-head" class="vhead rhead"></div>
+              <p id="start-read-note" class="reading-note" hidden></p>
+              <p id="start-read-colors" class="reading-colors" hidden></p>
+              <div id="start-read-ask" class="reading-ask" hidden></div>
+              <ol id="start-read-lines" class="vlines rlines" tabindex="0" aria-label="読んでいる source"></ol>
+            </div>
           </div>
         </form>
       </section>

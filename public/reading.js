@@ -44,6 +44,10 @@ export const parseReading = (hash) => {
   }
 };
 
+/** 読む物の短い名前（新しいクロールの右の列のタブ）。`autoscroll v2`、型は `host.d.ts`。 */
+export const labelOf = ({ id, version }) =>
+  id === undefined ? "host.d.ts" : version === undefined ? id : `${id} v${String(version)}`;
+
 /** 行に分ける。最後の改行の後ろの空の 1 行は数えない（wc -l と同じ。autoscroll.ts は 55 行） */
 export const linesOf = (source) => {
   const lines = source.split("\n");

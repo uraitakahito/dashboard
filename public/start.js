@@ -37,6 +37,13 @@ export const seedHosts = (text) =>
 export const onSeed = (script, hosts) =>
   script.sites.length === 0 || script.sites.some((site) => hosts.has(site));
 
+/**
+ * ふつうに押したか（左のボタンだけ・修飾キーなし）。チェックの横の「読む」は、このときだけ右の列で開く。
+ * それ以外はブラウザに任せる（href は目録の面なので、別のタブで開くなど）。
+ */
+export const plainClick = (event) =>
+  event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+
 /** 起点だけで決まる顔ぶれ —— 台帳が `scripts` を省いた頼みに選ぶ物と同じ。並びは目録の並び。 */
 export const defaultIds = (scripts, hosts) =>
   scripts.filter((script) => onSeed(script, hosts)).map((script) => script.id);
