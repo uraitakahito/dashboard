@@ -95,6 +95,16 @@ has tabs, and switches to a window for reading a catalog script.
   it will send (UTF-8 bytes) and how much of the limit that is. The limit is the one the writing
   route enforces, handed out by the server as `writeLimit` in `/healthz`. Over it, the line turns
   red and 始める cannot be pressed.
+- **The name of your script becomes its id.** Write it in the box labelled JS の名前 (name of the
+  script) in the right column. The `inline-` in front stays: `close-banner` gives the id
+  `inline-close-banner`. Start with a lowercase letter, then use only lowercase letters, digits and
+  `-`, up to 57 characters (the ledger's rule). This view does not check it: a wrong or empty name is
+  refused by the ledger with a 400, and under the left column you read something like
+  `body/scripts/0/inline/name must match pattern "^[a-z][a-z0-9-]*$"`. The name is sent only when
+  the box holds a script; with an empty box it is not used. The id appears in a crawl's list of what
+  ran and in the archive's `behaviors/custom.jsonl`, and it is the key your script reports under
+  (`__bh.report("inline-close-banner", …)`). 欄に戻す (back to the form) fetches your script back
+  by this name.
 - **A script of your own is type-checked as strict TypeScript** at the first level's compile step,
   and a single error fails the crawl; open its row to read the number of diagnostics and the first
   five. Wrap it in an IIFE, give the elements you look up a type, and use `?.`. Do not write
@@ -106,7 +116,8 @@ has tabs, and switches to a window for reading a catalog script.
 - **The box does not wrap lines,** so the line numbers stay in step; long lines scroll sideways.
   読み込みの後 (after load) runs once in the main frame; 遷移の前 (before navigation) runs in every
   frame on every navigation and has no `__bh`. ファイルを読む (read a file) loads a file into the
-  box, in the browser only.
+  box, in the browser only; if the name box is empty, it takes the file name without its extension.
+  Fix it before starting if it breaks the rule above (capital letters or `_`).
 - **A catalog script can be read in the right column.** Press 読む (read) next to its checkbox:
   a second tab opens in the right column, named like `autoscroll v2`, with the source of that
   version in colour. The view does not change. The box is only hidden: your script, its scroll

@@ -77,11 +77,16 @@
               <button type="submit" id="start-go" disabled>始める</button>
             </div>
             <p id="start-answer" class="start-answer" hidden></p>
-            <!-- 書き方の注意は左に置く。右の列の高さは、全部 JS の箱に渡す -->
+            <!--
+              書き方の注意は左に置く。右の列の高さは、全部 JS の箱に渡す。JS の名前の綴りは台帳の決まりの写し
+              （capture-ledger の POST /api/crawls・inline.name）で、画面は検査しない（違えば台帳が 400 で言う）
+            -->
             <p class="start-hint">
               strict の TypeScript として型を検査します（最初の段の compile）。IIFE で包み、要素には型を付けて
               <code>?.</code> で。束ねた JS は「型を検査しない」で（1 行目に <code>// @ts-nocheck</code> が入る）。
               <code>export</code> は書かない（ページで構文エラーになり、何も走らない）。その場の JS は目録より先に走ります。
+              JS の名前（<code>inline-</code> の後ろ）は、英小文字で始め、英小文字・数字・<code>-</code> で 57 字まで。
+              <code>inline-</code> を付けた物がこの JS の id になります（報告の鍵も同じ）。
               <!-- data-read: ふつうに押せば右の列で開く（app.js）。修飾キーなら目録の面を別のタブで -->
               <a href="#scripts/types/host.d.ts" data-read>受け皿 <code>__bh</code> の型を読む</a>
             </p>
@@ -95,7 +100,7 @@
             </div>
             <div id="start-js" class="start-js">
               <div class="start-row">
-                <label for="start-inline-name">名前</label>
+                <label for="start-inline-name">JS の名前</label>
                 <span class="start-name"
                   ><span class="prefix">inline-</span
                   ><input type="text" id="start-inline-name" spellcheck="false" placeholder="close-banner"
