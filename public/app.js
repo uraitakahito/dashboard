@@ -665,6 +665,19 @@ const reading = {
 const TYPES_KEY = "types";
 const keyOf = (target) => target.id ?? TYPES_KEY;
 
+/**
+ * 本文を出す所の組。目録の面（読む所）と、新しいクロールの右の列（読む窓）が同じ部品で描き、
+ * 違うのは要素の組だけ —— 見出し・本文の上の 1 行・色の 1 行・書きかけの確認・本文。
+ */
+const placeOf = (prefix) => ({
+  head: $(`${prefix}-head`),
+  note: $(`${prefix}-note`),
+  colors: $(`${prefix}-colors`),
+  ask: $(`${prefix}-ask`),
+  lines: $(`${prefix}-lines`),
+});
+const IN_CATALOG = placeOf("reading");
+
 /** 404 なら undefined（在らないのは誤りではなく、言い方を変えるだけ）。ほかの失敗は投げる。 */
 const find = async (path) => {
   const res = await fetch(path);
@@ -729,8 +742,8 @@ const drawReadingList = () => {
 };
 
 /** 本文の上の 1 行。太字の文と、続く文。undefined なら隠す。 */
-const readingNote = (bold, rest = "", kind = "warn") => {
-  const p = $("reading-note");
+const readingNote = (at, bold, rest = "", kind = "warn") => {
+  const p = at.note;
   p.hidden = bold === undefined;
   if (bold === undefined) return;
   p.className = `reading-note ${kind}`;
@@ -738,8 +751,8 @@ const readingNote = (bold, rest = "", kind = "warn") => {
 };
 
 /** 行に印を付ける。印は 1 つだけなので、付いている物を外して付け直す（5 千行を回さない）。 */
-const markLine = (n, { scroll }) => {
-  const list = $("reading-lines");
+const markLine = (at, n, { scroll }) => {
+  const list = at.lines;
   for (const li of list.querySelectorAll("li.sel")) li.classList.remove("sel");
   const li = list.children[n - 1];
   if (li === undefined) return;
@@ -748,8 +761,8 @@ const markLine = (n, { scroll }) => {
 };
 
 /** 本文。1 行 1 つの <li>（中身の面の行の並びと同じ組み方）。行の印は class 1 つ。 */
-const drawLines = (source, line) => {
-  const list = $("reading-lines");
+const drawLines = (at, source, line) => {
+  const list = at.lines;
   if (source === undefined) {
     list.replaceChildren();
     return;
@@ -762,17 +775,17 @@ const drawLines = (source, line) => {
     lines.append(li);
   });
   list.replaceChildren(lines);
-  if (line !== undefined) markLine(line, { scroll: true });
+  if (line !== undefined) markLine(at, line, { scroll: true });
 };
 
 // 押した行を URL に。**hashchange を発火させずに**（中身の面の remember と同じ。発火すると読み直す）
-$("reading-lines").addEventListener("click", (event) => {
+IN_CATALOG.lines.addEventListener("click", (event) => {
   const li = event.target.closest("li");
   if (li === null || reading.open?.doc === undefined) return;
   const n = Number(li.dataset.n);
   reading.hash = readingHash({ ...reading.open.target, line: n });
   history.replaceState(null, "", reading.hash);
-  markLine(n, { scroll: false });
+  markLine(IN_CATALOG, n, { scroll: false });
 });
 
 // ── 色付け（読む所）──────────────────────────────────────────────
@@ -818,8 +831,8 @@ const colorsOf = (doc) => {
  * 開き直したら、そこでやめる（遅れて届いた別の版の色を、いま描いている行に塗らない）。
  * 行の数が合わなければ塗らない（Shiki の行の分け方が linesOf と違ったとき）。
  */
-const paintLines = (lines, stale) => {
-  const items = $("reading-lines").children;
+const paintLines = (at, lines, stale) => {
+  const items = at.lines.children;
   if (items.length !== lines.length) return;
   let next = 0;
   const slice = () => {
@@ -842,14 +855,14 @@ const paintLines = (lines, stale) => {
 };
 
 /** 1 色で描いた後に呼ぶ。開き直していなければ塗る。塗れなければ、本文の上の 1 行で言う（本文は読めるまま）。 */
-const colorize = (doc, stale) =>
+const colorize = (at, doc, stale) =>
   colorsOf(doc)
     .then((lines) => {
-      paintLines(lines, stale);
+      paintLines(at, lines, stale);
     })
     .catch((err) => {
       if (stale()) return;
-      const note = $("reading-colors");
+      const note = at.colors;
       note.textContent = `色を付けられません（${failedText(err)}）`;
       note.hidden = false;
     });
@@ -871,7 +884,7 @@ const copyButton = (source) => {
 };
 
 /** 見出し: 名前（と版の札・サイト用なら札）・事実の 1 行・ボタンと注記。 */
-const drawReadingHead = ({ name, chips, sites = [], facts, standing, actions = [], aside }) => {
+const drawReadingHead = (at, { name, chips, sites = [], facts, standing, actions = [], aside }) => {
   const title = document.createElement("div");
   title.className = "rtitle";
   title.append(tag("b", name));
@@ -885,7 +898,7 @@ const drawReadingHead = ({ name, chips, sites = [], facts, standing, actions = [
   row.className = "ractions";
   row.append(...actions);
   if (aside !== undefined) row.append(tag("span", aside, "muted"));
-  $("reading-head").replaceChildren(title, meta, row);
+  at.head.replaceChildren(title, meta, row);
 };
 
 /** 版の札。押すとその版の URL へ（版を替えるのは移動なので、履歴に残す）。 */
@@ -918,16 +931,16 @@ const openTypes = (target, stale) => {
   reading.open = { target, doc: types ?? undefined };
   markListed();
   if (types === null) {
-    drawReadingHead({ name: "host.d.ts", facts: [] });
-    readingNote(
+    drawReadingHead(IN_CATALOG, { name: "host.d.ts", facts: [] });
+    readingNote(IN_CATALOG, 
       "受け皿の型はまだ台帳に在りません。",
       "cd ../capture-ledger && pnpm run scripts import .upstream/capture-scripts で入ります。",
       "bad",
     );
-    drawLines(undefined);
+    drawLines(IN_CATALOG, undefined);
     return;
   }
-  drawReadingHead({
+  drawReadingHead(IN_CATALOG, {
     name: `host.d.ts v${String(types.version)}`,
     facts: metaOf(types),
     actions: [copyButton(types.source)],
@@ -935,9 +948,9 @@ const openTypes = (target, stale) => {
       "受け皿 __bh の型（capture-scripts の types/host.d.ts の写し）。クロールの変換が使う型は " +
       "ts-compile-service の pin で、クロールの compiledWith.hostTypes に出ます",
   });
-  readingNote(undefined);
-  drawLines(types.source, target.line);
-  void colorize(types, stale);
+  readingNote(IN_CATALOG, undefined);
+  drawLines(IN_CATALOG, types.source, target.line);
+  void colorize(IN_CATALOG, types, stale);
 };
 
 const openScript = async (target, stale) => {
@@ -946,9 +959,9 @@ const openScript = async (target, stale) => {
   const listed = await find(`/api/scripts/${enc(target.id)}/versions`);
   if (stale()) return;
   if (listed === undefined) {
-    drawReadingHead({ name: target.id, facts: [] });
-    readingNote(`目録に ${target.id} はありません。`, "", "bad");
-    drawLines(undefined);
+    drawReadingHead(IN_CATALOG, { name: target.id, facts: [] });
+    readingNote(IN_CATALOG, `目録に ${target.id} はありません。`, "", "bad");
+    drawLines(IN_CATALOG, undefined);
     return;
   }
   const defaultVersion = reading.latest.find((s) => s.id === target.id)?.version;
@@ -956,18 +969,18 @@ const openScript = async (target, stale) => {
   const chips = chipsOf(target.id, listed.versions, version, defaultVersion);
   const entry = listed.versions.find((v) => v.version === version);
   if (entry === undefined) {
-    drawReadingHead({ name: `${target.id} v${String(version)}`, chips, facts: [] });
-    readingNote(
+    drawReadingHead(IN_CATALOG, { name: `${target.id} v${String(version)}`, chips, facts: [] });
+    readingNote(IN_CATALOG, 
       `v${String(version)} は目録に在りません（消されています）。`,
       "走った物はアーカイブの behaviors/custom.jsonl に在ります（変換後の JS）。",
     );
-    drawLines(undefined);
+    drawLines(IN_CATALOG, undefined);
     return;
   }
   const doc = await docOf(target.id, version, entry.sha256);
   if (stale()) return;
   reading.open = { target, doc };
-  drawReadingHead({
+  drawReadingHead(IN_CATALOG, {
     name: `${doc.id} v${String(doc.version)}`,
     chips,
     sites: doc.sites,
@@ -978,34 +991,39 @@ const openScript = async (target, stale) => {
   });
   // URL の sha256 の頭（クロールの「読む」が付ける）が、開いた版と食い違えば言う。本文は出す
   if (target.sha !== undefined && !doc.sha256.startsWith(target.sha)) {
-    readingNote(
+    readingNote(IN_CATALOG, 
       `このクロールが走らせた v${String(version)} とは中身が違います。`,
       `クロールの記録は sha256 ${target.sha}…、目録の v${String(version)} は ` +
         `${doc.sha256.slice(0, 12)}… です。v${String(version)} は目録から消され、別の中身で足し直されて` +
         "います。走った物はアーカイブの behaviors/custom.jsonl に在ります（変換後の JS）。",
     );
   } else {
-    readingNote(undefined);
+    readingNote(IN_CATALOG, undefined);
   }
-  drawLines(doc.source, target.line);
-  void colorize(doc, stale); // 1 色で読めるようにしてから、worker の答えを同じ行に塗る
+  drawLines(IN_CATALOG, doc.source, target.line);
+  void colorize(IN_CATALOG, doc, stale); // 1 色で読めるようにしてから、worker の答えを同じ行に塗る
+};
+
+/** 受け皿の型。訊くのは最初の 1 回（台帳に無かったら、型を名指したときに訊き直す）。null は台帳に無い */
+const hostTypes = async (asked) => {
+  if (reading.types === undefined || (asked && reading.types === null)) {
+    reading.types = (await find("/api/host-types")) ?? null;
+  }
+  return reading.types;
 };
 
 /**
  * 読む所を開く。何も名指さなければ（`#scripts`）一覧の頭を開き、URL をそれに替える（履歴は
- * 増やさない）。型は最初の 1 回だけ訊く（台帳に無かったら、型を名指したときに訊き直す）。
+ * 増やさない）。型は最初の 1 回だけ訊く（hostTypes）。
  */
 const openReading = async (asked) => {
   const ticket = ++reading.ticket;
   const stale = () => ticket !== reading.ticket;
-  $("reading-ask").hidden = true;
-  $("reading-colors").hidden = true;
+  IN_CATALOG.ask.hidden = true;
+  IN_CATALOG.colors.hidden = true;
   try {
-    const askedTypes = asked !== undefined && asked.id === undefined;
-    if (reading.types === undefined || (askedTypes && reading.types === null)) {
-      reading.types = (await find("/api/host-types")) ?? null;
-      if (stale()) return;
-    }
+    await hostTypes(asked !== undefined && asked.id === undefined);
+    if (stale()) return;
     let target = asked;
     if (target === undefined) {
       // 一覧の頭（札の無い物が先に並ぶ）
@@ -1017,27 +1035,27 @@ const openReading = async (asked) => {
     drawReadingList();
     if (target === undefined) {
       reading.open = undefined;
-      drawReadingHead({ name: "目録", facts: [] });
-      readingNote(undefined);
-      drawLines(undefined);
+      drawReadingHead(IN_CATALOG, { name: "目録", facts: [] });
+      readingNote(IN_CATALOG, undefined);
+      drawLines(IN_CATALOG, undefined);
       return;
     }
     if (target.id === undefined) openTypes(target, stale);
     else await openScript(target, stale);
   } catch (err) {
-    if (!stale()) readingNote("読めません: ", failedText(err), "bad");
+    if (!stale()) readingNote(IN_CATALOG, "読めません: ", failedText(err), "bad");
   }
 };
 
-/** 欄に書きかけがあるとき、置き換えるかを本文の上で訊く。 */
-const askReplace = (doc, lines) => {
-  const box = $("reading-ask");
+/** 欄に書きかけがあるとき、置き換えるかを本文の上で訊く（at の所の中で）。 */
+const askReplace = (at, doc, lines) => {
+  const box = at.ask;
   box.hidden = false;
   box.replaceChildren(
     tag("span", `新しいクロールの欄に書きかけの JS（${count(lines)} 行）があります。`),
     button("置き換える", () => {
       box.hidden = true;
-      putTemplate(doc, true);
+      putTemplate(doc, { replace: true, at });
     }),
     button("やめる", () => {
       box.hidden = true;
@@ -1047,13 +1065,13 @@ const askReplace = (doc, lines) => {
 
 /**
  * 目録の 1 版を、その場の JS の欄に写して新しいクロールの面へ移る。**書きかけを黙って消さない** —— 欄が空で
- * なければ、置き換えるかを本文の上で訊く（replace は「置き換える」を押したときだけ true）。
+ * なければ、置き換えるかを本文の上で訊く（replace は「置き換える」を押したときだけ true。訊くのは at の所）。
  * 入れ方は「欄に戻す」（putBack）と同じ。
  */
-const putTemplate = (doc, replace = false) => {
+const putTemplate = (doc, { replace = false, at = IN_CATALOG } = {}) => {
   const box = $("start-inline-source");
   if (!replace && box.value.trim() !== "") {
-    askReplace(doc, linesOf(box.value).length);
+    askReplace(at, doc, linesOf(box.value).length);
     return;
   }
   const name = $("start-inline-name").value.trim() || `my-${doc.id}`;
