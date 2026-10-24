@@ -14,16 +14,21 @@
  *      名前の集合と既定値が一致する
  *   6. README の Documentation の 2 本の URL が、docs-site/astro.config.ts の `site` ＋ `BASE` から
  *      組んだものと一致する (base を変えた日に、README だけが 404 を指し続けないように)
+ *   7. 「画面」の絵 (`docs-site/src/assets/screens/`) が shots.json の一覧と揃い、ja・en の screens.md が
+ *      全部を載せている。どれも lossless の WebP で、予算 (1 枚 40 KB・全部で 150 KB) の中。画面
+ *      (`public/`・`sandbox/`・撮る道具) が、撮ったときから変わっていない
  *
  * 4 と 5 が要るのは、表が手で写した物だから。口や変数を足しても、表は誰かが直すまで古いまま ——
  * README に表があった頃、画面が読まなくなった口が書かれたまま残っていた。それをこの検査が PR で止める。
  *
  * 効いているのを見るには: ja のページを 1 枚 `.ja.md` に改名する → 赤。本文に `src/nope.mjs` → 赤。
  * routes.md から 1 行消す → 赤。.env.example の既定値を 1 つ変える → 赤。README の URL を綴り違える → 赤。
+ * public/app.css に 1 行足す → 撮り直すまで赤。
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { SHOT_SOURCES, shotsSource } from "./shots-source.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const DOCS = resolve(ROOT, "docs-site/src/content/docs");
@@ -155,6 +160,59 @@ if (site === undefined || base === undefined) {
   }
 }
 
+// ─── 7. 「画面」の絵 ⇔ shots.json ⇔ いまの画面 ───────────────────────────────
+// 絵は npm run docs:shots (docs-site/scripts/docs-shots.mjs) の生成物。CI では撮らない (代役のコンテナが
+// 要る) ので、撮った物のほうを見る。予算があるのは、撮り直すたびに git に積もるから。古さの物差しは撮る
+// 道具と同じ関数 (scripts/shots-source.mjs)。この赤は撮り直して消す —— shots.json の source を手で写すと、
+// 絵が古いまま緑になる
+const SHOTS_REL = "docs-site/src/assets/screens";
+const SHOTS = resolve(ROOT, SHOTS_REL);
+const BUDGET = { one: 40 * 1024, all: 150 * 1024 };
+const kb = (bytes) => `${(bytes / 1024).toFixed(1)} KB`;
+const manifest = JSON.parse(readFileSync(join(SHOTS, "shots.json"), "utf8"));
+const isShot = (name) => Object.hasOwn(manifest.shots, name);
+
+// 置き場に在るのは shots.json と、そこに名の在る WebP だけ (撮らない絵・手で撮った絵を残さない)
+for (const f of readdirSync(SHOTS)) {
+  if (f !== "shots.json" && !(f.endsWith(".webp") && isShot(basename(f, ".webp"))))
+    problems.push(`${SHOTS_REL}/${f}: shots.json に無い (撮る道具の生成物でない)`);
+}
+let shotBytes = 0;
+for (const name of Object.keys(manifest.shots)) {
+  const rel = `${SHOTS_REL}/${name}.webp`;
+  if (!existsSync(join(SHOTS, `${name}.webp`))) {
+    problems.push(`${rel} が無い (shots.json には在る)`);
+    continue;
+  }
+  const webp = readFileSync(join(SHOTS, `${name}.webp`));
+  shotBytes += webp.length;
+  // lossless の WebP は RIFF・大きさ・WEBPVP8L で始まる (非可逆は VP8 、拡張の形は VP8X)
+  if (webp.toString("latin1", 0, 4) !== "RIFF" || webp.toString("latin1", 8, 16) !== "WEBPVP8L")
+    problems.push(`${rel}: lossless の WebP でない (VP8L で始まらない)`);
+  if (webp.length > BUDGET.one)
+    problems.push(`${rel}: ${kb(webp.length)} —— 1 枚 ${kb(BUDGET.one)} まで`);
+}
+if (shotBytes > BUDGET.all)
+  problems.push(`${SHOTS_REL}: 絵が全部で ${kb(shotBytes)} —— ${kb(BUDGET.all)} まで`);
+if (shotsSource(ROOT) !== manifest.source) {
+  problems.push(
+    `${SHOTS_REL}/shots.json: 画面 (${SHOT_SOURCES.join("・")}) が、絵を撮ったときと違う。npm run docs:shots で撮り直す`,
+  );
+}
+
+// screens.md は ja・en とも、全部の絵を載せる。載せた絵の path の誤りは build が落とす (ImageNotFound。
+// .md でも握り潰されない —— 段を 1 つ数え違えて確かめた)
+for (const locale of ["", "ja/"]) {
+  const file = join(DOCS, locale, "screens.md");
+  if (!existsSync(file)) continue; // 1 で既に赤
+  const shown = new Set(
+    [...readFileSync(file, "utf8").matchAll(/assets\/screens\/([^/)\s]+)\.webp\)/g)].map((m) => m[1]),
+  );
+  for (const name of Object.keys(manifest.shots)) {
+    if (!shown.has(name)) problems.push(`docs/${locale}screens.md: 絵 ${name} を載せていない`);
+  }
+}
+
 // ─── 報告 ─────────────────────────────────────────────────────────────────
 if (problems.length > 0) {
   console.error(`✗ docs と repo がずれている (${problems.length} 件):`);
@@ -163,5 +221,5 @@ if (problems.length > 0) {
   process.exit(1);
 }
 console.log(
-  `✓ docs と repo は揃っている (${en.length} ページ × 2 locale、口 ${OPS.length}、環境変数 ${names.size})`,
+  `✓ docs と repo は揃っている (${en.length} ページ × 2 locale、口 ${OPS.length}、環境変数 ${names.size}、絵 ${Object.keys(manifest.shots).length} 枚で ${kb(shotBytes)})`,
 );
