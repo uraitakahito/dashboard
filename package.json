@@ -29,6 +29,7 @@
     "site:dev": "npm --prefix docs-site run dev",
     "site:build": "npm --prefix docs-site run build",
     "site:preview": "npm --prefix docs-site run preview",
-    "site:check": "npm run site:build && node scripts/check-doc-refs.mjs"
+    "site:check": "npm run site:build && node scripts/check-doc-refs.mjs",
+    "docs:shots": "node docs-site/scripts/docs-shots.mjs"
   }
 }
