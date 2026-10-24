@@ -14,6 +14,7 @@ import {
   defaultIds,
   hasNocheck,
   onSeed,
+  plainClick,
   seedHosts,
   sizeOf,
   startAnswer,
@@ -21,6 +22,7 @@ import {
   withNocheck,
 } from "/start.js";
 import {
+  labelOf,
   linesOf,
   metaOf,
   optionsText,
@@ -317,13 +319,18 @@ const drawPicks = (scripts) => {
     const label = document.createElement("label");
     label.className = "pick";
     const name = tag("span", `${script.id} v${String(script.version)}`, "mono");
+    // 中身を読む。ふつうに押せば右の列でこの版を開き、修飾キーなら目録の面を別のタブで（data-read の
+    // click）。label の中の <a> は、押してもチェックを替えない —— 押せないチェックの横でも読める
+    const read = tag("a", "読む", "read");
+    read.href = readingHash({ id: script.id, version: script.version });
+    read.dataset.read = "";
     const why = script.sites.length === 0 ? undefined : tag("span", "", "why");
     if (why === undefined) {
-      label.append(input, name);
+      label.append(input, name, read);
     } else {
       // 名前と札をまとめる。長いホスト名で札が折り返しても、名前の下に揃う（理由の行と同じ）
       const head = tag("span", "", "phead");
-      head.append(name, siteChip(script.sites));
+      head.append(name, siteChip(script.sites), read);
       label.append(input, head, why);
     }
     box.append(label);
@@ -883,13 +890,20 @@ const copyButton = (source) => {
   return b;
 };
 
-/** 見出し: 名前（と版の札・サイト用なら札）・事実の 1 行・ボタンと注記。 */
+/**
+ * 見出し: 名前（と版の札・サイト用なら札）・事実の 1 行・ボタンと注記。名前を省くと名前の行を描かない
+ * （新しいクロールの読む窓は、タブが名前）。
+ */
 const drawReadingHead = (at, { name, chips, sites = [], facts, standing, actions = [], aside }) => {
-  const title = document.createElement("div");
-  title.className = "rtitle";
-  title.append(tag("b", name));
-  if (sites.length > 0) title.append(siteChip(sites));
-  if (chips !== undefined) title.append(chips);
+  const rows = [];
+  if (name !== undefined) {
+    const title = document.createElement("div");
+    title.className = "rtitle";
+    title.append(tag("b", name));
+    if (sites.length > 0) title.append(siteChip(sites));
+    if (chips !== undefined) title.append(chips);
+    rows.push(title);
+  }
   const meta = tag("div", facts.join(" · "), "rmeta");
   if (standing !== undefined) {
     meta.append(document.createTextNode(" · "), tag("span", standing.text, `state ${standing.kind}`));
@@ -898,7 +912,7 @@ const drawReadingHead = (at, { name, chips, sites = [], facts, standing, actions
   row.className = "ractions";
   row.append(...actions);
   if (aside !== undefined) row.append(tag("span", aside, "muted"));
-  at.head.replaceChildren(title, meta, row);
+  at.head.replaceChildren(...rows, meta, row);
 };
 
 /** 版の札。押すとその版の URL へ（版を替えるのは移動なので、履歴に残す）。 */
@@ -1101,6 +1115,116 @@ const putTemplate = (doc, { replace = false, at = IN_CATALOG } = {}) => {
   syncStart();
   box.focus();
 };
+
+// ── 新しいクロールの読む窓 ─────────────────────────────────────────
+/**
+ * 新しいクロールの右の列で読んでいる物（目録の 1 版か受け皿の型）。開けるのは 1 つで、別の「読む」で
+ * 入れ替わる。target は readingHash の形（版つきの目録の 1 版か、id の無い受け皿の型）。
+ */
+const startRead = { target: undefined, doc: undefined, ticket: 0 };
+const IN_START = placeOf("start-read");
+
+/** 描く所を空にする（見出し・本文の上の 1 行・色の 1 行・書きかけの確認・本文）。 */
+const clearPlace = (at) => {
+  at.head.replaceChildren();
+  at.note.hidden = true;
+  at.colors.hidden = true;
+  at.ask.hidden = true;
+  at.lines.replaceChildren();
+};
+
+/**
+ * 右の列のタブ。**JS の箱は隠すだけ** —— 書きかけも、流した位置も、字の位置も残る（Chrome 152 で実測）。
+ * 読む窓のタブと × は、何か開いている間だけ出る。
+ */
+const showStartTab = (tab) => {
+  const open = startRead.target !== undefined;
+  $("start-tab-read").hidden = !open;
+  $("start-tab-close").hidden = !open;
+  $("start-tab-js").classList.toggle("on", tab === "js");
+  $("start-tab-read").classList.toggle("on", tab === "read");
+  $("start-js").hidden = tab !== "js";
+  $("start-read").hidden = tab !== "read";
+};
+
+/** 読む窓の見出し。名前はタブに在るので描かない（サイト用の札は standing の文が言う）。 */
+const drawStartReadHead = () => {
+  const { target, doc } = startRead;
+  const full = tag("a", "目録の面で開く");
+  full.href = readingHash(target);
+  if (target.id === undefined) {
+    drawReadingHead(IN_START, { facts: metaOf(doc), actions: [copyButton(doc.source), full] });
+    return;
+  }
+  const defaultVersion = reading.latest.find((s) => s.id === doc.id)?.version;
+  drawReadingHead(IN_START, {
+    facts: [...metaOf(doc), optionsText(doc.options)],
+    standing: standingOf(doc, defaultVersion),
+    actions: [copyButton(doc.source), full],
+  });
+};
+
+/**
+ * 右の列で読む。**移らない。** 中身と色は目録の面と同じ覚え（docOf は id@版、colorsOf は sha256）を
+ * 使うので、同じ版を 2 度は取らない。
+ */
+const readInStart = async (target) => {
+  const ticket = ++startRead.ticket;
+  const stale = () => ticket !== startRead.ticket;
+  startRead.target = target;
+  startRead.doc = undefined;
+  $("start-tab-read").textContent = labelOf(target);
+  clearPlace(IN_START);
+  showStartTab("read");
+  try {
+    const sha = reading.latest.find((s) => s.id === target.id && s.version === target.version)?.sha256;
+    const doc = target.id === undefined ? await hostTypes(true) : await docOf(target.id, target.version, sha);
+    if (stale()) return;
+    if (doc === null) {
+      readingNote(
+        IN_START,
+        "受け皿の型はまだ台帳に在りません。",
+        "cd ../capture-ledger && pnpm run scripts import .upstream/capture-scripts で入ります。",
+        "bad",
+      );
+      return;
+    }
+    startRead.doc = doc;
+    drawStartReadHead();
+    drawLines(IN_START, doc.source);
+    void colorize(IN_START, doc, stale); // 1 色で読めるようにしてから、worker の答えを同じ行に塗る
+  } catch (err) {
+    if (!stale()) readingNote(IN_START, "読めません: ", failedText(err), "bad");
+  }
+};
+
+/** 閉じる。遅れて届く答えは捨てる（番号を進める）。 */
+const closeStartRead = () => {
+  startRead.ticket++;
+  startRead.target = undefined;
+  startRead.doc = undefined;
+  clearPlace(IN_START);
+  showStartTab("js");
+};
+
+$("start-tab-js").onclick = () => showStartTab("js");
+$("start-tab-read").onclick = () => showStartTab("read");
+$("start-tab-close").onclick = () => closeStartRead();
+
+// 「読む」（チェックの横と、注意書きの型）は、ふつうに押せば右の列で開く。修飾キーと中ボタンは
+// ブラウザに任せる（href は目録の面なので、別のタブで開ける）
+$("start").addEventListener("click", (event) => {
+  const a = event.target.closest("a[data-read]");
+  if (a === null || !plainClick(event)) return;
+  event.preventDefault();
+  void readInStart(parseReading(a.getAttribute("href")));
+});
+
+// 読む窓の行を押すと印を付ける。URL は #start のまま（行を人に渡すのは目録の面で）
+IN_START.lines.addEventListener("click", (event) => {
+  const li = event.target.closest("li");
+  if (li !== null) markLine(IN_START, Number(li.dataset.n), { scroll: false });
+});
 
 // ── 中身（WACZ の 1 本）────────────────────────────────────────────
 /**

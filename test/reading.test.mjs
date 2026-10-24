@@ -7,6 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  labelOf,
   linesOf,
   metaOf,
   optionsText,
@@ -111,4 +112,10 @@ test("サイト用の台本の既定の版は、起点が札のホストにあ�
     text: "起点に example.com・www.example.com があれば既定で走る版",
     kind: "ok",
   });
+});
+
+test("読む窓のタブの名前は id と版（型は host.d.ts）。URL から読んだ物をそのまま渡せる", () => {
+  assert.equal(labelOf(parseReading("#scripts/autoscroll@2")), "autoscroll v2");
+  assert.equal(labelOf(parseReading("#scripts/autofetch")), "autofetch");
+  assert.equal(labelOf(parseReading(TYPES_HASH)), "host.d.ts");
 });

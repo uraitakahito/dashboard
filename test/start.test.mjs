@@ -13,6 +13,7 @@ import {
   hasNocheck,
   NOCHECK,
   onSeed,
+  plainClick,
   scriptsOf,
   seedHosts,
   sizeOf,
@@ -254,4 +255,13 @@ test("下敷き: ほかの綴りは触らない（ログ・地の文・__bh. の
   const { source: out, changed } = asTemplate(source, "autoscroll", "my-autoscroll");
   assert.deepEqual(changed, []);
   assert.equal(out, source);
+});
+
+test("「読む」を右の列で開くのは、ふつうに押したときだけ（修飾キーと中ボタンはブラウザに任せる）", () => {
+  const plain = { button: 0, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false };
+  assert.equal(plainClick(plain), true);
+  for (const key of ["metaKey", "ctrlKey", "shiftKey", "altKey"]) {
+    assert.equal(plainClick({ ...plain, [key]: true }), false, key);
+  }
+  assert.equal(plainClick({ ...plain, button: 1 }), false);
 });
