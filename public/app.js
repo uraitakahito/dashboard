@@ -338,6 +338,8 @@ const drawPicks = (scripts) => {
   }
   if (scripts.length === 0) box.append(tag("span", "目録が空です（目録の面を見てください）", "muted"));
   syncPicks();
+  // 読む窓の版が既定から外れたかもしれない。standing（既定で走る版か）を今の目録で言い直す
+  if (startRead.doc !== undefined && startRead.target.id !== undefined) drawStartReadHead();
 };
 
 /**
@@ -398,6 +400,9 @@ const putBack = async (crawlId, name) => {
   $("start-inline-source").value = back.source;
   $("start-answer").hidden = true; // 前の答えは、戻した JS の物ではない
   location.hash = "start";
+  // 面とタブを今出す —— 隠れた箱には focus が効かない（hashchange が面を出すのは、この後）
+  show("start");
+  showStartTab("js");
   drawSource();
   syncStart();
   $("start-inline-source").focus();
@@ -1111,6 +1116,10 @@ const putTemplate = (doc, { replace = false, at = IN_CATALOG } = {}) => {
       ? ""
       : `札（${doc.sites.join("・")}）は写しに付きません。その場の JS は、どの起点でも走ります。`);
   location.hash = "start";
+  // 面とタブを今出す —— 隠れた箱には focus が効かない（hashchange が面を出すのは、この後）。
+  // 読む窓は閉じない —— タブで元と見比べられる
+  show("start");
+  showStartTab("js");
   drawSource();
   syncStart();
   box.focus();
@@ -1160,7 +1169,7 @@ const drawStartReadHead = () => {
   drawReadingHead(IN_START, {
     facts: [...metaOf(doc), optionsText(doc.options)],
     standing: standingOf(doc, defaultVersion),
-    actions: [copyButton(doc.source), full],
+    actions: [copyButton(doc.source), button("下敷きにする", () => putTemplate(doc, { at: IN_START })), full],
   });
 };
 
