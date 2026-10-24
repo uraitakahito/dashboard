@@ -12,7 +12,7 @@ enter it with 開く (open) on an archive row. The screen itself is in Japanese;
 | View | What it lists |
 | --- | --- |
 | Crawls | one row per crawl: state, pages captured, pages discovered, number of WACZ files (the archive format that packs captured pages into one ZIP), time taken, link to the run |
-| New crawl | the form that starts a crawl: seed URLs, catalog scripts, depth, and a script of your own in a box as tall as the window |
+| New crawl | the form that starts a crawl: seed URLs, catalog scripts, depth, and a script of your own in a box as tall as the window; a catalog script can be read in a tab of the right column |
 | Archives | the WACZ files you can see; from a row, validate, open the contents, or open in [replay](https://github.com/uraitakahito/replay) (which plays a WACZ back in the browser) |
 | Catalog | the scripts that run inside the captured page and the types they are written against, to read line by line, older versions too; says so in red when it is empty |
 | Contents | inside one WACZ; see [Inspecting a WACZ](/wacz/) |
@@ -72,7 +72,8 @@ The 新しいクロール (new crawl) view starts a crawl. The left column holds
 the depth and the 始める (start) button; the right column holds the box for a script of your own. The box
 stretches to the bottom of the window and has line numbers on its left, so a large script can be
 pasted, read, fixed a little and run. Write the seed URLs one per line, choose このページだけ (this
-page only) or リンクを辿る (follow links, the ledger's default), and press 始める.
+page only) or リンクを辿る (follow links, the ledger's default), and press 始める. The right column
+has tabs, and switches to a window for reading a catalog script.
 
 - **It sends the seed URLs, whether the depth is 0, and what runs — the last only when it differs
   from the default.** このページだけ sends `maxDepth: 0`; リンクを辿る adds nothing (the depth and
@@ -106,6 +107,15 @@ page only) or リンクを辿る (follow links, the ledger's default), and press
   読み込みの後 (after load) runs once in the main frame; 遷移の前 (before navigation) runs in every
   frame on every navigation and has no `__bh`. ファイルを読む (read a file) loads a file into the
   box, in the browser only.
+- **A catalog script can be read in the right column.** Press 読む (read) next to its checkbox:
+  a second tab opens in the right column, named like `autoscroll v2`, with the source of that
+  version in colour. The view does not change. The box is only hidden: your script, its scroll
+  position and the cursor stay, and the その場の JS (your script) tab brings it back. You can tick
+  and untick while reading, and read a site script whose checkbox is disabled. One script is open
+  at a time; another 読む replaces it, and × closes it. The window has 写す (copy), 下敷きにする
+  (use as a template) and a link that opens the script in the [catalog view](#catalog), which alone
+  has the version chips and line URLs. With ⌘ or Ctrl held, the browser opens the catalog view in
+  another tab instead.
 - **A 202 or a 409 takes you to the crawls view.** When the crawl is accepted, its row gets a mark;
   if a crawl is already running, the row in the way gets the mark (the ledger runs one crawl at a
   time, overall). An accepted crawl is running, so the footer starts polling every 2 seconds.
@@ -116,17 +126,20 @@ page only) or リンクを辿る (follow links, the ledger's default), and press
 - **欄に戻す (back to the form) brings you back here.** Open a row in the crawls view and press
   欄に戻す on a script of your own: this view opens with its name, phase and source. The source
   comes from the ledger's `/api/crawls/:id/inline/:name` (a crawl's detail only carries its size).
-  The seed URLs and the catalog choice are left alone.
+  The seed URLs and the catalog choice are left alone. If the right column was showing a catalog
+  script, it switches back to the その場の JS tab.
 - **下敷きにする (use as a template) in the [catalog view](#catalog) brings a catalog script
   here** as a script of your own, named `my-<id>` unless the name box already has one. Only the two
   forms that name the script's own id, `__bh.opts["<id>"]` and `__bh.report("<id>"`, are changed to
   `inline-<name>`; the message under the left column says on which lines. The original is unticked,
   so it does not run twice. If the box already holds a script, the catalog view asks before
-  replacing it. A site script's sites do not come along: a script of your own runs from any seed,
+  replacing it. 下敷きにする in the right column's reading window does the same, and asks inside
+  that window; afterwards the その場の JS tab is in front, and the reading window stays open for
+  comparing. A site script's sites do not come along: a script of your own runs from any seed,
   and the check at the top of the script (comparing `location.hostname`) keeps it idle on other
   sites.
 - **The types of `__bh` are one link away.** The note under the left column links to them
-  (`#scripts/types/host.d.ts`).
+  (`#scripts/types/host.d.ts`); a plain click opens them in the right column's reading window.
 - **The row gets a mark, and is not opened.** The mark is remembered by id and put back each time
   the table is redrawn.
 
@@ -155,7 +168,8 @@ names none), the site scripts (those with sites, which run only when a seed is o
 under 書くための型 (types to write against), `host.d.ts`, the types of `__bh`, the object the
 capture server puts in the page for scripts to use. On the right is the TypeScript as it was
 written, with line numbers. The default scripts and the site scripts also appear as checkboxes
-under 目録から (from the catalog) in the [new crawl view](#start-a-crawl).
+under 目録から (from the catalog) in the [new crawl view](#start-a-crawl), where 読む (read) next to
+one opens it in the right column.
 
 | URL | Opens |
 | --- | --- |
