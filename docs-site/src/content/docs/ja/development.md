@@ -1,6 +1,6 @@
 ---
 title: 開発
-description: 依存の線、検査と試験が見るもの・見ないもの、サンドボックスで開く、docs を直す、リリース
+description: 依存の線、検査と試験が見るもの・見ないもの、サンドボックスで開く、docs を直す、画面の絵を撮り直す、リリース
 ---
 
 ## 依存の線
@@ -13,7 +13,7 @@ framework は通さないので、画面のためには install も lockfile も
 目録の面の色付けを 1 ファイルに束ねて commit した物で（[同梱した色付け](#同梱した色付け)）、画面はそれを読むだけなので、install は今も要りません。
 
 依存が在るのは 2 つで、どちらも npm の別 project にしてあります。
-`docs-site/`（このサイトの原稿。Astro + Starlight）と、`highlighter/`（`public/vendor/shiki.js` を作る元）です。
+`docs-site/`（このサイトの原稿。Astro + Starlight と、画面の絵を撮る道具）と、`highlighter/`（`public/vendor/shiki.js` を作る元）です。
 lockfile も audit も Dependabot もそこに閉じ、root に `node_modules` を作りません。
 
 | 打つもの | 何をするか |
@@ -138,6 +138,39 @@ npm run site:check          # push の前に
 - **「名乗り」は、誰として見るかにだけ使う。**
   issuer が返す物はアクセストークンと書きます（英語版は access token）。
   2 つを混ぜた形は、`npm run check` の中の `scripts/check-terms.mjs` が見張ります。
+
+## 画面の絵を撮り直す
+
+[画面](/screens/)のページの絵は、`npm run docs:shots`（`docs-site/scripts/docs-shots.mjs`）が[サンドボックス](#サンドボックスで開く)を相手に撮った物です。
+手で撮った絵は置きません。
+CI では撮りません（代役のコンテナが要るので）。
+撮るのは手元で、CI は撮った物を見張ります。
+
+```sh
+npm ci --prefix docs-site            # 1 度だけ（撮る道具は docs-site の依存）
+npm run sandbox                      # 別の端末で。7081 が答えるまで待つ
+npm run docs:shots                   # 全部。画素が前と同じ絵は書かない
+npm run docs:shots -- start crawls   # 名指した絵だけ
+```
+
+- **画面を変えたら、撮り直してから PR にする。**
+  画面（`public/`。束ねた色付けの `public/vendor/` も）、代役（`sandbox/`）、撮る道具のどれかを変えると、`site:check` が「画面が、絵を撮ったときと違う」で落ちます。
+  全部を撮り直すと、`shots.json` の控え（`source`）が今の中身の sha256 になり、絵は画素が変わった物だけが書かれます。
+  見た目の変わらない直しなら、変わるのは控えだけです。
+  控えを手で写して緑にしないこと —— 絵が古いまま残ります。
+- **名指して撮っても、控えは変わらない。**
+  控えを今に合わせるのは、全部を撮ったときだけです。
+- **絵は lossless の WebP で、1 枚 40 KB・全部で 150 KB まで。**
+  撮り直すたびに git に積もるからです。
+  超えると `site:check` が落ちます。
+  そのときは `docs-shots.mjs` の `SHOTS` で、写す箱を小さくするか、高さの上限（`maxHeight`）を下げます。
+- **Chrome の版は決めてある**（`docs-shots.mjs` の `CHROME_BUILD`）。
+  無ければ、道具が最初に `~/.cache/puppeteer` へ入れます。
+  字の形は OS のフォントでも変わるので、撮るのは macOS です。
+- **絵を足すときは、`SHOTS` に 1 つ足して撮り、ja・en の両方の screens.md に載せる。**
+  置き場に在るのに `shots.json` に無い物と、`shots.json` に在るのにどちらかの screens.md が載せていない物は、`site:check` が落とします。
+  番号の丸は絵の中に置き、字は数字だけにします。
+  ja・en で同じ絵を使い、何を指すかは各言語の本文に書きます。
 
 ## リリースと公開
 

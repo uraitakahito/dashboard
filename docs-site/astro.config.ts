@@ -1,4 +1,4 @@
-import { defineConfig } from "astro/config";
+import { defineConfig, passthroughImageService } from "astro/config";
 import starlight from "@astrojs/starlight";
 import mermaid from "astro-mermaid";
 import { satteri } from "@astrojs/markdown-satteri";
@@ -11,6 +11,9 @@ export default defineConfig({
   // README の 2 本の URL はこの 2 つから組んだもの (scripts/check-doc-refs.mjs が突き合わせる)
   site: "https://uraitakahito.github.io",
   base: BASE,
+  // 「画面」の絵（npm run docs:shots の生成物）は lossless WebP で撮ってある。既定の service は描き直す
+  // —— 非可逆で、しかも元より大きくなった（2026-10-24 に実測）。そのまま配る
+  image: { service: passthroughImageService() },
   integrations: [
     // ```mermaid をクライアント側で描く。starlight より前に置く。構文を間違えても build は
     // 通るので、図を変えたらブラウザで見る

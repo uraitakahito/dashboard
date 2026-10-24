@@ -6,7 +6,7 @@ name: site
 # docs loader が握り潰して exit 0 になる。だから build と一緒に scripts/check-doc-refs.mjs
 # を必ず通す (npm run site:check)。
 #
-# **paths で絞らない。** 検査は docs の外 (src/・public/・test/・.env.example・README) も
+# **paths で絞らない。** 検査は docs の外 (src/・public/・sandbox/・test/・.env.example・README) も
 # 読むので、絞ると、そちらだけを変えた PR で検査が走らない。public repo なので、
 # Actions の分は数えない。
 #

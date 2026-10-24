@@ -9,6 +9,8 @@ what you are reading). The contents tab only appears once you
 enter it with 開く (open) on an archive row. The screen itself is in Japanese; the tab names are
 クロール, 新しいクロール, アーカイブ, 目録 and 中身.
 
+![The tabs at the top: クロール, 新しいクロール, アーカイブ and 目録, with 新しいクロール selected](../../assets/screens/tabs.webp)
+
 | View | What it lists |
 | --- | --- |
 | Crawls | one row per crawl: state, pages captured, pages discovered, number of WACZ files (the archive format that packs captured pages into one ZIP), time taken, link to the run |
@@ -32,6 +34,13 @@ footer are the rows on screen, not everything the ledger has.
 Each row is one crawl. It shows the state, the first 8 characters of the id, who started it and
 for which organization, the first seed URL, pages captured, pages discovered, the number of
 WACZ files and the time taken. "run ↗" at the right end opens the Windmill run in a new tab.
+
+![The crawls view: running, finished, cut-off and failed rows, and an opened row showing what ran and 欄に戻す](../../assets/screens/crawls.webp)
+
+① state\
+② what ran (in run order)\
+③ 欄に戻す (back to the form)\
+④ the link to the run
 
 - **Pages captured and pages discovered are separate columns.** Pages discovered
   (`pagesDiscovered`) counts what was found by following links, so a crawl of depth 0 ends up as
@@ -74,6 +83,15 @@ stretches to the bottom of the window and has line numbers on its left, so a lar
 pasted, read, fixed a little and run. Write the seed URLs one per line, choose このページだけ (this
 page only) or リンクを辿る (follow links, the ledger's default), and press 始める. The right column
 has tabs, and switches to a window for reading a catalog script.
+
+![The new crawl view: seed URLs, catalog checkboxes and 始める on the left; the tabs, the name of the script and the script box on the right](../../assets/screens/start.webp)
+
+① seed URLs\
+② 目録から (from the catalog): the checkboxes and 読む (read)\
+③ 始める (start)\
+④ the right column's tabs\
+⑤ JS の名前 (name of the script)\
+⑥ the script box
 
 - **It sends the seed URLs, whether the depth is 0, and what runs — the last only when it differs
   from the default.** このページだけ sends `maxDepth: 0`; リンクを辿る adds nothing (the depth and
@@ -127,6 +145,9 @@ has tabs, and switches to a window for reading a catalog script.
   (use as a template) and a link that opens the script in the [catalog view](#catalog), which alone
   has the version chips and line URLs. With ⌘ or Ctrl held, the browser opens the catalog view in
   another tab instead.
+
+![The right column of the new crawl view, reading the catalog script autoscroll v2 in colour](../../assets/screens/start-read.webp)
+
 - **A 202 or a 409 takes you to the crawls view.** When the crawl is accepted, its row gets a mark;
   if a crawl is already running, the row in the way gets the mark (the ledger runs one crawl at a
   time, overall). An accepted crawl is running, so the footer starts polling every 2 seconds.
@@ -160,6 +181,8 @@ It is sent through `POST /api/crawls` in [Routes](/routes/).
 
 The WACZ files you can see, newest capture first.
 
+![The archives view: WACZ files, two of them validated (問題なし and 失敗 1)](../../assets/screens/archives.webp)
+
 - **A `—` under 完全か (complete?) means "unknown".** The ledger's `waczComplete` is null for
   that row, which is not the same as 欠けあり (incomplete).
 - **検証 (validate) only runs when you press it.** Opening the list does not run it. The result
@@ -181,6 +204,8 @@ capture server puts in the page for scripts to use. On the right is the TypeScri
 written, with line numbers. The default scripts and the site scripts also appear as checkboxes
 under 目録から (from the catalog) in the [new crawl view](#start-a-crawl), where 読む (read) next to
 one opens it in the right column.
+
+![The catalog view: the list on the left; autoscroll v2 with its version chips and coloured source on the right](../../assets/screens/catalog.webp)
 
 | URL | Opens |
 | --- | --- |
