@@ -2,15 +2,15 @@
   "name": "dashboard",
   "version": "0.1.0",
   "private": true,
-  "description": "crawler の開発用の画面。台帳の API を 1 枚に畳んで見る",
+  "description": "crawler の開発用の Web アプリ。台帳の API を 1 枚に畳んで見る",
   "//": [
     "package.json にコメントを書く方法の議論:",
     "https://stackoverflow.com/questions/14221579/how-do-i-add-comments-to-package-json-for-npm-install"
   ],
-  "//dependencies": "無い。**画面は npm の依存を持たず、install も要らない** —— 在るのは node の http サーバ 1 本と、ブラウザで素のまま走る JS だけ。framework は通さない (capture-scripts と同じ判断)。**例外は public/vendor/shiki.js の 1 ファイル**: 読む所の色付け (Shiki) を esbuild で束ねて commit した物で、画面はそれを読むだけ (下の //vendor)。分割したくなるほど育ったら、そのとき入れる —— capture-ledger の picker が @fastify/static について言っているのと同じ。依存が在るのは docs-site/ (Astro + Starlight) と highlighter/ (束を作る元) だけで、どちらも npm の別 project にしてある: lockfile も audit も Dependabot もそこに閉じ、root に node_modules を作らない。",
+  "//dependencies": "無い。**dashboard は npm の依存を持たず、install も要らない** —— 在るのは node の http サーバ 1 本と、ブラウザで素のまま走る JS だけ。framework は通さない (capture-scripts と同じ判断)。**例外は public/vendor/shiki.js の 1 ファイル**: 読む所の色付け (Shiki) を esbuild で束ねて commit した物で、dashboard はそれを読むだけ (下の //vendor)。分割したくなるほど育ったら、そのとき入れる —— capture-ledger の picker が @fastify/static について言っているのと同じ。依存が在るのは docs-site/ (Astro + Starlight) と highlighter/ (束を作る元) だけで、どちらも npm の別 project にしてある: lockfile も audit も Dependabot もそこに閉じ、root に node_modules を作らない。",
   "//vendor": "vendor は highlighter/ の lockfile から public/vendor/ (shiki.js と、束ねた package の license の一覧) を作り直す。走らせるのは Shiki の版を上げたとき (Dependabot の PR の上でも)。**public/vendor/ を手で直さない** —— vendor:check が作り直して git diff で比べ、1 バイトでも違えば赤 (CI では .github/workflows/vendor.yml)。",
-  "//sandbox": "台帳のスタックなしで画面を開く (docs の「開発」の「サンドボックスで開く」)。相手 (台帳の代役と検証の daemon) はコンテナ、画面は host。daemon の image は隣の ../wacz-validator の daemon の段から sandbox:build が建て、sandbox は無いときだけ建てる (container-compose 1.2.0 は build.target を無視するので、compose には建てさせない。docker-compose.yml の頭)。画面は sandbox/sandbox.env だけを読み、.env は読まない。",
-  "//site": "check に site:check を入れない —— check が install なしで走ることも、画面の性質の一部。docs は npm ci --prefix docs-site の後に site:check (CI では .github/workflows/site.yml)。",
+  "//sandbox": "台帳のスタックなしで dashboard を開く (docs の「開発」の「サンドボックスで開く」)。相手 (台帳の代役と検証の daemon) はコンテナ、dashboard は host。daemon の image は隣の ../wacz-validator の daemon の段から sandbox:build が建て、sandbox は無いときだけ建てる (container-compose 1.2.0 は build.target を無視するので、compose には建てさせない。docker-compose.yml の頭)。dashboard は sandbox/sandbox.env だけを読み、.env は読まない。",
+  "//site": "check に site:check を入れない —— check が install なしで走ることも、dashboard の性質の一部。docs は npm ci --prefix docs-site の後に site:check (CI では .github/workflows/site.yml)。",
   "//secrets": "**この repo は秘密を持たない。** 台帳に示すアクセストークンは開発用 issuer の POST /token からその場で取得する (pnpm run oidc:token が中でやっているのと同じこと)。.env に書くのは「誰として見るか」だけで、鍵の置き場が無い。",
   "type": "module",
   "engines": {

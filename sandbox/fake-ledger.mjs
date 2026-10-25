@@ -1,14 +1,14 @@
 /**
  * 台帳の代役。dashboard のサンドボックス (docker-compose.yml の sandbox-ledger) の中で動く。
  *
- * 画面が台帳に訊く口と、開発用 issuer の `POST /token` に、台本 (scenario.json) と
+ * dashboard が台帳に訊く口と、開発用 issuer の `POST /token` に、台本 (scenario.json) と
  * WACZ の置き場から答える。応答の欄は capture-ledger の応答に合わせてある (出どころは
  * 各関数の注記)。認可は真似ない —— 名乗りは何でも通す。
  *
  * 署名付き URL の代わりに、置き場の `file://` の URL を返す。検証の daemon
  * (sandbox-validator) も同じ置き場を同じ path に mount しているので、それを読める。
  *
- * `POST /api/crawls` (画面の新しいクロールの面) にも答える。受けた行は代役が起きている間だけ在り、
+ * `POST /api/crawls` (dashboard の新しいクロールの画面) にも答える。受けた行は代役が起きている間だけ在り、
  * 台本の `submit.runsSeconds` 秒走ってから完走になる (台本の行とは別に持つ)。走らせるもの
  * (`scripts`。目録の名指しとその場の JS) も台帳と同じ形で受け、1 本の詳しい所に返す。
  *
@@ -92,7 +92,7 @@ const detailScript = (s) => ({
 
 /**
  * /api/crawls/:id/inline/:name。欄は capture-ledger v0.59.0 の src/api/crawls.ts と同じ ——
- * その場の JS 1 本の source を返す（画面の「欄に戻す」が使う）。目録の物と、知らない名前は 404。
+ * その場の JS 1 本の source を返す（dashboard の「欄に戻す」が使う）。目録の物と、知らない名前は 404。
  */
 export const inlineSource = (scripts, name) => {
   const script = (scripts ?? []).find((x) => x.inline?.name === name);
@@ -102,7 +102,7 @@ export const inlineSource = (scripts, name) => {
 };
 
 /**
- * /api/crawls/:id。台帳はほかの欄 (範囲・上限など) も返すが、画面が読むのは seeds・
+ * /api/crawls/:id。台帳はほかの欄 (範囲・上限など) も返すが、dashboard が読むのは seeds・
  * error・scripts・failures なので、そこまでにしてある。受けた行は走らせたものを行に持たない
  * (行の欄は一覧と揃えて試験が固定している) ので、`scripts` で渡す。
  */
@@ -146,7 +146,7 @@ const httpUrl = (raw) => {
 const INLINE_NAME = /^[a-z][a-z0-9-]*$/;
 
 /**
- * Fastify が schema の誤りで返す本文の形 (台帳の 400 と同じ。画面は `message` を出す)。
+ * Fastify が schema の誤りで返す本文の形 (台帳の 400 と同じ。dashboard は `message` を出す)。
  * 文は台帳 v0.58.0 の実物から写した —— 要素は鍵が 1 つの object なので、誤りの場所だけが出る。
  */
 const schemaError = (message) => ({
@@ -466,7 +466,7 @@ export const readingLastGood = (read, graceMs, now = Date.now) => {
 /** 台本は要求のたびに読む。書き換えると、代役を起こし直さずに画面に出る。 */
 const scenario = readingLastGood(() => JSON.parse(readFileSync(SCENARIO, "utf8")), 3000);
 
-/** 画面の欄から受けた行。代役が起きている間だけ在る (台本には書かない)。 */
+/** dashboard の欄から受けた行。代役が起きている間だけ在る (台本には書かない)。 */
 const submitted = [];
 
 /** 台本の目録の版の並び。`emptyCatalog` なら空 (目録が空の台帳。読む所には受け皿の型だけが残る)。 */
@@ -566,7 +566,7 @@ if (import.meta.main) {
   // コンテナの中では外向きに待つ。host への口は compose が 127.0.0.1 にだけ出す
   const host = process.env.SANDBOX_HOST ?? "0.0.0.0";
   createServer((req, res) => {
-    // 本文を読み切ってから答える (始める口だけが使う。画面の欄が送る本文は小さい)
+    // 本文を読み切ってから答える (始める口だけが使う。dashboard の欄が送る本文は小さい)
     const chunks = [];
     req.on("data", (chunk) => chunks.push(chunk));
     req.on("end", () => {

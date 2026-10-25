@@ -2,7 +2,7 @@
  * WACZ の中身へ行く口。`/wacz/<archiveId>/<op>` を読み、台帳に署名をもらい、daemon に渡す。
  *
  * 6 本とも同じ 2 段 —— **台帳に署名をもらう → daemon に渡す** —— で、署名はこの
- * ファイルの外に出ない。画面が呼ぶのは GET（`<img src>` も GET）で、daemon へは
+ * ファイルの外に出ない。dashboard が呼ぶのは GET（`<img src>` も GET）で、daemon へは
  * POST に組み替える。`/api/` は台帳の素通しだけに戻した（server.mjs 自身が
  * 「こちらの答えを混ぜない」と書いているので、daemon 行きの口はここに集める）。
  *
@@ -13,10 +13,10 @@
  *   GET  /wacz/<id>/record?path=&offset=&length=          → POST /record
  *   GET  /wacz/<id>/record/body?path=&offset=&length=     → POST /record/body（bytes）
  *
- * ここに在るのは経路の読みと組み替えだけ。**画面のロジックは置かない。**
+ * ここに在るのは経路の読みと組み替えだけ。**dashboard のロジックは置かない。**
  */
 
-/** 画面が組み立てた引数が足りない・数でない。400 で返す。 */
+/** dashboard が組み立てた引数が足りない・数でない。400 で返す。 */
 export class BadRequest extends Error {
   constructor(message) {
     super(message);

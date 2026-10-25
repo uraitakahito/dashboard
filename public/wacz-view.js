@@ -1,5 +1,5 @@
 /**
- * 中身の面の純関数。**ブラウザが読むのと同じファイル**を `node --test` が読む（写しが腐らない）。
+ * 中身の画面の純関数。**ブラウザが読むのと同じファイル**を `node --test` が読む（写しが腐らない）。
  *
  * 木の組み方と罫線は waxlens（wacz-validator の tui、`render/tree.ts`）と同じ入力・同じ
  * 出力。試験入力も向こうと同じものを置いてある。1 行を field に割るのは daemon の
@@ -133,7 +133,7 @@ export const recordOpener = (fields) => {
   return { path: `archive/${filename}`, offset, length };
 };
 
-/** 面の URL。`#wacz/<archiveId>` に、選んだ entry と行を足せる。 */
+/** 画面の URL。`#wacz/<archiveId>` に、選んだ entry と行を足せる。 */
 export const waczHash = (archiveId, path, n) =>
   `#wacz/${encodeURIComponent(archiveId)}` +
   (path === undefined ? "" : `/${encodeURIComponent(path)}`) +

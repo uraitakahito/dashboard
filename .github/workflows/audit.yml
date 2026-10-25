@@ -2,7 +2,7 @@ name: audit
 
 # docs-site と highlighter の依存の既知の脆弱性を見る。
 #
-# **なぜ別 workflow か。** この repo の lockfile は docs-site と highlighter の 2 本で、画面は
+# **なぜ別 workflow か。** この repo の lockfile は docs-site と highlighter の 2 本で、dashboard は
 # npm の依存を持たない。ci.yml は install しない job なので、そこに混ぜると「依存を入れない job」が
 # 依存を見ることになる。capture-fixtures が audit を分けたのは、docs-site の lockfile に
 # astro の critical 勧告が居座ったまま、どこも赤くならなかったため。

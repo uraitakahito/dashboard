@@ -18,9 +18,9 @@
  *
  * ## 毎回同じ絵に
  *
- *   - 画面の時計を止める。代役の時刻の基準は代役が起きた時刻なので、走行中の行の startedAt ＋ 100 秒に
+ *   - dashboard の時計を止める。代役の時刻の基準は代役が起きた時刻なので、走行中の行の startedAt ＋ 100 秒に
  *     止めれば、「かかった」はいつ撮っても 1m 40s（止めないと、撮るたびに絵が変わった）
- *   - 引き直しを止める。画面の setTimeout は、引き直し（2 秒・30 秒）と「写しました」の戻し（1.5 秒）
+ *   - 引き直しを止める。dashboard の setTimeout は、引き直し（2 秒・30 秒）と「写しました」の戻し（1.5 秒）
  *     だけなので、2 秒以上の物を落とす（引き直しは表を作り直し、検証の答えを消す）
  *   - 明るい色・ja-JP・Asia/Tokyo（撮った時刻は toLocaleString）・字のカーソルと動きを消す・
  *     スクロールバーを隠す
@@ -55,7 +55,7 @@ const INLINE = '(() => {\n  document.querySelector<HTMLButtonElement>("#accept")
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 
-/** 欄に書いて input を出す（画面は input で、起点のチェックや大きさの行を合わせる）。 */
+/** 欄に書いて input を出す（dashboard は input で、起点のチェックや大きさの行を合わせる）。 */
 const fill = (page, id, value) =>
   page.evaluate(
     (i, v) => {
@@ -204,7 +204,7 @@ const SHOTS = [
 ];
 
 /**
- * 画面の時計と引き直しを止める（どのスクリプトよりも先に走る）。Date は引数の無い new Date() と
+ * dashboard の時計と引き直しを止める（どのスクリプトよりも先に走る）。Date は引数の無い new Date() と
  * Date.now() だけを止め、日付を組む new Date(x) はそのまま。setTimeout は 2 秒以上の物だけを落とす。
  */
 const freeze = (now) => {

@@ -1,5 +1,5 @@
 /*
- * 画面の見た目。**素の CSS**（bundler も framework も通さない）。
+ * dashboard の見た目。**素の CSS**（bundler も framework も通さない）。
  *
  * 明暗はどちらも書く。片方だけ書くと、もう片方で「背景と同じ色の文字」になる。
  */
@@ -226,8 +226,8 @@ tr.head.spot td:first-child {
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
-/* ── 新しいクロールの面 ── 左に設定、右にその場の JS。窓の高さに収め、ページは縦に流さない ─ */
-/* 収めるのは新しいクロールの面にいる間だけ（app.js の show が body に data-face を書く） */
+/* ── 新しいクロールの画面 ── 左に設定、右にその場の JS。窓の高さに収め、ページは縦に流さない ─ */
+/* 収めるのは新しいクロールの画面にいる間だけ（app.js の show が body に data-face を書く） */
 body[data-face="start"] {
   height: 100dvh;
   display: flex;
@@ -270,7 +270,7 @@ body[data-face="start"] main {
   color: var(--muted);
 }
 
-/* 右の列: タブと、その下の面 1 つ（その場の JS か読む窓）。面が残りの高さを全部使う */
+/* 右の列: タブと、その下の中身 1 つ（その場の JS か読む窓）。中身が残りの高さを全部使う */
 .start-code {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -281,7 +281,7 @@ body[data-face="start"] main {
 
 /*
  * display を書くと hidden 属性が効かなくなるので、隠すときを書き足す（.reading-ask と同じ）。
- * 面の見た目は class で書く —— id で書くと、id の重みがこの規則に勝ち、2 つの面が両方出る
+ * その場の JS と読む窓の見た目は class で書く —— id で書くと、id の重みがこの規則に勝ち、2 つが両方出る
  */
 .start-js[hidden],
 .start-read[hidden] {
@@ -320,7 +320,7 @@ body[data-face="start"] main {
   outline-offset: -2px;
 }
 
-/* タブ: 選んだタブが下の面とつながる形。読む窓のタブは名前なので等幅 */
+/* タブ: 選んだタブが下の中身とつながる形。読む窓のタブは名前なので等幅 */
 .start-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -524,7 +524,7 @@ body[data-face="start"] main {
 }
 
 /*
- * 札（サイト用の台本のホスト名）。一覧・見出し・新しいクロールの面・クロールの詳しい所で同じ形。どこでも flex の
+ * 札（サイト用の台本のホスト名）。一覧・見出し・新しいクロールの画面・クロールの詳しい所で同じ形。どこでも flex の
  * 中に置くので、行に収まらなければ札ごと次の行へ移り、行より長いときだけ札の中で折り返す
  */
 .site {
@@ -676,7 +676,7 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
-/* ── 中身の面 ─────────────────────────────────────────────────── */
+/* ── 中身の画面 ─────────────────────────────────────────────────── */
 .vbar {
   display: flex;
   flex-wrap: wrap;
@@ -895,8 +895,8 @@ button:focus-visible {
   color: var(--accent);
 }
 
-/* ── 目録の面（読む所）─────────────────────────────────────────── */
-/* 一覧を窓に残すため、この面だけ main を流す箱にしない（流すのは窓。2 段組は 760 より狭いと横に流れる） */
+/* ── 目録の画面（読む所）─────────────────────────────────────────── */
+/* 一覧を窓に残すため、この画面だけ main を流す箱にしない（流すのは窓。2 段組は 760 より狭いと横に流れる） */
 body[data-face="scripts"] main {
   overflow: visible;
 }

@@ -200,7 +200,7 @@ test("同梱の台本の crawlId は、画面が出す頭の 8 字で見分け�
   assert.equal(new Set(heads).size, heads.length, heads.join(" "));
 });
 
-test("クロール 1 本は、画面が読む seeds・error・scripts・failures を返す", () => {
+test("クロール 1 本は、dashboard が読む seeds・error・scripts・failures を返す", () => {
   const failed = scenario.crawls.find((c) => c.state === "failed" && c.failures?.length > 0);
   const detail = crawlDetail(failed);
   assert.deepEqual(detail.seeds, failed.seeds);
@@ -353,8 +353,8 @@ test("既定は最新版を選んでから札で絞る —— 札を付け直し
   assert.deepEqual(at(defaultSet(resited, seedHosts("https://example.org/"))), ["autofetch@1", "autoscroll@2"]);
 });
 
-test("代役の既定と、新しいクロールの面の既定（public/start.js）は、同じ起点に同じ顔ぶれを出す", () => {
-  // 決まりの正は台帳。2 つの写しが食い違えば、画面が「省いても同じ」と送った頼みで別の物が走る
+test("代役の既定と、新しいクロールの画面の既定（public/start.js）は、同じ起点に同じ顔ぶれを出す", () => {
+  // 決まりの正は台帳。2 つの写しが食い違えば、dashboard が「省いても同じ」と送った頼みで別の物が走る
   const seeds = [
     "",
     "https://example.org/",
@@ -481,7 +481,7 @@ test("知らない目録の id・重ね・形の誤り・scriptIds は、台帳�
     error: "duplicate script ids",
     ids: ["inline-a"],
   });
-  // 文は台帳 v0.58.0 が Fastify の schema で返す物（画面は message を出す）
+  // 文は台帳 v0.58.0 が Fastify の schema で返す物（dashboard は message を出す）
   assert.equal(
     post({ scripts: [inline("Probe")] }).body.message,
     'body/scripts/0/inline/name must match pattern "^[a-z][a-z0-9-]*$"',

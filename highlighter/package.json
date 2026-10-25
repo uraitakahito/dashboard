@@ -4,7 +4,7 @@
     "https://stackoverflow.com/questions/14221579/how-do-i-add-comments-to-package-json-for-npm-install",
     "",
     "public/vendor/shiki.js (読む所の色付け) を作るためだけの npm project (docs-site と同じ形)。",
-    "画面は install しない。作り直しは root の npm run vendor (lockfile どおりに入れてから作る)。",
+    "dashboard は install しない。作り直しは root の npm run vendor (lockfile どおりに入れてから作る)。",
     "版はちょうどで固める (^ を付けない): 版が 1 つ動けば束が変わる。上げるのは Dependabot の PR か人で、",
     "どちらも束を作り直して commit する。",
     "shiki: 色付け。束ねるのは TypeScript の文法と、明暗 2 つの配色だけ (entry.mjs)。",

@@ -15,7 +15,7 @@ cp -n .env.example .env    # then uncomment the lines you need
 The difference from [capture-ledger](https://github.com/uraitakahito/capture-ledger) (the ledger
 that starts crawls and records what came back) is that nothing here lacks a sensible default.
 capture-ledger requires values that are only known after something has run, such as the ids of
-OpenFGA (the authorization service), so it needs a `.env`. This screen only has an identity and
+OpenFGA (the authorization service), so it needs a `.env`. The dashboard only has an identity and
 destinations: the access token for that identity is fetched from the issuer when needed, and the
 destinations are fixed loopback addresses. There are no secrets.
 
@@ -23,7 +23,7 @@ destinations are fixed loopback addresses. There are no secrets.
 
 | Name | Default | What it decides |
 | --- | --- | --- |
-| `DASHBOARD_PORT` | `7080` | The screen's port. It binds to loopback (`127.0.0.1`) only |
+| `DASHBOARD_PORT` | `7080` | The dashboard's port. It binds to loopback (`127.0.0.1`) only |
 | `DASHBOARD_LEDGER_URL` | `http://127.0.0.1:7070` | The ledger's API |
 | `DASHBOARD_ISSUER_URL` | `http://127.0.0.1:9099` | The development issuer, the one capture-ledger's `pnpm run oidc:issuer` starts |
 | `DASHBOARD_SUBJECT` | this machine's user name | Who you look as. This name needs permission (see the [Quickstart](/quickstart/)) |
@@ -38,16 +38,16 @@ you add a variable, change all three.
 
 ### The identity is a convenience, not a protection
 
-The screen gets its access token from the development issuer's `POST /token`, using the names in
+The dashboard gets its access token from the development issuer's `POST /token`, using the names in
 `DASHBOARD_SUBJECT` and `DASHBOARD_ORGANIZATIONS`. The development issuer hands out a token for
 any name it is asked for. Change the name here and you see what that name may see. That is why
-this screen is not a boundary, and why it never leaves loopback.
+the dashboard is not a boundary, and why it never leaves loopback.
 
-### The screen does not build destinations
+### The dashboard does not build destinations
 
 Where replay and Windmill live is a fact of the deployment. The ledger only returns an
 `objectKey` and a run id, so the server decides in one place where to open them and hands that
-to the screen through `/healthz` (see [Routes](/routes/)).
+to the browser through `/healthz` (see [Routes](/routes/)).
 
 ## Order of reading
 
@@ -69,5 +69,5 @@ out.
 macOS's ControlCenter (AirPlay Receiver) holds `*:7000`. Binding to `127.0.0.1:7000` still
 works, which makes it easy to miss, but when `localhost:7000` resolves to `::1` it reaches
 AirPlay. The tools that look up a port's owner (capture-ledger's `dev:status` and `dev:down`)
-would also keep reporting "something else holds it". So the screen takes 7080, next to the
+would also keep reporting "something else holds it". So the dashboard takes 7080, next to the
 ledger's 7070.

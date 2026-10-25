@@ -1,5 +1,5 @@
 /**
- * 新しいクロールの面の部品（`public/start.js`）。送る body と、答えの言い方。
+ * 新しいクロールの画面の部品（`public/start.js`）。送る body と、答えの言い方。
  *
  * 送る道（`POST /api/crawls` の中継）と門は http の口に在り、門の判定は `lib.test.mjs` が見る。
  */
@@ -38,7 +38,7 @@ test("URL は検査しない —— 読めない URL も、そのまま台帳へ
   assert.deepEqual(startBody("ftp://example.com/\nnot a url", true).seeds, ["ftp://example.com/", "not a url"]);
 });
 
-test("空の欄は、空の seeds になる（画面はこれを送らない）", () => {
+test("空の欄は、空の seeds になる（dashboard はこれを送らない）", () => {
   assert.deepEqual(startBody(" \n \n", true).seeds, []);
 });
 
@@ -79,12 +79,12 @@ test("Fastify の答えは message を拾う —— error には \"Not Found\" �
   assert.equal(noRoute.text, "404 —— Route POST:/api/crawls not found");
 });
 
-test("この画面のサーバに届かなければ、そう言う", () => {
-  assert.equal(startAnswer(0, { error: "Failed to fetch" }).text, "この画面自身に届きません（Failed to fetch）");
+test("dashboard のサーバに届かなければ、そう言う", () => {
+  assert.equal(startAnswer(0, { error: "Failed to fetch" }).text, "dashboard 自身に届きません（Failed to fetch）");
 });
 
 /**
- * 走らせるものの欄。目録は札の無い autofetch・autoscroll の 2 本（目録の面と同じ id 順）で、
+ * 走らせるものの欄。目録は札の無い autofetch・autoscroll の 2 本（目録の画面と同じ id 順）で、
  * どちらも既定の顔ぶれ。
  */
 const CATALOG = ["autofetch", "autoscroll"];

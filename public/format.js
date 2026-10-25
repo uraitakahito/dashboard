@@ -1,5 +1,5 @@
 /**
- * 数と状態の描き方。**画面から切り出してあるのは、ここだけ試験から呼べるようにするため。**
+ * 数と状態の描き方。**dashboard から切り出してあるのは、ここだけ試験から呼べるようにするため。**
  *
  * ブラウザは `/format.js` として読み、試験は `node --test` から import する ——
  * 同じファイルを両方が読むので、写しが腐ることがない。
@@ -68,7 +68,7 @@ export const verdict = (summary) => {
 /**
  * 報告がどの条件で作られたか —— どの build の検証器が、どの profile で見たか。
  *
- * **版は画面が決めない。** daemon が報告に書いた `validatorVersion` をそのまま出す
+ * **版は dashboard が決めない。** daemon が報告に書いた `validatorVersion` をそのまま出す
  * （wacz-validator v0.31.0 からはタグの版。それより前の build は `0.0.0` と書く）。
  * dashboard の検証を受ける daemon は自分では建て直らないので、古いまま動いていれば、
  * ここに出る版で分かる（capture-ledger の dev:status も、checkout と比べて言う）。

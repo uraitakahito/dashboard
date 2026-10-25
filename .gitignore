@@ -2,7 +2,7 @@ node_modules/
 .env
 .env.local
 
-# **root に lockfile は置かない。** 画面は npm の依存を持たないので、守るものが無い
+# **root に lockfile は置かない。** dashboard は npm の依存を持たないので、守るものが無い
 # (package.json の `//dependencies`)。それでも `pnpm run dev` を打つと pnpm が
 # 空の lockfile を作るので、間違って commit しないよう無視する。
 #

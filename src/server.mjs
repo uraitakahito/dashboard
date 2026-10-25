@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * crawler の開発用の画面を配り、台帳の API を中継する。
+ * dashboard の画面（`public/`）を配り、台帳の API を中継する。
  *
  *   pnpm run dev        # http://127.0.0.1:7080/
  *
@@ -12,20 +12,20 @@
  * **漏れる物が無いので、漏らさない工夫も要らない。**
  *
  * **そのぶん、これは境界ではない。** 開発用 issuer は頼まれれば誰の名前でも
- * トークンを出すので、ここの「名乗り」は便利さであって、守りではない。画面は
+ * トークンを出すので、ここの「名乗り」は便利さであって、守りではない。dashboard は
  * それを隠さずに書く（capture-ledger の picker が同じ理由で同じことをしている）。
  *
  * ## なぜ中継するのか
  *
  * 台帳は CORS を返さない（`OPTIONS /api/archives` は 404。実測）。ブラウザから
- * 直に叩く道は塞がっているので、同一オリジンにするために通す。**ここに画面の
+ * 直に叩く道は塞がっているので、同一オリジンにするために通す。**ここに dashboard の
  * ロジックは置かない** —— 置いた瞬間に「台帳が知っていることの写し」が生まれる。
  *
  * ## 書く口は 1 本
  *
  * 書くのは `POST /api/crawls`（クロールを始める）だけで、中身は検査せずに台帳へ渡す。
  * 起点の URL も方針も、決めるのは台帳。代わりに門を通す —— 全部の口で Host を見て
- * （DNS rebinding）、書く口ではこの画面のページからの JSON だけを受ける（CSRF）。
+ * （DNS rebinding）、書く口では dashboard のページからの JSON だけを受ける（CSRF）。
  * 門の判定は `lib.mjs` に在り、試験から直接呼べる。
  *
  * ## 7080 であって 7000 ではない
@@ -39,7 +39,7 @@
  * ## http・loopback・公開しない
  *
  * https のページから `127.0.0.1` を叩くと Chrome の Private Network Access が
- * 止める（seaweedfs の `scripts/ui.sh` に実測の記録がある）。だから画面自身を
+ * 止める（seaweedfs の `scripts/ui.sh` に実測の記録がある）。だから dashboard 自身を
  * loopback の http で配る。外に出さない。
  */
 import { createServer } from "node:http";
@@ -70,7 +70,7 @@ const LEDGER = optional("DASHBOARD_LEDGER_URL", "http://127.0.0.1:7070");
 const ISSUER = optional("DASHBOARD_ISSUER_URL", "http://127.0.0.1:9099");
 const SUBJECT = optional("DASHBOARD_SUBJECT", userInfo().username);
 /**
- * 深いリンクの行き先。**画面はこれを組み立てない** —— 台帳が返すのは `objectKey` と
+ * 深いリンクの行き先。**dashboard はこれを組み立てない** —— 台帳が返すのは `objectKey` と
  * `lastJob.id` だけで、どこで開くかは配備の事実。1 か所で決めて `/healthz` で配る。
  */
 const REPLAY = optional("DASHBOARD_REPLAY_URL", "http://127.0.0.1:8899");
@@ -168,7 +168,7 @@ const toDaemon = async (path, body) => {
 
 /**
  * 上流の答えを流す。通すヘッダは allowlist —— daemon の `date` や `connection` を
- * 画面の応答に混ぜない。画像の実体（`/record/body`）は bytes のまま、印
+ * dashboard の応答に混ぜない。画像の実体（`/record/body`）は bytes のまま、印
  * （`nosniff` · `sandbox` · `no-store`）ごと通す。
  */
 const PASS_HEADERS = ["content-type", "content-length", "x-content-type-options", "content-security-policy", "cache-control"];
@@ -215,14 +215,14 @@ const failed = (reply, err) => {
 const server = createServer((request, reply) => {
   const url = request.url ?? "/";
 
-  // **どの口も、この画面の Host でなければ答えない**（DNS rebinding。`lib.mjs` の注）。
+  // **どの口も、dashboard の Host でなければ答えない**（DNS rebinding。`lib.mjs` の注）。
   // dev:up の準備の確かめは `http://127.0.0.1:<口>/healthz` を引くので、ここを通る。
   if (!hostAllowed(request.headers.host, PORT)) {
-    sendJson(reply, 403, { error: "この画面の Host ではない" });
+    sendJson(reply, 403, { error: "dashboard の Host ではない" });
     return;
   }
 
-  // 生存と、画面が要る設定。**`/api/` の下には置かない** —— あちらは台帳へ素通しする
+  // 生存と、dashboard が要る設定。**`/api/` の下には置かない** —— あちらは台帳へ素通しする
   // 場所で、こちらの答えを混ぜると「どちらが答えたのか」が読めなくなる。
   if (url === "/healthz") {
     reply.writeHead(200, { "content-type": "application/json; charset=utf-8" });
@@ -234,7 +234,7 @@ const server = createServer((request, reply) => {
         replayOrigin: REPLAY,
         windmillOrigin: WINDMILL,
         windmillWorkspace: WORKSPACE,
-        // 書く口の上限。画面は欄の下に本文の大きさを出し、超えたら送る前に止める
+        // 書く口の上限。dashboard は欄の下に本文の大きさを出し、超えたら送る前に止める
         writeLimit: WRITE_LIMIT,
       }),
     );
@@ -246,7 +246,7 @@ const server = createServer((request, reply) => {
    *
    * **署名付き URL をここから外に出さない。** 応答にもログにも載せない ——
    * 載せると認可で閉じた意味が消える（期限内なら、URL を持つ者は誰でも読める）。
-   * 署名は範囲ごとに取り直す（1 本 7 ms・実測）。取っておくと、この画面が
+   * 署名は範囲ごとに取り直す（1 本 7 ms・実測）。取っておくと、dashboard が
    * 300 秒有効な鍵を持つことになる。
    *
    * 順番に意味がある: 先に台帳へ訊くので、**見てよい archive でなければ
@@ -339,9 +339,9 @@ const run = (cmd, args) => {
  * 港が塞がっていたら、**誰が握っているかを言ってから**終わる。
  *
  * 素の `EADDRINUSE` は node の stack trace で出るだけで、`dev:up` が起こした
- * この画面自身が握っているのか、無関係なものなのかを言わない —— 実際に
+ * dashboard 自身が握っているのか、無関係なものなのかを言わない —— 実際に
  * 2026-09-21 にそれで止まった（`container-compose down` はホストのプロセスを
- * 消さないので、スタックを落とした後も画面だけが残る）。
+ * 消さないので、スタックを落とした後も dashboard だけが残る）。
  *
  * **自分と同じものが握っているなら、それは失敗ではない。** 開けばよい。
  */
@@ -358,7 +358,7 @@ const portTaken = () => {
 
   process.stderr.write(
     mine
-      ? `127.0.0.1:${String(PORT)} は、既に動いているこの画面です (pid ${pid})。\n` +
+      ? `127.0.0.1:${String(PORT)} は、既に動いている dashboard です (pid ${pid})。\n` +
           `  開くだけ: open http://127.0.0.1:${String(PORT)}/\n` +
           "  起こし直すなら: cd ../capture-ledger && pnpm run dev:up --from dashboard\n"
       : `127.0.0.1:${String(PORT)} は別のものが握っています${pid === "" ? "" : ` (pid ${pid})`}。\n` +
@@ -374,7 +374,7 @@ server.on("error", (err) => {
   throw err;
 });
 
-// **loopback にだけ bind する。** この画面は台帳のトークンを持つので、
+// **loopback にだけ bind する。** dashboard は台帳のトークンを持つので、
 // 届く相手はこの機械の中だけでよい。
 server.listen(PORT, "127.0.0.1", () => {
   process.stdout.write(

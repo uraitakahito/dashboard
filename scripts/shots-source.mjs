@@ -3,7 +3,7 @@
  * 見張る側（`scripts/check-doc-refs.mjs` の規則 7）が、同じこの関数を使う —— 2 か所に書くと、片方だけが
  * 変わった日に、撮り直しても緑にならない（または、古いのに緑になる）。
  *
- * 見るのは、絵の中身を決めるファイル: 画面（`public/`）・代役（`sandbox/`）・撮る道具。git が追跡する
+ * 見るのは、絵の中身を決めるファイル: dashboard（`public/`）・代役（`sandbox/`）・撮る道具。git が追跡する
  * 物だけを、path の順に読む（作業中の、追跡していないファイルは数えない）。
  */
 import { execFileSync } from "node:child_process";

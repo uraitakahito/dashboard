@@ -1,7 +1,7 @@
-# dashboard のサンドボックス。画面の相手 (台帳の代役と、本物の検証の daemon) をコンテナで起こす。
-# 画面は host で `npm run sandbox` (sandbox/sandbox.env だけを読む)。
+# dashboard のサンドボックス。dashboard の相手 (台帳の代役と、本物の検証の daemon) をコンテナで起こす。
+# dashboard は host で `npm run sandbox` (sandbox/sandbox.env だけを読む)。
 #
-# **コンテナどうしは話さない。** どちらも host の 127.0.0.1 に出した口で、画面から呼ばれる。
+# **コンテナどうしは話さない。** どちらも host の 127.0.0.1 に出した口で、dashboard から呼ばれる。
 # だから DNS ドメイン (sudo container system dns create) は要らない。
 #
 # - sandbox-ledger: 台帳と開発用 issuer の代役 (sandbox/fake-ledger.mjs)。何を見せるかは
