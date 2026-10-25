@@ -10,7 +10,7 @@ description: 依存の線、検査と試験が見るもの・見ないもの、�
 framework は通さないので、dashboard のためには install も lockfile も audit も要りません（[capture-scripts](https://github.com/uraitakahito/capture-scripts) と同じ判断）。
 分割したくなるほど育ったら、そのとき入れます。
 **例外は `public/vendor/shiki.js` の 1 ファイルです。**
-目録の色付けを 1 ファイルに束ねて commit した物で（[同梱した色付け](#同梱した色付け)）、dashboard はそれを読むだけなので、install は今も要りません。
+スクリプトの色付けを 1 ファイルに束ねて commit した物で（[同梱した色付け](#同梱した色付け)）、dashboard はそれを読むだけなので、install は今も要りません。
 
 依存が在るのは 2 つで、どちらも npm の別 project にしてあります。
 `docs-site/`（このサイトの原稿。Astro + Starlight と、画面の絵を撮る道具）と、`highlighter/`（`public/vendor/shiki.js` を作る元）です。
@@ -30,7 +30,7 @@ root の script は `pnpm run` で打っても同じです（[capture-ledger](ht
 
 ## 同梱した色付け
 
-目録の画面は、`public/vendor/shiki.js` で source に色を付けます。
+スクリプトの画面は、`public/vendor/shiki.js` で source に色を付けます。
 [Shiki](https://shiki.style) を、TypeScript の文法と 2 つの配色（GitHub Light High Contrast と GitHub Dark Default）だけにして、esbuild で束ねた物です（何を入れるかは `highlighter/entry.mjs`）。
 束は詰めてあるので、差分を読んでレビューできません。
 読むのは lockfile と `highlighter/build.mjs` にして、束がそこから作った物どおりかは `vendor.yml` に見させます。
@@ -42,7 +42,7 @@ root の script は `pnpm run` で打っても同じです（[capture-ledger](ht
 - **束ねる物に MIT 以外が混ざると、作り直しが止まる**（`highlighter/build.mjs`）。そのときは何も書きません。
   束ねた物の license の本文は `public/vendor/shiki.LICENSES.txt` に在ります。
 - **色は、画面の地に対して測る。**
-  `test/highlight.test.mjs` が `public/app.css` の `--ground` を読み、目録のファイルで使う色が明暗とも 4.5:1 以上かを見ます。地や配色を替えれば、測り直しになります。
+  `test/highlight.test.mjs` が `public/app.css` の `--ground` を読み、スクリプトのファイルで使う色が明暗とも 4.5:1 以上かを見ます。地や配色を替えれば、測り直しになります。
 - **`npm run check` は `innerHTML` を `public/` の下の全部で探す。** 束も含みます。
 - **色付けは worker で走る**（`public/highlight-worker.js`）。
   Shiki は最初の 1 本で文法を組むので、画面を描く thread で走らせると 100 ms を優に超えて止まります。
@@ -86,12 +86,12 @@ dashboard が読む設定は `sandbox/sandbox.env` だけで、あなたの `.en
 | したいこと | すること |
 | --- | --- |
 | 見せるものを変える | 台本を書き換える。代役は要求のたびに読むので、起こし直さずに画面に出る |
-| 目録が空のときを見る | 台本の `"emptyCatalog"` を `true` にする。目録の画面には受け皿の型だけが残る |
-| 目録を変える | 台本の `catalog` を書き換える。1 版に 1 つで、`sandbox/catalog/` のファイル（capture-scripts v0.2.1 のスクリプトと受け皿の型の写し）を名指す。`sha256` と `bytes` は代役が台帳と同じくファイルから数え、一覧は有効な各 id の最新版。autoscroll v2 は同じファイルで `options` だけが違う版。`sites`（札）のある版はサイト用の台本で、既定で走るのは起点のどれかが札のホストにあるときだけ。見本の `example-title`（札 `example.com`）のファイルは `sandbox/sites/` に在る（capture-scripts には無い）。`hostTypes` は受け皿の型で、消すと型を取り込んでいない台帳になる。写しは `check:terms` から外してある（別の repo の言葉で、直すと行番号が実物とずれる） |
+| 台帳にスクリプトが無いときを見る | 台本の `"emptyCatalog"` を `true` にする。スクリプトの画面には受け皿の型だけが残る |
+| スクリプトを変える | 台本の `catalog` を書き換える。1 版に 1 つで、`sandbox/catalog/` のファイル（capture-scripts v0.2.1 のスクリプトと受け皿の型の写し）を名指す。`sha256` と `bytes` は代役が台帳と同じくファイルから数え、一覧は有効な各 id の最新版。autoscroll v2 は同じファイルで `options` だけが違う版。`sites`（札）のある版はサイト用のスクリプトで、既定で走るのは起点のどれかが札のホストにあるときだけ。見本の `example-title`（札 `example.com`）のファイルは `sandbox/sites/` に在る（capture-scripts には無い）。`hostTypes` は受け皿の型で、消すと型を取り込んでいない台帳になる。写しは `check:terms` から外してある（別の repo の言葉で、直すと行番号が実物とずれる） |
 | 別の WACZ を並べる | `SANDBOX_WACZ_DIR=<dir> npm run sandbox`（相対なら、この repo から。例: `../wacz-validator/samples`）。代役と daemon の両方に同じ置き場が入る |
 | wacz-validator の更新を daemon に入れる | `npm run sandbox:build`。`npm run sandbox` は、image が無いときにしか建てない |
-| 新しいクロールの画面を試す | 新しいクロールの画面から始める。代役は受けた行を台本の `submit.runsSeconds` 秒だけ走らせてから完走にする。走っている間にもう 1 度押すと 409、読めない URL は 400。走らせるもの（目録のチェックとその場の JS）も台帳と同じ形で受け、知らない目録の id・同じ id の重ね・名前の綴り・起点に合わないサイト用の台本の名指し・既定が空（目録が空か、全部が別のサイト用）は台帳と同じ文で 400。行を開くと走らせたものが出る。チェックの横の「読む」は右の列に開く（代役の autoscroll は v2 で設定つき、example-title は起点に example.com が無いと押せないが読める） |
-| 走らせたものの在る行を見る | 台本のクロールに `scripts` を書く（その場の物は `inline` つき）。同梱の台本には、その場の JS で完走した行と、compile の段で落ちた行が在る。代役も台帳と同じく、1 本の詳しい所には source を載せず、「欄に戻す」は名前の口（`/api/crawls/:id/inline/:name`）から取る。クロール `5b0c0008` の autoscroll の `sha256` はわざと目録の v1 と違えてあり、版の番号が使い回されたときに、クロールの「読む」が出す知らせを見られる |
+| 新しいクロールの画面を試す | 新しいクロールの画面から始める。代役は受けた行を台本の `submit.runsSeconds` 秒だけ走らせてから完走にする。走っている間にもう 1 度押すと 409、読めない URL は 400。走らせるもの（スクリプトのチェックとその場の JS）も台帳と同じ形で受け、知らないスクリプトの id・同じ id の重ね・名前の綴り・起点に合わないサイト用のスクリプトの名指し・既定が空（台帳にスクリプトが無いか、全部が別のサイト用）は台帳と同じ文で 400。行を開くと走らせたものが出る。チェックの横の「読む」は右の列に開く（代役の autoscroll は v2 で設定つき、example-title は起点に example.com が無いと押せないが読める） |
+| 走らせたものの在る行を見る | 台本のクロールに `scripts` を書く（その場の物は `inline` つき）。同梱の台本には、その場の JS で完走した行と、compile の段で落ちた行が在る。代役も台帳と同じく、1 本の詳しい所には source を載せず、「欄に戻す」は名前の口（`/api/crawls/:id/inline/:name`）から取る。クロール `5b0c0008` の autoscroll の `sha256` はわざと台帳の v1 と違えてあり、版の番号が使い回されたときに、クロールの「読む」が出す知らせを見られる |
 
 代役にできないこともあります。
 

@@ -44,7 +44,7 @@ replay と Windmill へは、画面の行からリンクで飛ぶだけです。
   開発用 issuer は、頼まれれば誰の名前でもトークンを出します。
   ここの名乗りは便利さであって守りではなく、dashboard もそう書いています（「開発用の名乗りです」）。
 - **npm の依存を持たない。**
-  dashboard は node の標準ライブラリと、ブラウザで素のまま走る JS、それに目録に色を付ける commit 済みの 1 ファイル（`public/vendor/shiki.js`）で建っています。
+  dashboard は node の標準ライブラリと、ブラウザで素のまま走る JS、それにスクリプトに色を付ける commit 済みの 1 ファイル（`public/vendor/shiki.js`）で建っています。
   依存が在るのは、このサイトの原稿（`docs-site/`）と、その 1 ファイルを作る元（`highlighter/`）です（[開発](/development/)）。
 - **中継するだけ。**
   dashboard のロジックはサーバに置きません。

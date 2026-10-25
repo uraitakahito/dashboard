@@ -1,16 +1,16 @@
 /**
- * 目録の画面（読む所）の部品。**dashboard から切り出してあるのは、ここだけ試験から呼べるようにするため。**
+ * スクリプトの画面（読む所）の部品。**dashboard から切り出してあるのは、ここだけ試験から呼べるようにするため。**
  *
  * ブラウザは `/reading.js` として読み、試験は `node --test` から import する —— 同じファイルを
  * 両方が読むので、写しが腐ることがない。import を持たない（`/format.js` のような根からの path は、
  * node では fs の根になる）。読み込んだときに DOM に触らない。
  *
- * 読む物は 2 種類: 目録の 1 版（`GET /api/scripts/:id/versions/:version`）と、受け皿 `__bh` の型
+ * 読む物は 2 種類: スクリプトの 1 版（`GET /api/scripts/:id/versions/:version`）と、受け皿 `__bh` の型
  * （`GET /api/host-types`）。どちらも書いたままの TypeScript で、走った JS（アーカイブの
  * `behaviors/custom.jsonl`）とは行が合わない。
  */
 
-/** 受け皿の型の URL。目録の id は encodeURIComponent してから載せるので `/` を含まず、取り違えない */
+/** 受け皿の型の URL。スクリプトの id は encodeURIComponent してから載せるので `/` を含まず、取り違えない */
 export const TYPES_HASH = "#scripts/types/host.d.ts";
 
 const num = (s) => (s === undefined ? undefined : Number(s));
@@ -81,7 +81,7 @@ export const optionsText = (options) =>
 
 /**
  * この版と既定の顔ぶれの関係。`defaultVersion` は `GET /api/scripts` がその id に言う版（無ければ
- * undefined）。無効な版は、名指せば走るが、既定では走らない。サイト用の台本（札のある版）が既定で
+ * undefined）。無効な版は、名指せば走るが、既定では走らない。サイト用のスクリプト（札のある版）が既定で
  * 走るのは、起点のどれかが札のホストにあるときだけ。
  */
 export const standingOf = (doc, defaultVersion) => {

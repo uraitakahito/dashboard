@@ -1,5 +1,5 @@
 /**
- * 目録の画面（読む所）の部品（`public/reading.js`）。URL の読み書き・行の数え方・見出しの文。
+ * スクリプトの画面（読む所）の部品（`public/reading.js`）。URL の読み書き・行の数え方・見出しの文。
  *
  * 画面そのもの（一覧・本文・押した行）は `app.js` に在り、試験は import しない。代役で開いて見る。
  */
@@ -41,7 +41,7 @@ test("/ と空白を含む id は % にして載せ、読むと元の id に戻�
   assert.equal(parseReading(hash).id, "a/b c");
 });
 
-test("受け皿の型と、id が types の目録を取り違えない", () => {
+test("受け皿の型と、id が types のスクリプトを取り違えない", () => {
   assert.deepEqual(parseReading("#scripts/types/host.d.ts:12"), { line: 12 });
   assert.equal(parseReading("#scripts/types").id, "types");
   // id の中の / は % になるので、型の URL にはならない
@@ -107,7 +107,7 @@ test("既定の顔ぶれとの関係を 3 通りに言う（既定の版・ほ�
   });
 });
 
-test("サイト用の台本の既定の版は、起点が札のホストにあるときだけ既定で走ると言う", () => {
+test("サイト用のスクリプトの既定の版は、起点が札のホストにあるときだけ既定で走ると言う", () => {
   assert.deepEqual(standingOf({ version: 1, enabled: true, sites: ["example.com", "www.example.com"] }, 1), {
     text: "起点に example.com・www.example.com があれば既定で走る版",
     kind: "ok",

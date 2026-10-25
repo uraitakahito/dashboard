@@ -7,9 +7,9 @@ The dashboard has five views. You switch with the tabs at the top, and the `#` i
 which view is shown (`#crawls`, `#start`, `#archives`, `#scripts`; in the catalog view it also names
 what you are reading). The contents tab only appears once you
 enter it with 開く (open) on an archive row. The dashboard itself is in Japanese; the tab names are
-クロール, 新しいクロール, アーカイブ, 目録 and 中身.
+クロール, 新しいクロール, アーカイブ, スクリプト and 中身.
 
-![The tabs at the top: クロール, 新しいクロール, アーカイブ and 目録, with 新しいクロール selected](../../assets/screens/tabs.webp)
+![The tabs at the top: クロール, 新しいクロール, アーカイブ and スクリプト, with 新しいクロール selected](../../assets/screens/tabs.webp)
 
 | View | What it lists |
 | --- | --- |
@@ -87,7 +87,7 @@ has tabs, and switches to a window for reading a catalog script.
 ![The new crawl view: seed URLs, catalog checkboxes and 始める on the left; the tabs, the name of the script and the script box on the right](../../assets/screens/start.webp)
 
 ① seed URLs\
-② 目録から (from the catalog): the checkboxes and 読む (read)\
+② スクリプト (scripts): the checkboxes and 読む (read)\
 ③ 始める (start)\
 ④ the right column's tabs\
 ⑤ JS の名前 (name of the script)\
@@ -202,7 +202,7 @@ names none), the site scripts (those with sites, which run only when a seed is o
 under 書くための型 (types to write against), `host.d.ts`, the types of `__bh`, the object the
 capture server puts in the page for scripts to use. On the right is the TypeScript as it was
 written, with line numbers. The default scripts and the site scripts also appear as checkboxes
-under 目録から (from the catalog) in the [new crawl view](#start-a-crawl), where 読む (read) next to
+under スクリプト (scripts) in the [new crawl view](#start-a-crawl), where 読む (read) next to
 one opens it in the right column.
 
 ![The catalog view: the list on the left; autoscroll v2 with its version chips and coloured source on the right](../../assets/screens/catalog.webp)
