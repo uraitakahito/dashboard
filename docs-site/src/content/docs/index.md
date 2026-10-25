@@ -48,7 +48,7 @@ the daemon, which reads the archive itself. replay and Windmill are only linked 
   for. The identity here is a convenience, not a protection, and the dashboard says so in its
   header.
 - **It has no npm dependencies.** The dashboard is built from the Node standard library and plain
-  JavaScript that runs as-is in the browser, plus one committed file that colors the catalog
+  JavaScript that runs as-is in the browser, plus one committed file that colors the scripts
   (`public/vendor/shiki.js`). What has dependencies is the source of this site (`docs-site/`) and
   what that file is built from (`highlighter/`), see [Development](/development/).
 - **It only relays.** None of the dashboard's logic lives on the server. The moment it did, there would be a
