@@ -1,15 +1,15 @@
 ---
 title: 中継の口
-description: 画面のサーバが答える口 —— /healthz、台帳への素通し、クロールを始める口、WACZ の中身へ行く /wacz/ の口。Host の門、通すヘッダと、失敗の形
+description: dashboard のサーバが答える口 —— /healthz、台帳への素通し、クロールを始める口、WACZ の中身へ行く /wacz/ の口。Host の門、通すヘッダと、失敗の形
 ---
 
-画面のサーバは中継しかしません。
-画面のロジックはブラウザの側（`public/`）に在り、サーバが持つのは、台帳と daemon への道と、画面のファイルを配ることだけです。
+dashboard のサーバは中継しかしません。
+dashboard のロジックはブラウザの側（`public/`）に在り、サーバが持つのは、台帳と daemon への道と、dashboard のファイルを配ることだけです。
 置いた瞬間に「台帳が知っていることの写し」が生まれるので、ロジックはサーバに置きません。
 
 | 口 | 答えるもの |
 | --- | --- |
-| `GET /healthz` | サーバ自身（生存と、画面が要る設定） |
+| `GET /healthz` | サーバ自身（生存と、dashboard が要る設定） |
 | `POST /api/crawls` | 台帳へ（書く口はこれ 1 本） |
 | `/api/*`（ほか） | 台帳へ素通し（GET だけ） |
 | `/wacz/:id/…` | 台帳に署名をもらい、daemon へ |
@@ -18,11 +18,11 @@ description: 画面のサーバが答える口 —— /healthz、台帳への素
 口の振り分けは `src/server.mjs` に、`/wacz/` の口の読みと組み替えは `src/wacz.mjs` に在ります。
 
 どの口も、要求の `Host` が `127.0.0.1:<口>` か `localhost:<口>` でなければ 403 で断ります。
-よそのドメインの名前を 127.0.0.1 に向け直す手（DNS rebinding）で、別のサイトのページがこの画面を自分のオリジンとして読むのを止めるためです。
+よそのドメインの名前を 127.0.0.1 に向け直す手（DNS rebinding）で、別のサイトのページが dashboard を自分のオリジンとして読むのを止めるためです。
 
 ## /healthz
 
-生存と、画面が要る設定を返します。
+生存と、dashboard が要る設定を返します。
 
 ```json
 {
@@ -36,7 +36,7 @@ description: 画面のサーバが答える口 —— /healthz、台帳への素
 }
 ```
 
-画面は開いたときにこれを読み、誰として見ているかと、深いリンクの行き先を知ります。
+dashboard は開いたときにこれを読み、誰として見ているかと、深いリンクの行き先を知ります。
 `writeLimit` は書く口が受ける本文の上限（バイト）で、新しいクロールの面はこれを超える本文を送る前に止めます。
 `/api/` の下には置きません。
 あちらは台帳へ素通しする場所で、こちらの答えを混ぜると、どちらが答えたのかが読めなくなります。
@@ -56,18 +56,18 @@ description: 画面のサーバが答える口 —— /healthz、台帳への素
   401 は、期限切れも鍵替わりも同じ形で言います。
 - 台帳の答えは、状態と `content-type` と本文をそのまま返します。
 
-どの口を読むかは画面（`public/app.js`）が決め、サーバは選びません。
+どの口を読むかは dashboard（`public/app.js`）が決め、サーバは選びません。
 口の一覧（allowlist）は持っていません。
 
 ## POST /api/crawls —— クロールを始める口
 
-画面のサーバが持つ、ただ 1 本の書く口です。
+dashboard のサーバが持つ、ただ 1 本の書く口です。
 クロールの面の欄（[画面](/screens/)）が使います。
 中身は検査せず、門を通った本文をそのまま台帳の `POST /api/crawls` へ渡し、答えをそのまま返します。
 起点の URL も方針（深さ・枚数・走らせるスクリプト）も、検査して決めるのは台帳です。
 
-- **この画面のページからの JSON だけを通す。**
-  `Origin` がこの画面でなければ 403、`content-type` が JSON でなければ 415、本文が 1 MiB を超えたら 413 です（起点の URL と、欄で書いた JS の合計。台帳の `POST /api/crawls` と同じ上限）。
+- **dashboard のページからの JSON だけを通す。**
+  `Origin` が dashboard でなければ 403、`content-type` が JSON でなければ 415、本文が 1 MiB を超えたら 413 です（起点の URL と、欄で書いた JS の合計。台帳の `POST /api/crawls` と同じ上限）。
   別のサイトのページに、利用者のブラウザから POST させる手（CSRF）を止めるためです。
   Chrome の Private Network Access には頼りません。
 - アクセストークンの付け方と、401 でのやり直しは、上の `/api/*` と同じです。
@@ -86,7 +86,7 @@ description: 画面のサーバが答える口 —— /healthz、台帳への素
 WACZ（撮ったページを 1 つの ZIP にまとめたアーカイブ）を検証し、中を読む口です。
 中の WARC（撮った要求と応答を順に記録するファイル）や索引は、窓に分けて読みます。
 
-| 画面が呼ぶ | daemon へ | 返すもの |
+| dashboard が呼ぶ | daemon へ | 返すもの |
 | --- | --- | --- |
 | `POST /wacz/:id/validate` | `POST /validate` | 検証の報告 |
 | `GET /wacz/:id/lines?path=&from=&count=` | `POST /lines` | 行の窓 |
@@ -100,16 +100,16 @@ WACZ（撮ったページを 1 つの ZIP にまとめたアーカイブ）を�
 
 - **どの口も同じ 2 段。**
   台帳の `POST /api/archives/:id/url` で署名をもらい、その URL を daemon に渡します（順番の意味は [WACZ を見る](/wacz/)）。
-- **画面が呼ぶのは GET、daemon へは POST。**
+- **dashboard が呼ぶのは GET、daemon へは POST。**
   `<img src>` も GET なので、画像の実体も GET で呼べるようにしてあります。
-  検証だけは画面からも POST です（押したときだけ走らせる）。
+  検証だけは dashboard からも POST です（押したときだけ走らせる）。
 - daemon へ送る本文は `{ "source": { "kind": "uri", "uri": "<署名付き URL>" }, …引数 }` です。
   検証の引数は `locale` だけです。
 
 ## 通すヘッダ
 
 上流（台帳か daemon）の答えから通すヘッダは allowlist で、`src/server.mjs` の `PASS_HEADERS` が決めます。
-daemon の `date` や `connection` は、画面の応答に混ぜません。
+daemon の `date` や `connection` は、dashboard の応答に混ぜません。
 画像の実体は bytes のまま、daemon が付けた印（`nosniff`・`sandbox`・`no-store`）ごと通します。
 
 ## 失敗の形
@@ -120,7 +120,7 @@ daemon の `date` や `connection` は、画面の応答に混ぜません。
 | 状態 | いつ | 本文 |
 | --- | --- | --- |
 | 400 | `/wacz/` の口の引数が足りない、または数でない。台帳へは行かない | `{"error":"from is required"}` |
-| 403 | `Host` がこの画面の口でない（どの口も）。書く口では、`Origin` がこの画面でないときも | `{"error":"この画面の Host ではない"}` など |
+| 403 | `Host` が dashboard の口でない（どの口も）。書く口では、`Origin` が dashboard でないときも | `{"error":"dashboard の Host ではない"}` など |
 | 405 | method が違う。`/wacz/` の口（検証は POST、他は GET）と、`/api/*`（GET だけ。書く口を除く） | `POST だけ`・`GET だけ` など（`Allow` ヘッダつき） |
 | 413 | 書く口の本文が 1 MiB を超えた | `{"error":"本文が 1048576 バイトを超えた"}` |
 | 415 | 書く口の `content-type` が JSON でない | `{"error":"JSON だけを受ける"}` |

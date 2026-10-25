@@ -1,5 +1,5 @@
 /*
- * 画面の見た目。**素の CSS**（bundler も framework も通さない）。
+ * dashboard の見た目。**素の CSS**（bundler も framework も通さない）。
  *
  * 明暗はどちらも書く。片方だけ書くと、もう片方で「背景と同じ色の文字」になる。
  */

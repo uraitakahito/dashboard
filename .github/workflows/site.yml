@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # 画面は npm の依存を持たない。install するのは docs-site の中だけ
+      # dashboard は npm の依存を持たない。install するのは docs-site の中だけ
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc

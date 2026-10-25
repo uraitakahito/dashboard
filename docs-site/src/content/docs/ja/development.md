@@ -5,12 +5,12 @@ description: 依存の線、検査と試験が見るもの・見ないもの、�
 
 ## 依存の線
 
-**画面（repo の根）は npm の依存を持ちません。**
+**dashboard（repo の根）は npm の依存を持ちません。**
 在るのは node の http サーバ 1 本と、ブラウザで素のまま走る JS だけです。
-framework は通さないので、画面のためには install も lockfile も audit も要りません（[capture-scripts](https://github.com/uraitakahito/capture-scripts) と同じ判断）。
+framework は通さないので、dashboard のためには install も lockfile も audit も要りません（[capture-scripts](https://github.com/uraitakahito/capture-scripts) と同じ判断）。
 分割したくなるほど育ったら、そのとき入れます。
 **例外は `public/vendor/shiki.js` の 1 ファイルです。**
-目録の面の色付けを 1 ファイルに束ねて commit した物で（[同梱した色付け](#同梱した色付け)）、画面はそれを読むだけなので、install は今も要りません。
+目録の面の色付けを 1 ファイルに束ねて commit した物で（[同梱した色付け](#同梱した色付け)）、dashboard はそれを読むだけなので、install は今も要りません。
 
 依存が在るのは 2 つで、どちらも npm の別 project にしてあります。
 `docs-site/`（このサイトの原稿。Astro + Starlight と、画面の絵を撮る道具）と、`highlighter/`（`public/vendor/shiki.js` を作る元）です。
@@ -18,15 +18,15 @@ lockfile も audit も Dependabot もそこに閉じ、root に `node_modules` �
 
 | 打つもの | 何をするか |
 | --- | --- |
-| `npm run dev` | 画面を配り、`/api/*` を台帳へ、`/wacz/*` を daemon へ中継する |
-| `npm run check` | push の前に走らせる、画面の検査の全部。中身と並びは `package.json` の `check`（CI の `ci.yml` が走らせるのも同じ） |
+| `npm run dev` | 画面（`public/`）を配り、`/api/*` を台帳へ、`/wacz/*` を daemon へ中継する |
+| `npm run check` | push の前に走らせる、dashboard の検査の全部。中身と並びは `package.json` の `check`（CI の `ci.yml` が走らせるのも同じ） |
 | `npm run site:check` | docs を build し、docs と repo のずれを見る（先に `npm ci --prefix docs-site`） |
 | `npm run vendor` | `highlighter/` の lockfile から `public/vendor/`（束と、束ねた物の license の本文）を作り直す |
 | `npm run vendor:check` | 作り直して、commit した物と 1 バイトでも違えば落ちる（CI の `vendor.yml` が走らせる） |
 
-root の script は `pnpm run` で打っても同じです（[capture-ledger](https://github.com/uraitakahito/capture-ledger) の `dev:up` は、この画面を `pnpm run dev` で起こします）。
+root の script は `pnpm run` で打っても同じです（[capture-ledger](https://github.com/uraitakahito/capture-ledger) の `dev:up` は、dashboard を `pnpm run dev` で起こします）。
 `check` に `site:check` は入れていません。
-`check` が install なしで走ることも、画面の性質の一部だからです。
+`check` が install なしで走ることも、dashboard の性質の一部だからです。
 
 ## 同梱した色付け
 
@@ -45,7 +45,7 @@ root の script は `pnpm run` で打っても同じです（[capture-ledger](ht
   `test/highlight.test.mjs` が `public/app.css` の `--ground` を読み、目録のファイルで使う色が明暗とも 4.5:1 以上かを見ます。地や配色を替えれば、測り直しになります。
 - **`npm run check` は `innerHTML` を `public/` の下の全部で探す。** 束も含みます。
 - **色付けは worker で走る**（`public/highlight-worker.js`）。
-  Shiki は最初の 1 本で文法を組むので、画面の thread で走らせると 100 ms を優に超えて止まります。
+  Shiki は最初の 1 本で文法を組むので、画面を描く thread で走らせると 100 ms を優に超えて止まります。
   色は描いてある行に、1 コマに数 ms ずつ塗ります。
 
 ## 試験が見るもの、見ないもの
@@ -60,8 +60,8 @@ root の script は `pnpm run` で打っても同じです（[capture-ledger](ht
 
 ## サンドボックスで開く
 
-台帳のスタックを起こさずに、画面を全部の状態で開く手です。
-相手（台帳の代役と、本物の検証の daemon）はコンテナで、画面は host で動きます。
+台帳のスタックを起こさずに、dashboard を全部の状態で開く手です。
+相手（台帳の代役と、本物の検証の daemon）はコンテナで、dashboard は host で動きます。
 
 1. この repo の隣（`../wacz-validator`）に [wacz-validator](https://github.com/uraitakahito/wacz-validator) を置く。
    daemon の image は、その Dockerfile の daemon の段から建てます。
@@ -73,10 +73,10 @@ root の script は `pnpm run` で打っても同じです（[capture-ledger](ht
    ```
 
 3. 片付ける。
-   画面は Ctrl-C で止まり、コンテナは `npm run sandbox:down` で止まります。
+   dashboard は Ctrl-C で止まり、コンテナは `npm run sandbox:down` で止まります。
 
 口は `dev:up` が起こすものとずらしてあるので、並べて動かせます（口は `sandbox/sandbox.env`）。
-画面が読む設定は `sandbox/sandbox.env` だけで、あなたの `.env` は読みません。
+dashboard が読む設定は `sandbox/sandbox.env` だけで、あなたの `.env` は読みません。
 コンテナの組み立ては、`docker-compose.yml` の頭に書いてあります。
 
 何を見せるかは、台本（`sandbox/scenario.json`）と標本の WACZ（撮ったページをまとめたアーカイブ。`sandbox/samples/`）が決めます。
@@ -107,7 +107,7 @@ root の script は `pnpm run` で打っても同じです（[capture-ledger](ht
   本物との突き合わせは、`dev:up` のスタックでします。
 
 headless Chrome の `--dump-dom` で読もうとすると、終わりません。
-画面が一覧を引き続けるからです（止めたときには DOM は出ています）。
+dashboard が一覧を引き続けるからです（止めたときには DOM は出ています）。
 自動で押すなら puppeteer のような、ページを操作する道具を使います。
 
 ## docs を直す
@@ -153,8 +153,8 @@ npm run docs:shots                   # 全部。画素が前と同じ絵は書�
 npm run docs:shots -- start crawls   # 名指した絵だけ
 ```
 
-- **画面を変えたら、撮り直してから PR にする。**
-  画面（`public/`。束ねた色付けの `public/vendor/` も）、代役（`sandbox/`）、撮る道具のどれかを変えると、`site:check` が「画面が、絵を撮ったときと違う」で落ちます。
+- **dashboard を変えたら、撮り直してから PR にする。**
+  dashboard（`public/`。束ねた色付けの `public/vendor/` も）、代役（`sandbox/`）、撮る道具のどれかを変えると、`site:check` が「絵の元が、撮ったときと違う」で落ちます。
   全部を撮り直すと、`shots.json` の控え（`source`）が今の中身の sha256 になり、絵は画素が変わった物だけが書かれます。
   見た目の変わらない直しなら、変わるのは控えだけです。
   控えを手で写して緑にしないこと —— 絵が古いまま残ります。

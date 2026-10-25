@@ -38,7 +38,7 @@ test("URL は検査しない —— 読めない URL も、そのまま台帳へ
   assert.deepEqual(startBody("ftp://example.com/\nnot a url", true).seeds, ["ftp://example.com/", "not a url"]);
 });
 
-test("空の欄は、空の seeds になる（画面はこれを送らない）", () => {
+test("空の欄は、空の seeds になる（dashboard はこれを送らない）", () => {
   assert.deepEqual(startBody(" \n \n", true).seeds, []);
 });
 
@@ -79,8 +79,8 @@ test("Fastify の答えは message を拾う —— error には \"Not Found\" �
   assert.equal(noRoute.text, "404 —— Route POST:/api/crawls not found");
 });
 
-test("この画面のサーバに届かなければ、そう言う", () => {
-  assert.equal(startAnswer(0, { error: "Failed to fetch" }).text, "この画面自身に届きません（Failed to fetch）");
+test("dashboard のサーバに届かなければ、そう言う", () => {
+  assert.equal(startAnswer(0, { error: "Failed to fetch" }).text, "dashboard 自身に届きません（Failed to fetch）");
 });
 
 /**

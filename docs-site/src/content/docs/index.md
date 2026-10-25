@@ -1,9 +1,9 @@
 ---
 title: dashboard
-description: The crawler's development screen — one row per crawl. It holds no secrets and no npm dependencies, and only relays the ledger's API
+description: The crawler's development web app — one row per crawl. It holds no secrets and no npm dependencies, and only relays the ledger's API
 ---
 
-dashboard is the crawler's development screen. **It shows one crawl as one row.**
+dashboard is the crawler's development web app. **It shows one crawl as one row.**
 
 A crawl is started by [capture-ledger](https://github.com/uraitakahito/capture-ledger) (the ledger
 that decides which URLs get captured and records what came back), run by
@@ -15,7 +15,7 @@ S3-compatible store the crawler shares) and opened with
 ZIP.
 
 In your head that is one crawl, but it used to be spread over four screens. dashboard assembles
-one picture across those four from the ledger's API. From the same screen you can also check
+one picture across those four from the ledger's API. From the same dashboard you can also check
 whether a captured WACZ conforms to the spec, and look inside it. Those answers come from the
 daemon of [wacz-validator](https://github.com/uraitakahito/wacz-validator) (the validator that
 checks a WACZ rule by rule).
@@ -45,28 +45,28 @@ the daemon, which reads the archive itself. replay and Windmill are only linked 
   development issuer's `POST /token` when needed. `.env` only says who you look as and where to
   look; there is nowhere to put a key or a token.
 - **So it is not a boundary.** The development issuer hands out a token for any name it is asked
-  for. The identity here is a convenience, not a protection, and the screen says so in its
+  for. The identity here is a convenience, not a protection, and the dashboard says so in its
   header.
-- **It has no npm dependencies.** The screen is built from the Node standard library and plain
+- **It has no npm dependencies.** The dashboard is built from the Node standard library and plain
   JavaScript that runs as-is in the browser, plus one committed file that colors the catalog
   (`public/vendor/shiki.js`). What has dependencies is the source of this site (`docs-site/`) and
   what that file is built from (`highlighter/`), see [Development](/development/).
-- **It only relays.** No screen logic lives on the server. The moment it did, there would be a
+- **It only relays.** None of the dashboard's logic lives on the server. The moment it did, there would be a
   copy of what the ledger knows.
 - **It owns no wording.** Validation messages, their Japanese text and the spec sections all come
-  back from the daemon already resolved, and are shown as they are. If the screen rephrased them,
+  back from the daemon already resolved, and are shown as they are. If the dashboard rephrased them,
   it would quietly drift from what the validator has started to say.
 
 ## Not published
 
-The screen binds to `127.0.0.1` only and is served over plain http. Chrome's Private Network
+The dashboard binds to `127.0.0.1` only and is served over plain http. Chrome's Private Network
 Access (PNA, which blocks requests from public pages to your local network) stops an https page
-from calling `127.0.0.1`. So there is no way to put **the screen** on GitHub Pages. What lives on
+from calling `127.0.0.1`. So there is no way to put **the dashboard** on GitHub Pages. What lives on
 Pages is this documentation only.
 
 ## Where to go next
 
-- **[Quickstart](/quickstart/)** — bring the screen up, grant your identity access, fix things
+- **[Quickstart](/quickstart/)** — bring the dashboard up, grant your identity access, fix things
   from the message you see.
 - **[Screens](/screens/)** — what the five views show, how states are worded, how often it polls.
 - **[Inspecting a WACZ](/wacz/)** — the two steps of validation, the report, the contents view.

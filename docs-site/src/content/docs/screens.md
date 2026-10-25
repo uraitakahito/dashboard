@@ -1,12 +1,12 @@
 ---
 title: Screens
-description: What the five views show — crawls, start, archives, catalog and contents — how a crawl's state is worded, and how often the screen polls
+description: What the five views show — crawls, start, archives, catalog and contents — how a crawl's state is worded, and how often the dashboard polls
 ---
 
-The screen has five views. You switch with the tabs at the top, and the `#` in the URL decides
+The dashboard has five views. You switch with the tabs at the top, and the `#` in the URL decides
 which view is shown (`#crawls`, `#start`, `#archives`, `#scripts`; in the catalog view it also names
 what you are reading). The contents tab only appears once you
-enter it with 開く (open) on an archive row. The screen itself is in Japanese; the tab names are
+enter it with 開く (open) on an archive row. The dashboard itself is in Japanese; the tab names are
 クロール, 新しいクロール, アーカイブ, 目録 and 中身.
 
 ![The tabs at the top: クロール, 新しいクロール, アーカイブ and 目録, with 新しいクロール selected](../../assets/screens/tabs.webp)
@@ -25,7 +25,7 @@ footer shows how many rows are listed and how often the lists are fetched again.
 ## The lists are one page of the ledger
 
 The crawls and archives views list only the first page the ledger returns (newest first). The
-screen does not fetch further pages. For archives, the ledger returns only the ones in that page
+dashboard does not fetch further pages. For archives, the ledger returns only the ones in that page
 that your identity may view, so there can be fewer rows than a page holds. The counts in the
 footer are the rows on screen, not everything the ledger has.
 
@@ -52,7 +52,7 @@ WACZ files and the time taken. "run ↗" at the right end opens the Windmill run
   `lastJob` that the ledger returns, plus the Windmill origin and workspace the server hands out
   through `/healthz`. Rows where the ledger has no `lastJob` get no link.
 - **Click a row to see why it failed, what ran in the page, and the URLs that could not be
-  fetched.** Only then does the screen fetch `/api/crawls/:id`. The ledger's `error` comes first,
+  fetched.** Only then does the dashboard fetch `/api/crawls/:id`. The ledger's `error` comes first,
   in its own words: a crawl that failed at the compile step captured nothing, so its list of failed
   pages is empty and would otherwise read like a success. Next is what ran, in the order it ran:
   catalog scripts with their version and a 読む (read) link to the [catalog view](#catalog) at the
@@ -61,14 +61,14 @@ WACZ files and the time taken. "run ↗" at the right end opens the Windmill run
   [new crawl view](#start-a-crawl). A site script carries its sites, as a chip such as
   `example.com 用`. Last are the pages that failed, as many
   as the ledger returns; if none did, it says so and lists the seed URLs.
-- **An opened row stays open.** The table is rebuilt on every fetch, so the screen remembers the
+- **An opened row stays open.** The table is rebuilt on every fetch, so the dashboard remembers the
   open rows by id and opens them again from the last answer. It fetches a row again only while the
   crawl is running or when its state has changed.
 
 ### The state is worded together with stopReason
 
 `state` alone is not enough. `succeeded` mixes crawls that followed everything to the end with
-crawls that stopped at the depth or page limit. The screen words them apart using `stopReason`
+crawls that stopped at the depth or page limit. The dashboard words them apart using `stopReason`
 (完走 for completed, 打ち切り for stopped at a limit), and shows an unknown `stopReason` as it
 is, in parentheses.
 
@@ -100,7 +100,7 @@ has tabs, and switches to a window for reading a catalog script.
   sends no `scripts`, and the ledger picks the same set from the seeds. An empty catalog is still a
   400, and so, with its own message, is a catalog in which nothing fits the seeds. Otherwise it
   sends `scripts`: your script first, then the ticked catalog scripts in catalog
-  order; unticking all of them sends `[]`, which runs nothing. The screen checks neither the URLs
+  order; unticking all of them sends `[]`, which runs nothing. The dashboard checks neither the URLs
   nor the script's name; the ledger says what is wrong with a 400, naming the ids it refused.
 - **A site script can be ticked only when a seed is on its site.** A script with sites can be
   ticked only while one of the seeds is on one of those hosts. The seed's hostname must match
@@ -260,8 +260,8 @@ ledger that starts crawls and records what came back).
 ## Polling
 
 While at least one crawl is running, the lists are fetched every 2 seconds; otherwise every 30
-seconds. Without keeping a copy, the screen still looks live while something runs, and stays
+seconds. Without keeping a copy, the dashboard still looks live while something runs, and stays
 quiet when nothing does.
 
-When a fetch fails, the screen keeps the last tables it could draw and shows the reason at the
+When a fetch fails, the dashboard keeps the last tables it could draw and shows the reason at the
 top (see "Fix it from the message" in the [Quickstart](/quickstart/)).

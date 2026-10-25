@@ -3,7 +3,7 @@
 # Dependabot が読むのは **default branch (main) に置かれたこのファイル** だけ。
 # PR も main へ出す (`target-branch` を書かなければ、default branch 宛てになる)。
 #
-# 画面 (repo の根) は npm の依存を持たない。npm の lockfile は docs-site と highlighter の 2 本
+# dashboard (repo の根) は npm の依存を持たない。npm の lockfile は docs-site と highlighter の 2 本
 # なので、npm の entry はその 2 つの directory に置く (root の entry はどちらにも届かない)。
 version: 2
 updates:
@@ -47,7 +47,7 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    # 束ねて画面で走らせるので、docs-site より長く枯らす。security 更新には適用されない
+    # 束ねて dashboard で走らせるので、docs-site より長く枯らす。security 更新には適用されない
     cooldown:
       default-days: 7
     open-pull-requests-limit: 1

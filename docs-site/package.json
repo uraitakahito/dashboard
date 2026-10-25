@@ -3,7 +3,7 @@
     "package.json にコメントを書く方法の議論:",
     "https://stackoverflow.com/questions/14221579/how-do-i-add-comments-to-package-json-for-npm-install",
     "",
-    "docs の原稿 (Astro + Starlight) だけの npm project。画面 (repo の根) は npm の依存を持たないので、",
+    "docs の原稿 (Astro + Starlight) だけの npm project。dashboard (repo の根) は npm の依存を持たないので、",
     "依存も lockfile も audit も Dependabot も、ここに閉じる。root に node_modules は作らない",
     "(読む所の色付けの束を作る highlighter/ も同じ形)。",
     "@astrojs/markdown-satteri と satteri: Astro 7.2 からの既定の Markdown 処理系。astro.config.ts が",

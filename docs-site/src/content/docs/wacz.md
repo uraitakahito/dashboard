@@ -43,14 +43,14 @@ the daemon (the routes are listed in [Routes](/routes/)).
   `(署名付き URL)`). Exposing it would undo what authorization closed: until it expires, anyone
   holding the URL can read the archive. The `source` in the report is the identity the daemon
   derived by dropping the query, so it is safe to return.
-- **The signature is fetched again for every call.** Keeping it would mean this screen holds a
+- **The signature is fetched again for every call.** Keeping it would mean the dashboard holds a
   valid key for as long as it lives.
 
 ## The validation report
 
 Pressing 検証 on an archive row opens that archive's report under the row.
 
-- The number of passed rules, and the verdict (failures, warnings, or no problems). The screen
+- The number of passed rules, and the verdict (failures, warnings, or no problems). The dashboard
   never shows only the passes, because 0 warnings and 3 warnings are different states, and both
   have 0 failures.
 - Which build of the validator looked at it and with which profile (`wacz-validator <version>` /
@@ -62,17 +62,17 @@ Pressing 検証 on an archive row opens that archive's report under the row.
 
 The verdict also stays in the row's 仕様どおりか (conforms?) cell.
 
-**The screen owns no wording.** Messages, their Japanese text and the spec links all come back
-from the daemon already resolved, and are shown as they are. If the screen rephrased a rule, it
-would quietly drift from what the validator has started to say. All the screen sends is
+**The dashboard owns no wording.** Messages, their Japanese text and the spec links all come back
+from the daemon already resolved, and are shown as they are. If the dashboard rephrased a rule, it
+would quietly drift from what the validator has started to say. All the dashboard sends is
 `locale`.
 
 ### It validates with the spec profile
 
-The screen does not send a profile, so the daemon validates with its default, `spec`. Rules
+The dashboard does not send a profile, so the daemon validates with its default, `spec`. Rules
 that only apply to the capture server (BrowserHive) do not show up here. The report line says
 `profile spec`, so you can see which profile was used. Validating against BrowserHive's own
-profile would need a way for the screen to send a profile, which does not exist yet.
+profile would need a way for the dashboard to send a profile, which does not exist yet.
 
 ### The daemon does not rebuild itself
 
@@ -96,8 +96,8 @@ asks for it, the findings on that entry) and its contents.
 - **Lines**: a window of 200 lines at a time. Long lines are cut horizontally. If there is more,
   a button reads the next window.
 - **One line**: click a line to read all of it (a line that is too long is cut by the daemon, and
-  the screen says it was cut at 4 MiB). CDXJ (the index format for WARC) and JSONL (one JSON per
-  line) lines come back split into fields by the daemon; the screen does not know how to split them. For an index line, a button opens the
+  the dashboard says it was cut at 4 MiB). CDXJ (the index format for WARC) and JSONL (one JSON per
+  line) lines come back split into fields by the daemon; the dashboard does not know how to split them. For an index line, a button opens the
   record it points to.
 - **Record list**: this is what you get for a `.warc.gz`. One row per record, walking the WARC
   from the start, 200 at a time, filterable by type. ▪ marks a record the index (CDXJ) points
@@ -111,8 +111,8 @@ Only opening a different archive validates again and rebuilds the tree.
 
 ## Captured content was written by someone else
 
-What is inside a WACZ was written by the authors of the captured pages. The screen inserts text
+What is inside a WACZ was written by the authors of the captured pages. The dashboard inserts text
 with `textContent` and shows images only as raster images in `<img>`. The daemon marks images
-with `nosniff` and `sandbox`, and refuses SVG and HTML with 415. The screen has no API that
+with `nosniff` and `sandbox`, and refuses SVG and HTML with 415. The dashboard has no API that
 inserts raw HTML, and `npm run check` makes sure there is no `innerHTML` in the JavaScript under
 `public/`.

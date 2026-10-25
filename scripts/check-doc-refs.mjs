@@ -15,11 +15,11 @@
  *   6. README の Documentation の 2 本の URL が、docs-site/astro.config.ts の `site` ＋ `BASE` から
  *      組んだものと一致する (base を変えた日に、README だけが 404 を指し続けないように)
  *   7. 「画面」の絵 (`docs-site/src/assets/screens/`) が shots.json の一覧と揃い、ja・en の screens.md が
- *      全部を載せている。どれも lossless の WebP で、予算 (1 枚 40 KB・全部で 150 KB) の中。画面
+ *      全部を載せている。どれも lossless の WebP で、予算 (1 枚 40 KB・全部で 150 KB) の中。絵の元
  *      (`public/`・`sandbox/`・撮る道具) が、撮ったときから変わっていない
  *
  * 4 と 5 が要るのは、表が手で写した物だから。口や変数を足しても、表は誰かが直すまで古いまま ——
- * README に表があった頃、画面が読まなくなった口が書かれたまま残っていた。それをこの検査が PR で止める。
+ * README に表があった頃、dashboard が読まなくなった口が書かれたまま残っていた。それをこの検査が PR で止める。
  *
  * 効いているのを見るには: ja のページを 1 枚 `.ja.md` に改名する → 赤。本文に `src/nope.mjs` → 赤。
  * routes.md から 1 行消す → 赤。.env.example の既定値を 1 つ変える → 赤。README の URL を綴り違える → 赤。
@@ -160,7 +160,7 @@ if (site === undefined || base === undefined) {
   }
 }
 
-// ─── 7. 「画面」の絵 ⇔ shots.json ⇔ いまの画面 ───────────────────────────────
+// ─── 7. 「画面」の絵 ⇔ shots.json ⇔ いまの絵の元 ───────────────────────────────
 // 絵は npm run docs:shots (docs-site/scripts/docs-shots.mjs) の生成物。CI では撮らない (代役のコンテナが
 // 要る) ので、撮った物のほうを見る。予算があるのは、撮り直すたびに git に積もるから。古さの物差しは撮る
 // 道具と同じ関数 (scripts/shots-source.mjs)。この赤は撮り直して消す —— shots.json の source を手で写すと、
@@ -196,7 +196,7 @@ if (shotBytes > BUDGET.all)
   problems.push(`${SHOTS_REL}: 絵が全部で ${kb(shotBytes)} —— ${kb(BUDGET.all)} まで`);
 if (shotsSource(ROOT) !== manifest.source) {
   problems.push(
-    `${SHOTS_REL}/shots.json: 画面 (${SHOT_SOURCES.join("・")}) が、絵を撮ったときと違う。npm run docs:shots で撮り直す`,
+    `${SHOTS_REL}/shots.json: 絵の元 (${SHOT_SOURCES.join("・")}) が、撮ったときと違う。npm run docs:shots で撮り直す`,
   );
 }
 

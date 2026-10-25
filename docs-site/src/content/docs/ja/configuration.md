@@ -22,7 +22,7 @@ capture-ledger は、OpenFGA（認可のサービス）の id のように「走
 
 | 名前 | 既定値 | 何を決めるか |
 | --- | --- | --- |
-| `DASHBOARD_PORT` | `7080` | 画面の待受。loopback（`127.0.0.1`）にだけ bind する |
+| `DASHBOARD_PORT` | `7080` | dashboard の待受。loopback（`127.0.0.1`）にだけ bind する |
 | `DASHBOARD_LEDGER_URL` | `http://127.0.0.1:7070` | 台帳の API |
 | `DASHBOARD_ISSUER_URL` | `http://127.0.0.1:9099` | 開発用 issuer。capture-ledger の `pnpm run oidc:issuer` が立てるもの |
 | `DASHBOARD_SUBJECT` | この機械のユーザー名 | 誰として見るか。この名前に許可が要る（[クイックスタート](/quickstart/)） |
@@ -37,15 +37,15 @@ capture-ledger は、OpenFGA（認可のサービス）の id のように「走
 
 ### 名乗りは便利さで、守りではない
 
-画面は `DASHBOARD_SUBJECT` と `DASHBOARD_ORGANIZATIONS` の名前で、開発用 issuer の `POST /token` からアクセストークンを取得します。
+dashboard は `DASHBOARD_SUBJECT` と `DASHBOARD_ORGANIZATIONS` の名前で、開発用 issuer の `POST /token` からアクセストークンを取得します。
 開発用 issuer は、頼まれれば誰の名前でも出します。
 ここで名前を変えれば、その名前として見えるものが見えます。
-だからこの画面は境界ではなく、loopback の外に出しません。
+だから dashboard は境界ではなく、loopback の外に出しません。
 
-### 行き先は、画面が組み立てない
+### 行き先は、dashboard が組み立てない
 
 replay と Windmill の行き先は、配備の事実です。
-台帳が返すのは `objectKey` と run の id だけなので、どこで開くかはサーバが 1 か所で決め、`/healthz` で画面に配ります（[中継の口](/routes/)）。
+台帳が返すのは `objectKey` と run の id だけなので、どこで開くかはサーバが 1 か所で決め、`/healthz` でブラウザの側に配ります（[中継の口](/routes/)）。
 
 ## 読む順
 

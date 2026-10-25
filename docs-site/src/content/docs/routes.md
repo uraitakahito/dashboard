@@ -1,16 +1,16 @@
 ---
 title: Routes
-description: What the screen's server answers — /healthz, the pass-through to the ledger, the route that starts a crawl, and the /wacz/ routes into a WACZ. The Host check, which headers pass, and what failures look like
+description: What the dashboard's server answers — /healthz, the pass-through to the ledger, the route that starts a crawl, and the /wacz/ routes into a WACZ. The Host check, which headers pass, and what failures look like
 ---
 
-The screen's server only relays. The screen's logic lives in the browser (`public/`); all the
-server does is provide a way to the ledger and the daemon, and serve the screen's files. The
+The dashboard's server only relays. The dashboard's logic lives in the browser (`public/`); all the
+server does is provide a way to the ledger and the daemon, and serve the dashboard's files. The
 moment logic lived on the server, there would be a copy of what the ledger knows, so it does
 not.
 
 | Route | Answered by |
 | --- | --- |
-| `GET /healthz` | the server itself (liveness, and the settings the screen needs) |
+| `GET /healthz` | the server itself (liveness, and the settings the dashboard needs) |
 | `POST /api/crawls` | the ledger (the one and only route that writes) |
 | `/api/*` (the rest) | passed through to the ledger (GET only) |
 | `/wacz/:id/…` | signed by the ledger, then answered by the daemon |
@@ -20,12 +20,12 @@ The routing is in `src/server.mjs`; parsing and rewriting the `/wacz/` routes is
 `src/wacz.mjs`.
 
 Every route refuses with a 403 unless the request's `Host` is `127.0.0.1:<port>` or
-`localhost:<port>`. That stops a page from another site from reading this screen as if it were
+`localhost:<port>`. That stops a page from another site from reading the dashboard as if it were
 its own origin, by pointing its domain name at 127.0.0.1 (DNS rebinding).
 
 ## /healthz
 
-Returns liveness and the settings the screen needs.
+Returns liveness and the settings the dashboard needs.
 
 ```json
 {
@@ -39,7 +39,7 @@ Returns liveness and the settings the screen needs.
 }
 ```
 
-The screen reads it when it opens, to learn who it is looking as and where the deep links go.
+The dashboard reads it when it opens, to learn who it is looking as and where the deep links go.
 `writeLimit` is the largest body, in bytes, the route that writes accepts; the new crawl view stops
 before sending a bigger one.
 It does not live under `/api/`: that is where the ledger is passed through, and mixing this
@@ -60,18 +60,18 @@ cannot call it directly, the server relays it to make it same-origin.
   A 401 says both "expired" and "the keys changed" in the same way.
 - The ledger's status, `content-type` and body are returned as they are.
 
-Which ledger routes are read is decided by the screen (`public/app.js`); the server does not
+Which ledger routes are read is decided by the dashboard (`public/app.js`); the server does not
 choose. It keeps no list of allowed routes.
 
 ## POST /api/crawls — the route that starts a crawl
 
-This is the one route of the screen's server that writes. The form on the crawls view
+This is the one route of the dashboard's server that writes. The form on the crawls view
 ([Screens](/screens/)) uses it. The server does not check the contents: it hands the body that
 passed the checks below to the ledger's `POST /api/crawls` as it is, and returns the answer as
 it is. The ledger is the one that checks and decides the seed URLs and the policy (depth, page
 limit, which scripts run).
 
-- **Only JSON from this screen's own page gets through.** If the `Origin` is not this screen it
+- **Only JSON from the dashboard's own page gets through.** If the `Origin` is not the dashboard it
   is a 403, if the `content-type` is not JSON it is a 415, and a body over 1 MiB (seed URLs and any
   script written in the form, together; the same limit as the ledger's `POST /api/crawls`) is a 413. This
   stops a page from another site from making your browser send the POST (CSRF). It does not
@@ -93,7 +93,7 @@ These routes validate a WACZ (the archive format that packs captured pages into 
 read inside it. The WARC files in it (which record the captured requests and responses in order)
 and its indexes are read one window at a time.
 
-| The screen calls | Sent to the daemon | Returns |
+| The dashboard calls | Sent to the daemon | Returns |
 | --- | --- | --- |
 | `POST /wacz/:id/validate` | `POST /validate` | the validation report |
 | `GET /wacz/:id/lines?path=&from=&count=` | `POST /lines` | a window of lines |
@@ -108,8 +108,8 @@ change `OPS`, `paramsFor` and this table.
 - **Every route takes the same two steps.** Get a signature from the ledger's
   `POST /api/archives/:id/url`, then hand that URL to the daemon (why in that order is in
   [Inspecting a WACZ](/wacz/)).
-- **The screen calls GET; the daemon gets POST.** `<img src>` is a GET too, so the image itself
-  can be fetched with a GET. Only validation is a POST from the screen as well (it runs only when
+- **The dashboard calls GET; the daemon gets POST.** `<img src>` is a GET too, so the image itself
+  can be fetched with a GET. Only validation is a POST from the dashboard as well (it runs only when
   you press it).
 - The body sent to the daemon is `{ "source": { "kind": "uri", "uri": "<signed URL>" }, …arguments }`.
   Validation's only argument is `locale`.
@@ -118,7 +118,7 @@ change `OPS`, `paramsFor` and this table.
 
 Which headers of the upstream answer (the ledger's or the daemon's) pass through is an
 allowlist, `PASS_HEADERS` in `src/server.mjs`. The daemon's `date` and `connection` are not mixed
-into the screen's response. The image itself passes as bytes, together with the marks the daemon
+into the dashboard's response. The image itself passes as bytes, together with the marks the daemon
 put on it (`nosniff`, `sandbox`, `no-store`).
 
 ## What failures look like
@@ -128,7 +128,7 @@ A failure says what is missing. "You may not see it" and "it is not running" are
 | Status | When | Body |
 | --- | --- | --- |
 | 400 | an argument of a `/wacz/` route is missing or not a number; the ledger is not asked | `{"error":"from is required"}` |
-| 403 | the `Host` is not this screen's (any route); on the route that writes, also when the `Origin` is not this screen | `{"error":"この画面の Host ではない"}` and so on |
+| 403 | the `Host` is not the dashboard's (any route); on the route that writes, also when the `Origin` is not the dashboard | `{"error":"dashboard の Host ではない"}` and so on |
 | 405 | wrong method: on a `/wacz/` route (validation is POST, the rest GET), or on `/api/*` (GET only, except the route that writes) | `POST だけ`, `GET だけ` and so on, with an `Allow` header |
 | 413 | the body sent to the route that writes is over 1 MiB | `{"error":"本文が 1048576 バイトを超えた"}` |
 | 415 | the `content-type` sent to the route that writes is not JSON | `{"error":"JSON だけを受ける"}` |

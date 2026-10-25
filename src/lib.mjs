@@ -59,24 +59,24 @@ export const safePath = (root, url) => {
 };
 
 /**
- * Host が、この画面の口か。**全部の口で見る** —— DNS rebinding（よそのドメインの名前を
- * 127.0.0.1 に向け直す手）で、別のサイトのページがこの画面を自分のオリジンとして読むのを
+ * Host が、dashboard の口か。**全部の口で見る** —— DNS rebinding（よそのドメインの名前を
+ * 127.0.0.1 に向け直す手）で、別のサイトのページが dashboard を自分のオリジンとして読むのを
  * 止める。書く口だけを守っても、読む口から一覧が漏れる。
  */
 export const hostAllowed = (host, port) =>
   host === `127.0.0.1:${String(port)}` || host === `localhost:${String(port)}`;
 
 /**
- * 書く口の門。この画面のページからの JSON だけを通す。断るなら `{ status, error }` を返す。
+ * 書く口の門。dashboard のページからの JSON だけを通す。断るなら `{ status, error }` を返す。
  *
  * Origin を見るのは CSRF（別のサイトのページに、利用者のブラウザから POST させる手）のため。
  * JSON に限るのは、form が preflight なしで送れる形（text/plain など）を締め出すため。
  * Chrome の Private Network Access には頼らない —— 版で振る舞いが変わる。
  */
 export const writeRefusal = (headers, port) => {
-  if (!hostAllowed(headers.host, port)) return { status: 403, error: "この画面の Host ではない" };
+  if (!hostAllowed(headers.host, port)) return { status: 403, error: "dashboard の Host ではない" };
   if (headers.origin !== `http://${String(headers.host)}`) {
-    return { status: 403, error: "この画面のページからの要求ではない" };
+    return { status: 403, error: "dashboard のページからの要求ではない" };
   }
   const type = (headers["content-type"] ?? "").split(";")[0].trim();
   if (type !== "application/json") return { status: 415, error: "JSON だけを受ける" };
@@ -86,7 +86,7 @@ export const writeRefusal = (headers, port) => {
 /**
  * 書く口が受ける本文の上限。起点の URL と、その場で書いた JS が入る。**capture-ledger の
  * `POST /api/crawls` の上限（`src/api/crawls.ts` の `CRAWL_BODY_LIMIT`）と同じ 1 MiB** —— 片方だけを
- * 変えると、画面が通すのに台帳が 413、の形になる。画面は `/healthz` の `writeLimit` で知り、
+ * 変えると、dashboard が通すのに台帳が 413、の形になる。dashboard は `/healthz` の `writeLimit` で知り、
  * 送る前に止める。超えたら 413（台帳まで行かない）。
  */
 export const WRITE_LIMIT = 1024 * 1024;

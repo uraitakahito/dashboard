@@ -1,17 +1,17 @@
 ---
 title: Development
-description: Where the dependencies stop, what the checks and tests see and do not see, opening the screen in the sandbox, editing these docs, re-taking the screenshots, releasing
+description: Where the dependencies stop, what the checks and tests see and do not see, opening the dashboard in the sandbox, editing these docs, re-taking the screenshots, releasing
 ---
 
 ## Where the dependencies stop
 
-**The screen (the repository root) has no npm dependencies.** It is one Node http server and
-JavaScript that runs as-is in the browser. Nothing goes through a framework, so the screen needs
+**The dashboard (the repository root) has no npm dependencies.** It is one Node http server and
+JavaScript that runs as-is in the browser. Nothing goes through a framework, so the dashboard needs
 no install, no lockfile and no audit (the same call as
 [capture-scripts](https://github.com/uraitakahito/capture-scripts)). If it grows enough to want
 splitting up, that is the time to add them. **The one exception is `public/vendor/shiki.js`,** the
 coloring of the catalog view, bundled into a single file and committed (see
-[The bundled coloring](#the-bundled-coloring)). The screen only reads it, so it still needs no
+[The bundled coloring](#the-bundled-coloring)). The dashboard only reads it, so it still needs no
 install.
 
 Two things have dependencies, each kept as a separate npm project: `docs-site/` (the source of
@@ -21,15 +21,15 @@ root.
 
 | Run | What it does |
 | --- | --- |
-| `npm run dev` | serves the screen, relaying `/api/*` to the ledger and `/wacz/*` to the daemon |
-| `npm run check` | every check for the screen to run before pushing; what it runs, and in which order, is `check` in `package.json` (the same thing CI's `ci.yml` runs) |
+| `npm run dev` | serves `public/`, relaying `/api/*` to the ledger and `/wacz/*` to the daemon |
+| `npm run check` | every check for the dashboard to run before pushing; what it runs, and in which order, is `check` in `package.json` (the same thing CI's `ci.yml` runs) |
 | `npm run site:check` | builds the docs and checks that they match the repository (after `npm ci --prefix docs-site`) |
 | `npm run vendor` | rebuilds `public/vendor/` (the bundle and the license texts of what it bundles) from the lockfile in `highlighter/` |
 | `npm run vendor:check` | rebuilds, and fails if a single byte differs from what is committed (CI's `vendor.yml` runs it) |
 
 The root scripts work the same with `pnpm run` (the `dev:up` of
-[capture-ledger](https://github.com/uraitakahito/capture-ledger) starts the screen with `pnpm run dev`). `site:check` is deliberately not part of `check`: that `check` runs without
-installing anything is part of the screen's nature too.
+[capture-ledger](https://github.com/uraitakahito/capture-ledger) starts the dashboard with `pnpm run dev`). `site:check` is deliberately not part of `check`: that `check` runs without
+installing anything is part of the dashboard's nature too.
 
 ## The bundled coloring
 
@@ -66,10 +66,10 @@ same files the browser reads, so there is no copy to rot.
 **Relaying and identity are not checked in CI.** They cannot be confirmed without the ledger and
 the issuer running, so the evidence is gathered by hand and pasted into the PR.
 
-## Opening the screen in the sandbox
+## Opening the dashboard in the sandbox
 
-A way to open the screen in every state without starting the ledger's stack. The other side (a
-stand-in for the ledger, and the real validation daemon) runs in containers, and the screen runs
+A way to open the dashboard in every state without starting the ledger's stack. The other side (a
+stand-in for the ledger, and the real validation daemon) runs in containers, and the dashboard runs
 on the host.
 
 1. Put [wacz-validator](https://github.com/uraitakahito/wacz-validator) next to this repository
@@ -81,10 +81,10 @@ on the host.
    open http://127.0.0.1:7081/
    ```
 
-3. Clean up. Ctrl-C stops the screen, and `npm run sandbox:down` stops the containers.
+3. Clean up. Ctrl-C stops the dashboard, and `npm run sandbox:down` stops the containers.
 
 Its ports are moved away from the ones `dev:up` uses, so both can run side by side (the ports are
-in `sandbox/sandbox.env`). The screen reads only `sandbox/sandbox.env`, never your `.env`. How the
+in `sandbox/sandbox.env`). The dashboard reads only `sandbox/sandbox.env`, never your `.env`. How the
 containers fit together is written at the top of `docker-compose.yml`.
 
 What it shows is decided by the scenario (`sandbox/scenario.json`) and the sample WACZ files (the
@@ -114,7 +114,7 @@ There are things the stand-in does not do:
   field, the stand-in does not follow (`test/sandbox.test.mjs` pins the copied set of fields).
   Checking against the real thing happens on the `dev:up` stack.
 
-Reading it with headless Chrome's `--dump-dom` never finishes, because the screen keeps fetching
+Reading it with headless Chrome's `--dump-dom` never finishes, because the dashboard keeps fetching
 its lists (the DOM is there by the time you stop it). To press buttons automatically, use a tool
 that drives the page, such as puppeteer.
 
@@ -151,7 +151,7 @@ npm run site:check          # before pushing
 ## Re-taking the screenshots
 
 The pictures on the [Screens](/screens/) page are taken by `npm run docs:shots`
-(`docs-site/scripts/docs-shots.mjs`) against the [sandbox](#opening-the-screen-in-the-sandbox). No
+(`docs-site/scripts/docs-shots.mjs`) against the [sandbox](#opening-the-dashboard-in-the-sandbox). No
 picture is taken by hand. CI does not take them (that needs the stand-in's containers): they are
 taken locally, and CI watches what was taken.
 
@@ -162,9 +162,9 @@ npm run docs:shots                   # all of them; a picture whose pixels did n
 npm run docs:shots -- start crawls   # only the named ones
 ```
 
-- **After changing the screen, re-take the pictures before opening the PR.** Changing the screen
+- **After changing the dashboard, re-take the pictures before opening the PR.** Changing the dashboard
   (`public/`, the bundled coloring in `public/vendor/` included), the stand-in (`sandbox/`) or the
-  tool makes `site:check` fail with 画面が、絵を撮ったときと違う (the screen differs from when the
+  tool makes `site:check` fail with 絵の元が、撮ったときと違う (the sources of the pictures differ from when they were
   pictures were taken). Re-taking all of them sets the stamp in `shots.json` (`source`) to the
   sha256 of the current contents, and writes only the pictures whose pixels changed; a fix that
   changes nothing visible changes only the stamp. Do not copy the stamp by hand to turn it green:

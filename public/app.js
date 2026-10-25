@@ -1,5 +1,5 @@
 /**
- * 画面。**素の JS**（bundler も framework も通さない）。
+ * dashboard。**素の JS**（bundler も framework も通さない）。
  *
  * 読むのは台帳の口と、WACZ の中身へ行く `/wacz/` の口だけ。ここで畳むのは「どの面を
  * 出すか」と「どう描くか」で、何が起きたかは全部向こうが知っている。
@@ -99,7 +99,7 @@ const linkCell = (href, text) => {
   return td;
 };
 
-/** 同じ画面の中の行き先（hash）。新しいタブで開かない。 */
+/** dashboard の中の行き先（hash）。新しいタブで開かない。 */
 const hashCell = (href, text) => {
   const td = document.createElement("td");
   const a = document.createElement("a");
@@ -528,7 +528,7 @@ $("start-inline-file").addEventListener("change", () => void readFileIntoForm())
 /**
  * 1 本の報告を描く。**文は 1 つも持たない** —— message も日本語も spec の節も、
  * daemon が解決して返したものをそのまま出す (`renderJson(report, locale)`)。
- * ここで言い換えると、検証器が言い始めたことと画面がずれていく。
+ * ここで言い換えると、検証器が言い始めたことと dashboard がずれていく。
  */
 const drawReport = (td, report) => {
   td.replaceChildren();
@@ -555,7 +555,7 @@ const drawReport = (td, report) => {
       tag("span", issue.rule, "mono"),
       tag("span", issue.message),
     );
-    // **spec へのリンクも daemon が持っている。** 画面が URL を組み立てない。
+    // **spec へのリンクも daemon が持っている。** dashboard が URL を組み立てない。
     if (issue.specUrl) {
       const a = document.createElement("a");
       a.href = issue.specUrl;
@@ -1239,7 +1239,7 @@ IN_START.lines.addEventListener("click", (event) => {
 /**
  * waxlens と同じ入力から同じ木を組む（検証の報告の `entries`）。中身は `/wacz/` の口に
  * **窓で**頼む —— 行の窓（200 行ずつ）、1 行を丸ごと（fields は daemon が割る）、
- * レコードの一覧（200 件ずつ）、1 レコード。窓の位置はこの画面が持つ。
+ * レコードの一覧（200 件ずつ）、1 レコード。窓の位置は dashboard が持つ。
  */
 const WINDOW = 200;
 
@@ -1642,7 +1642,7 @@ const start = async () => {
       `${settings.subject} (${settings.organizations.join(", ")}) として見ています` +
       " —— 開発用の名乗りです";
   } catch {
-    $("who").textContent = "この画面自身に届きません";
+    $("who").textContent = "dashboard 自身に届きません";
   }
   syncStart(); // 上限を知ってから、欄の下の行を出す
   await refresh();
