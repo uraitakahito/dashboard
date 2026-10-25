@@ -81,7 +81,7 @@ limit, which scripts run).
 | The ledger's answer | When |
 | --- | --- |
 | 202 `{"crawlId": …}` | accepted (it does not wait for the crawl to finish) |
-| 400 `{"error": …}` | a seed URL that cannot be read, an empty script catalog (with a `hint`), an unknown catalog id or the same id twice (with `ids`), and so on |
+| 400 `{"error": …}` | a seed URL that cannot be read, no registered scripts (with a `hint`), an unknown script id or the same id twice (with `ids`), and so on |
 | 404 | the identity may not start crawls (`{"error":"not found"}`), or the ledger has nowhere to send crawls configured and does not serve the route at all |
 | 409 `{"error": …, "crawlId": …}` | a crawl is already running (one at a time, overall); `crawlId` is the one in the way |
 

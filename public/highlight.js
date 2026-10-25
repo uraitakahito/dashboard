@@ -4,7 +4,7 @@
  */
 
 /**
- * 配色。明は github-light-high-contrast、暗は github-dark-default。目録のファイルで使う色が全部、
+ * 配色。明は github-light-high-contrast、暗は github-dark-default。スクリプトのファイルで使う色が全部、
  * dashboard の地（明 #f2f4f5・暗 #0f1517）に対して 4.5:1 以上になる組はこれだけだった（2026-10-17 に測った）。
  */
 export const THEMES = { light: "github-light-high-contrast", dark: "github-dark-default" };

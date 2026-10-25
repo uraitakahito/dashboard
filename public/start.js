@@ -8,7 +8,7 @@
  * 片方だけが変わった日に、dashboard が通すのに台帳が断る（または逆）形になる。
  */
 
-/** 走らせるものの欄が、何も選んでいない形（目録が空で、その場の JS も無い）。 */
+/** 走らせるものの欄が、何も選んでいない形（台帳にスクリプトが無く、その場の JS も無い）。 */
 const NOTHING_CHOSEN = {
   catalog: [],
   picked: [],
@@ -30,7 +30,7 @@ export const seedHosts = (text) =>
   );
 
 /**
- * その台本を、この起点で選べるか。**札（`sites`）が無ければいつでも**、あれば札のどれかが起点の
+ * そのスクリプトを、この起点で選べるか。**札（`sites`）が無ければいつでも**、あれば札のどれかが起点の
  * ホストにあるとき（完全一致。`example.com` と `www.example.com` は別）。台帳（capture-ledger
  * v0.61.0）の決まりの写しで、正は台帳 —— 合わない物を名指せば、台帳が 400 で断る。
  */
@@ -39,21 +39,21 @@ export const onSeed = (script, hosts) =>
 
 /**
  * ふつうに押したか（左のボタンだけ・修飾キーなし）。チェックの横の「読む」は、このときだけ右の列で開く。
- * それ以外はブラウザに任せる（href は目録の画面なので、別のタブで開くなど）。
+ * それ以外はブラウザに任せる（href はスクリプトの画面なので、別のタブで開くなど）。
  */
 export const plainClick = (event) =>
   event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
 
-/** 起点だけで決まる顔ぶれ —— 台帳が `scripts` を省いた頼みに選ぶ物と同じ。並びは目録の並び。 */
+/** 起点だけで決まる顔ぶれ —— 台帳が `scripts` を省いた頼みに選ぶ物と同じ。並びは台帳の並び。 */
 export const defaultIds = (scripts, hosts) =>
   scripts.filter((script) => onSeed(script, hosts)).map((script) => script.id);
 
 /**
  * 走らせるもの（台帳の `scripts`）。**既定のまま —— 選んだ物が既定の顔ぶれ（`defaultIds`）と同じで、
  * その場の JS が空 —— なら送らない**（`undefined`）。台帳も起点から同じ物を選ぶので、省いても走る物は
- * 変わらない。省くのは、目録が空のときと、起点に合う物が無いときの 400 を台帳に言わせるため。
+ * 変わらない。省くのは、台帳にスクリプトが無いときと、起点に合う物が無いときの 400 を台帳に言わせるため。
  *
- * 送るときは、その場の JS を先に、選んだ目録を目録の並び（`catalog` の順）で。全部外せば `[]` ——
+ * 送るときは、その場の JS を先に、選んだスクリプトを台帳の並び（`catalog` の順）で。全部外せば `[]` ——
  * 「何も走らせない」。source は削らない —— 台帳が打つ sha256 は、書いたバイト列の物。名前は前後の
  * 空白だけ落とす。綴りは検査しない（台帳が 400 で言う）。
  */
@@ -105,7 +105,7 @@ export const startAnswer = (status, answer) => {
   }
   const said = answer.message ?? answer.error ?? "答えに文がありません";
   if (status === 0) return { kind: "bad", text: `dashboard 自身に届きません（${said}）` };
-  // 台帳が名指した id（知らない目録の id・重ね）。文の後、hint の前に
+  // 台帳が名指した id（知らないスクリプトの id・重ね）。文の後、hint の前に
   const ids = Array.isArray(answer.ids) ? `: ${answer.ids.join(", ")}` : "";
   const hint = typeof answer.hint === "string" ? `（${answer.hint}）` : "";
   return { kind: "bad", text: `${String(status)} —— ${said}${ids}${hint}` };
@@ -146,7 +146,7 @@ export const withNocheck = (source, on) => {
 };
 
 /**
- * 目録の 1 本を、その場の JS の下敷きにする（目録の画面の「下敷きにする」）。**替えるのは 2 つの
+ * スクリプト 1 本を、その場の JS の下敷きにする（スクリプトの画面の「下敷きにする」）。**替えるのは 2 つの
  * 形だけ** —— `__bh.opts["<id>"]` と `__bh.report("<id>"` の id を `inline-<名前>` に。台帳は
  * その場の JS を `inline-<名前>` の id で走らせるので、替えないと設定も報告も元の id のまま届く。
  *

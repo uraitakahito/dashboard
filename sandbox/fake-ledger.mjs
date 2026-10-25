@@ -10,11 +10,11 @@
  *
  * `POST /api/crawls` (dashboard の新しいクロールの画面) にも答える。受けた行は代役が起きている間だけ在り、
  * 台本の `submit.runsSeconds` 秒走ってから完走になる (台本の行とは別に持つ)。走らせるもの
- * (`scripts`。目録の名指しとその場の JS) も台帳と同じ形で受け、1 本の詳しい所に返す。
+ * (`scripts`。台帳のスクリプトの名指しとその場の JS) も台帳と同じ形で受け、1 本の詳しい所に返す。
  *
- * 目録 (台本の `catalog`) は版の並びで、source は sandbox/catalog の写しから読む。目録を読む口
- * (版の一覧・1 版・受け皿の型) にも答える。札 (`sites`) のある版はサイト用の台本で、台帳と同じく
- * 起点のホストで選び、合わない名指しは 400 で断る。見本の台本は sandbox/sites に置く。
+ * 台帳のスクリプト (台本の `catalog`) は版の並びで、source は sandbox/catalog の写しから読む。スクリプトを読む口
+ * (版の一覧・1 版・受け皿の型) にも答える。札 (`sites`) のある版はサイト用のスクリプトで、台帳と同じく
+ * 起点のホストで選び、合わない名指しは 400 で断る。見本のスクリプトは sandbox/sites に置く。
  *
  * 試験から関数を import できるように、server は直に走らせたときだけ立てる。
  */
@@ -70,7 +70,7 @@ export const crawlRow = (c, now) => ({
 
 /**
  * /api/crawls/:id の、走らせたもの 1 本。欄は capture-ledger v0.61.0 の src/api/crawls.ts と同じ ——
- * 目録の物は身元と札だけ、その場の物にだけ `inline` が付く。**source は載せない**（名前・口・バイト数）。
+ * 台帳のスクリプトは身元と札だけ、その場の物にだけ `inline` が付く。**source は載せない**（名前・口・バイト数）。
  */
 const detailScript = (s) => ({
   id: s.id,
@@ -92,7 +92,7 @@ const detailScript = (s) => ({
 
 /**
  * /api/crawls/:id/inline/:name。欄は capture-ledger v0.59.0 の src/api/crawls.ts と同じ ——
- * その場の JS 1 本の source を返す（dashboard の「欄に戻す」が使う）。目録の物と、知らない名前は 404。
+ * その場の JS 1 本の source を返す（dashboard の「欄に戻す」が使う）。台帳のスクリプトと、知らない名前は 404。
  */
 export const inlineSource = (scripts, name) => {
   const script = (scripts ?? []).find((x) => x.inline?.name === name);
@@ -182,8 +182,8 @@ const elementRefusal = (element, i) => {
 };
 
 /**
- * 走らせるものを、台帳 (capture-ledger v0.61.0) と同じ順で解く: 形 (schema) → 重ね → 目録に無い id →
- * 起点に合わないサイト用の台本。省けば既定の顔ぶれ (`defaultSet`) で、それが空なら 400。
+ * 走らせるものを、台帳 (capture-ledger v0.61.0) と同じ順で解く: 形 (schema) → 重ね → 台帳に無い id →
+ * 起点に合わないサイト用のスクリプト。省けば既定の顔ぶれ (`defaultSet`) で、それが空なら 400。
  * その場の JS は `inline-<name>`・版 1 で、sha256 は source から打つ (台帳と同じ)。札は持たない。
  */
 const resolveRun = (scripts, versions, hosts) => {
@@ -210,7 +210,7 @@ const resolveRun = (scripts, versions, hosts) => {
     ),
   ];
   if (missing.length > 0) {
-    return { status: 400, body: { error: "unknown catalog scripts", ids: missing } };
+    return { status: 400, body: { error: "unknown script ids", ids: missing } };
   }
   const run = scripts.map((r) =>
     "catalog" in r
@@ -238,8 +238,8 @@ const resolveRun = (scripts, versions, hosts) => {
 };
 
 /**
- * 既定を頼まれたのに、既定が空。文は台帳 v0.61.0 の src/api/crawls.ts と同じ —— 目録は在るのに
- * 全部が別のサイト用なら、「目録が空」とは言わない (取り込み直しても直らない)。
+ * 既定を頼まれたのに、既定が空。文は台帳 v0.61.3 の src/api/crawls.ts と同じ —— スクリプトは在るのに
+ * 全部が別のサイト用なら、「スクリプトが無い」とは言わない (取り込み直しても直らない)。
  */
 const emptyDefault = (versions) => {
   const enabled = latestEnabled(versions);
@@ -257,14 +257,14 @@ const emptyDefault = (versions) => {
   return {
     status: 400,
     body: {
-      error: "the script catalog is empty",
+      error: "no scripts are registered",
       hint: "pnpm run scripts import .upstream/capture-scripts (run nothing on purpose: send scripts: [])",
     },
   };
 };
 
 /**
- * 台本の目録（版の並び）に source を読み込む。source は sandbox/catalog の写し（見本のサイト用の台本は
+ * 台本のスクリプト（版の並び）に source を読み込む。source は sandbox/catalog の写し（見本のサイト用のスクリプトは
  * sandbox/sites）で、sha256 と bytes は台帳と同じく source から数える（手で書いた sha256 は、本物の
  * 中身と結び付かない）。欄は capture-ledger v0.61.0 の 1 版の口（`GET /api/scripts/:id/versions/:version`）と同じ。
  */
@@ -285,14 +285,14 @@ export const catalogOf = (s, read = readBeside) =>
     };
   });
 
-/** 有効な各 id の最新版を id 順で。サイト用の台本も入る（台帳の enabledLatest。`GET /api/scripts` の答え）。 */
+/** 有効な各 id の最新版を id 順で。サイト用のスクリプトも入る（台帳の enabledLatest。`GET /api/scripts` の答え）。 */
 export const latestEnabled = (versions) =>
   [...new Set(versions.map((v) => v.id))].sort().flatMap((id) => {
     const mine = versions.filter((v) => v.id === id && v.enabled);
     return mine.length === 0 ? [] : [mine.reduce((a, b) => (b.version > a.version ? b : a))];
   });
 
-/** 札の無い台本はいつでも、サイト用の台本は札のどれかが起点のホストにあるとき（台帳の onSeed）。 */
+/** 札の無いスクリプトはいつでも、サイト用のスクリプトは札のどれかが起点のホストにあるとき（台帳の onSeed）。 */
 const onSeed = (sites, hosts) => sites.length === 0 || sites.some((site) => hosts.has(site));
 
 /**
@@ -358,7 +358,7 @@ export const hostTypesOf = (s, read = readBeside) => {
  * **走行中の 1 本は、受けた行だけで数える** —— 台本の走行中の行は飾りで、それで 409 に
  * すると何も始められない。409 を見たいなら、走っている間にもう 1 度始める。
  *
- * `versions` は目録の版の並び (`catalogOf`)。起点のホスト (台帳と同じく `hostname`。ポートは見ない) で
+ * `versions` はスクリプトの版の並び (`catalogOf`)。起点のホスト (台帳と同じく `hostname`。ポートは見ない) で
  * 既定を選び、名指しを照らす。走らせたものは受けた行の `scripts` に持ち、一覧の行 (`submittedRow`) には
  * 出さない。
  */
@@ -469,7 +469,7 @@ const scenario = readingLastGood(() => JSON.parse(readFileSync(SCENARIO, "utf8")
 /** dashboard の欄から受けた行。代役が起きている間だけ在る (台本には書かない)。 */
 const submitted = [];
 
-/** 台本の目録の版の並び。`emptyCatalog` なら空 (目録が空の台帳。読む所には受け皿の型だけが残る)。 */
+/** 台本のスクリプトの版の並び。`emptyCatalog` なら空 (スクリプトが無い台帳。読む所には受け皿の型だけが残る)。 */
 const versionsIn = (s) => (s.emptyCatalog === true ? [] : catalogOf(s));
 
 const handle = (req, res, raw) => {
@@ -536,7 +536,7 @@ const handle = (req, res, raw) => {
     send(res, 200, { scripts });
     return;
   }
-  // 目録を読む口（台帳 v0.60.0）。id は % を解いてから引く
+  // スクリプトを読む口（台帳 v0.60.0）。id は % を解いてから引く
   const versions = /^\/api\/scripts\/([^/]+)\/versions(?:\/([^/]+))?$/.exec(pathname);
   if (req.method === "GET" && versions !== null) {
     const id = decodeURIComponent(versions[1]);

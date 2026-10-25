@@ -15,7 +15,7 @@ import { makeHighlighter } from "../public/vendor/shiki.js";
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const highlighter = await makeHighlighter();
 
-/** 目録の写し（capture-scripts の実物と同じ。代役が配る物）。 */
+/** スクリプトの写し（capture-scripts の実物と同じ。代役が配る物）。 */
 const [autofetch, autoscroll, hostTypes] = ["autofetch.ts", "autoscroll.ts", "host.d.ts"].map(
   (file) => read(`../sandbox/catalog/${file}`),
 );
@@ -48,7 +48,7 @@ test("行の数は読む所と同じ（Shiki が最後の改行の後ろに返�
   }
 });
 
-test("目録で使うどの色も、dashboard の地に対して 4.5:1 以上（明暗とも）", () => {
+test("スクリプトで使うどの色も、dashboard の地に対して 4.5:1 以上（明暗とも）", () => {
   assert.ok(lightGround !== undefined && darkGround !== undefined, "app.css の --ground を 2 つ読めない");
   for (const source of catalog) {
     for (const line of paint(highlighter, source)) {

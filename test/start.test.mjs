@@ -59,13 +59,13 @@ test("202 は始めた 1 本を、409 は塞いでいる 1 本を、決めた文
 
 test("台帳の文は言い換えず、hint があれば添える", () => {
   const empty = startAnswer(400, {
-    error: "the script catalog is empty",
+    error: "no scripts are registered",
     hint: "pnpm run scripts import .upstream/capture-scripts (run nothing on purpose: send scripts: [])",
   });
   assert.equal(empty.kind, "bad");
   assert.equal(
     empty.text,
-    "400 —— the script catalog is empty（pnpm run scripts import .upstream/capture-scripts (run nothing on purpose: send scripts: [])）",
+    "400 —— no scripts are registered（pnpm run scripts import .upstream/capture-scripts (run nothing on purpose: send scripts: [])）",
   );
   assert.equal(startAnswer(404, { error: "not found" }).text, "404 —— not found");
 });
@@ -84,7 +84,7 @@ test("dashboard のサーバに届かなければ、そう言う", () => {
 });
 
 /**
- * 走らせるものの欄。目録は札の無い autofetch・autoscroll の 2 本（目録の画面と同じ id 順）で、
+ * 走らせるものの欄。台帳のスクリプトは札の無い autofetch・autoscroll の 2 本（スクリプトの画面と同じ id 順）で、
  * どちらも既定の顔ぶれ。
  */
 const CATALOG = ["autofetch", "autoscroll"];
@@ -92,14 +92,14 @@ const NO_INLINE = { name: "", phase: "behavior", source: "" };
 const run = (picked, inline = NO_INLINE) => ({ catalog: CATALOG, picked, defaults: CATALOG, inline });
 
 test("走らせるものが既定のまま（既定の顔ぶれを全部選び、その場の JS が空）なら scripts を送らない", () => {
-  // 台帳の既定と、目録が空のときの 400 を生かす
+  // 台帳の既定と、台帳にスクリプトが無いときの 400 を生かす
   assert.equal("scripts" in startBody("https://example.com/", true, run(CATALOG)), false);
-  // 目録が空で、その場の JS も無いときも送らない（台帳が「目録が空」と言う）
+  // 台帳にスクリプトが無く、その場の JS も無いときも送らない（台帳が「スクリプトが無い」と言う）
   assert.equal(scriptsOf({ catalog: [], picked: [], defaults: [], inline: NO_INLINE }), undefined);
 });
 
-test("目録を 1 つ外すと、選んだ物だけを目録の並びで送る", () => {
-  // 押した順ではなく、目録の並び
+test("スクリプトを 1 つ外すと、選んだ物だけを台帳の並びで送る", () => {
+  // 押した順ではなく、台帳の並び
   assert.deepEqual(scriptsOf(run(["autoscroll"])), [{ catalog: "autoscroll" }]);
   assert.deepEqual(scriptsOf(run(["autoscroll", "autofetch"], { ...NO_INLINE, source: "x;" })).slice(1), [
     { catalog: "autofetch" },
@@ -121,23 +121,23 @@ const SITE = { id: "example-title", sites: ["example.com"] };
 const SCRIPTS = [{ id: "autofetch", sites: [] }, { id: "autoscroll", sites: [] }, SITE];
 const IDS = SCRIPTS.map((script) => script.id);
 
-test("札の無い台本は、起点が無くても、どの起点でも既定", () => {
+test("札の無いスクリプトは、起点が無くても、どの起点でも既定", () => {
   assert.deepEqual(defaultIds(SCRIPTS, new Set()), ["autofetch", "autoscroll"]);
   assert.deepEqual(defaultIds(SCRIPTS, seedHosts("https://example.org/")), ["autofetch", "autoscroll"]);
 });
 
-test("サイト用の台本は、起点のどれかが札のホストにあるときだけ既定 —— ポートは見ない", () => {
+test("サイト用のスクリプトは、起点のどれかが札のホストにあるときだけ既定 —— ポートは見ない", () => {
   assert.deepEqual(defaultIds(SCRIPTS, seedHosts("https://example.org/\nhttp://example.com:8080/a")), IDS);
   // 完全一致。www. の付いたホストは別
   assert.equal(onSeed(SITE, seedHosts("https://www.example.com/")), false);
 });
 
-test("起点に合わないサイト用の台本は既定に数えない —— 残りを全部選んでいれば scripts を省く", () => {
+test("起点に合わないサイト用のスクリプトは既定に数えない —— 残りを全部選んでいれば scripts を省く", () => {
   const defaults = defaultIds(SCRIPTS, seedHosts("https://example.org/"));
   assert.equal(scriptsOf({ catalog: IDS, picked: defaults, defaults, inline: NO_INLINE }), undefined);
 });
 
-test("起点に合うサイト用の台本を外したら scripts を送る —— 省くと台帳が既定で入れる", () => {
+test("起点に合うサイト用のスクリプトを外したら scripts を送る —— 省くと台帳が既定で入れる", () => {
   const defaults = defaultIds(SCRIPTS, seedHosts("https://example.com/"));
   assert.deepEqual(scriptsOf({ catalog: IDS, picked: ["autofetch", "autoscroll"], defaults, inline: NO_INLINE }), [
     { catalog: "autofetch" },
@@ -172,8 +172,8 @@ test("名前の綴りは検査しない —— 読めない名前も、そのま
 
 test("台帳が名指した ids を、文の後に添える", () => {
   assert.equal(
-    startAnswer(400, { error: "unknown catalog scripts", ids: ["typo-scroll"] }).text,
-    "400 —— unknown catalog scripts: typo-scroll",
+    startAnswer(400, { error: "unknown script ids", ids: ["typo-scroll"] }).text,
+    "400 —— unknown script ids: typo-scroll",
   );
   assert.equal(
     startAnswer(400, { error: "duplicate script ids", ids: ["inline-a", "autofetch"] }).text,

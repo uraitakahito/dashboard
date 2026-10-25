@@ -13,7 +13,7 @@
         <button type="button" id="tab-crawls" class="on" data-face="crawls">クロール</button>
         <button type="button" id="tab-start" data-face="start">新しいクロール</button>
         <button type="button" id="tab-archives" data-face="archives">アーカイブ</button>
-        <button type="button" id="tab-scripts" data-face="scripts">目録</button>
+        <button type="button" id="tab-scripts" data-face="scripts">スクリプト</button>
         <button type="button" id="tab-wacz" data-face="wacz" hidden>中身</button>
       </nav>
       <p id="who" class="who">名乗りを確かめています…</p>
@@ -52,7 +52,7 @@
         （maxDepth: 0）」・走らせるもので、ほかは台帳の既定。走らせるものは、既定のまま（起点で決まる
         既定の顔ぶれを全部選び、その場の JS が空）なら送らない。URL も JS の名前も検査しない（台帳が 400 で言う）。
         本文が上限（/healthz の writeLimit）を超えたら、送る前に止める。答えは左の列の下に 1 行で。
-        202 と 409 は一覧の画面へ移り、行に印を付ける。右の列はタブで、その場の JS と読む窓（目録の 1 版か
+        202 と 409 は一覧の画面へ移り、行に印を付ける。右の列はタブで、その場の JS と読む窓（スクリプトの 1 版か
         受け皿の型を、チェックの横の「読む」で開く）を切り替える。画面は移らず、JS の箱は隠れるだけ。
       -->
       <section id="face-start" hidden>
@@ -61,10 +61,10 @@
             <label for="start-seeds">起点の URL（1 行に 1 本）</label>
             <textarea id="start-seeds" rows="4" spellcheck="false" placeholder="https://example.com/"></textarea>
             <fieldset class="start-run">
-              <legend>目録から</legend>
+              <legend>スクリプト</legend>
               <!--
-                目録のチェック。app.js が目録の画面と同じ一覧から描く。外した物は、このクロールでは走らない。
-                サイト用の台本（札のある物）は、起点のどれかが札のホストにあるときだけ押せる（台帳の決まり）。
+                スクリプトのチェック。app.js がスクリプトの画面と同じ一覧から描く。外した物は、このクロールでは走らない。
+                サイト用のスクリプト（札のある物）は、起点のどれかが札のホストにあるときだけ押せる（台帳の決まり）。
                 名前の横の「読む」は、その版を右の列で開く（押せないチェックの横でも）
               -->
               <div class="start-row" id="start-picks"></div>
@@ -84,15 +84,15 @@
             <p class="start-hint">
               strict の TypeScript として型を検査します（最初の段の compile）。IIFE で包み、要素には型を付けて
               <code>?.</code> で。束ねた JS は「型を検査しない」で（1 行目に <code>// @ts-nocheck</code> が入る）。
-              <code>export</code> は書かない（ページで構文エラーになり、何も走らない）。その場の JS は目録より先に走ります。
+              <code>export</code> は書かない（ページで構文エラーになり、何も走らない）。その場の JS は、チェックしたスクリプトより先に走ります。
               JS の名前（<code>inline-</code> の後ろ）は、英小文字で始め、英小文字・数字・<code>-</code> で 57 字まで。
               <code>inline-</code> を付けた物がこの JS の id になります（報告の鍵も同じ）。
-              <!-- data-read: ふつうに押せば右の列で開く（app.js）。修飾キーなら目録の画面を別のタブで -->
+              <!-- data-read: ふつうに押せば右の列で開く（app.js）。修飾キーならスクリプトの画面を別のタブで -->
               <a href="#scripts/types/host.d.ts" data-read>受け皿 <code>__bh</code> の型を読む</a>
             </p>
           </div>
           <div class="start-code">
-            <!-- 右の列のタブ。読む窓のタブと × は、目録の「読む」で開いている間だけ出る（app.js の showStartTab） -->
+            <!-- 右の列のタブ。読む窓のタブと × は、スクリプトの「読む」で開いている間だけ出る（app.js の showStartTab） -->
             <div class="start-tabs">
               <button type="button" id="start-tab-js" class="on">その場の JS</button>
               <button type="button" id="start-tab-read" hidden></button>
@@ -127,8 +127,8 @@
               <p id="start-size" class="start-size">0 行</p>
             </div>
             <!--
-              読む窓。目録の 1 版か受け皿の型を、目録の画面と同じ部品で出す（app.js の IN_START）。版の札と
-              行の URL は持たない —— 要るなら「目録の画面で開く」。source は他人が書いたもの。文字は textContent で
+              読む窓。スクリプトの 1 版か受け皿の型を、スクリプトの画面と同じ部品で出す（app.js の IN_START）。版の札と
+              行の URL は持たない —— 要るなら「スクリプトの画面で開く」。source は他人が書いたもの。文字は textContent で
             -->
             <div id="start-read" class="start-read" hidden>
               <div id="start-read-head" class="vhead rhead"></div>
@@ -161,7 +161,7 @@
       </section>
 
       <!--
-        目録の画面（読む所）。左に一覧（既定で走る版と受け皿の型）、右に書いたままの source。本文は
+        スクリプトの画面（読む所）。左に一覧（既定で走る版と受け皿の型）、右に書いたままの source。本文は
         1 行 1 つの <li>（中身の画面の行の並びと同じ組み方）で、押した行が URL になる
         （#scripts/<id>[@版][:行]・履歴は増やさない）。版の札は見出しに、開いた id の分だけ。
         source は他人が書いたもの —— 文字は textContent で。色は worker（Shiki）が付け、1 色で描いた
@@ -170,15 +170,15 @@
       <section id="face-scripts" hidden>
         <!--
           空は「異常ではないが、たいてい間違い」。BrowserHive は顔ぶれを持たないので、
-          目録が空だとページの中で何も走らない —— それでも取り込みは成功する。
+          台帳にスクリプトが無いと、ページの中で何も走らない —— それでも取り込みは成功する。
         -->
         <p id="scripts-empty" class="empty bad" hidden>
-          目録が空です。クロールはページの中で何も走らせません（スクロールも遅延読み込みも
+          台帳にスクリプトがありません。クロールはページの中で何も走らせません（スクロールも遅延読み込みも
           起きないまま、成功したアーカイブが出ます）。
           <code>cd ../capture-ledger &amp;&amp; pnpm run scripts import .upstream/capture-scripts</code>
         </p>
         <div class="vgrid">
-          <nav id="reading-list" class="rlist" aria-label="目録"></nav>
+          <nav id="reading-list" class="rlist" aria-label="スクリプト"></nav>
           <div class="vmain">
             <div id="reading-head" class="vhead rhead"></div>
             <p id="reading-note" class="reading-note" hidden></p>

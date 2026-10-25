@@ -148,12 +148,12 @@ const failuresText = (one) => {
     : failures.map((f) => `${f.url} — ${f.reason ?? "理由なし"}`).join("\n");
 };
 
-/** 札の印（サイト用の台本のホスト名）。一覧・見出し・新しいクロールの画面・クロールの詳しい所で同じ形。 */
+/** 札の印（サイト用のスクリプトのホスト名）。一覧・見出し・新しいクロールの画面・クロールの詳しい所で同じ形。 */
 const siteChip = (sites, suffix = " 用") => tag("span", `${sites.join("・")}${suffix}`, "site");
 
 /**
- * 走らせたもの。**並びが実行順。** 目録の物は版を、その場で書いた物は「その場」と出す ——
- * その場の物にだけ、台帳は頼まれた要素（`inline`）を返す。サイト用の台本には札を添える。
+ * 走らせたもの。**並びが実行順。** 台帳のスクリプトは版を、その場で書いた物は「その場」と出す ——
+ * その場の物にだけ、台帳は頼まれた要素（`inline`）を返す。サイト用のスクリプトには札を添える。
  */
 const ranOf = (one) => {
   const scripts = one.scripts ?? [];
@@ -164,12 +164,12 @@ const ranOf = (one) => {
     const item = document.createElement("li");
     const where =
       script.inline === undefined
-        ? `目録 v${String(script.version)}・${script.phase}`
+        ? `台帳 v${String(script.version)}・${script.phase}`
         : `その場・${script.phase}・${count(script.inline.bytes)} バイト`;
     item.append(tag("span", script.id, "mono"));
     if (script.sites.length > 0) item.append(siteChip(script.sites));
     item.append(tag("span", where, "muted"));
-    // その場の JS は、直して撮り直せるように欄へ戻せる（目録の物は目録に在る）。source は詳しい所に
+    // その場の JS は、直して撮り直せるように欄へ戻せる（台帳のスクリプトは台帳に在る）。source は詳しい所に
     // 無いので、押したときに名前の口から取る
     if (script.inline !== undefined) {
       item.append(button("欄に戻す", () => void putBack(one.crawlId, script.inline.name)));
@@ -287,19 +287,19 @@ const drawCrawls = () => {
 
 // ── 新しいクロール ─────────────────────────────────────────────────
 /**
- * 描いた目録のチェック（目録の画面と同じ並び。札の無い物もサイト用の物も）。チェックはこの並びで描き、
- * 送るときもこの並び。`why` はサイト用の台本にだけ在る、押せない理由の欄。
+ * 描いたスクリプトのチェック（スクリプトの画面と同じ並び。札の無い物もサイト用の物も）。チェックはこの並びで描き、
+ * 送るときもこの並び。`why` はサイト用のスクリプトにだけ在る、押せない理由の欄。
  */
 let picks = [];
 
-/** 外した目録の id。**引き直しても覚えておく。** 新しく現れた id は、選んだ状態で出る。 */
+/** 外したスクリプトの id。**引き直しても覚えておく。** 新しく現れた id は、選んだ状態で出る。 */
 const unpicked = new Set();
 
-/** 最後に描いた目録の形（id と版と札）。同じなら描き直さない。 */
+/** 最後に描いたチェックの形（id と版と札）。同じなら描き直さない。 */
 let catalogKey;
 
 /**
- * 目録のチェックを描く。**目録が変わったときだけ描き直す** —— 一覧は走行中なら 2 秒ごとに
+ * スクリプトのチェックを描く。**台帳のスクリプトが変わったときだけ描き直す** —— 一覧は走行中なら 2 秒ごとに
  * 引くので、毎回作り直すと、押そうとしているチェックが手の下で入れ替わる。付け外しは `syncPicks`。
  */
 const drawPicks = (scripts) => {
@@ -319,7 +319,7 @@ const drawPicks = (scripts) => {
     const label = document.createElement("label");
     label.className = "pick";
     const name = tag("span", `${script.id} v${String(script.version)}`, "mono");
-    // 中身を読む。ふつうに押せば右の列でこの版を開き、修飾キーなら目録の画面を別のタブで（data-read の
+    // 中身を読む。ふつうに押せば右の列でこの版を開き、修飾キーならスクリプトの画面を別のタブで（data-read の
     // click）。label の中の <a> は、押してもチェックを替えない —— 押せないチェックの横でも読める
     const read = tag("a", "読む", "read");
     read.href = readingHash({ id: script.id, version: script.version });
@@ -336,14 +336,14 @@ const drawPicks = (scripts) => {
     box.append(label);
     picks.push({ script, input, why });
   }
-  if (scripts.length === 0) box.append(tag("span", "目録が空です（目録の画面を見てください）", "muted"));
+  if (scripts.length === 0) box.append(tag("span", "台帳にスクリプトがありません（スクリプトの画面を見てください）", "muted"));
   syncPicks();
-  // 読む窓の版が既定から外れたかもしれない。standing（既定で走る版か）を今の目録で言い直す
+  // 読む窓の版が既定から外れたかもしれない。standing（既定で走る版か）を今の台帳のスクリプトで言い直す
   if (startRead.doc !== undefined && startRead.target.id !== undefined) drawStartReadHead();
 };
 
 /**
- * チェックを起点に合わせる。サイト用の台本は、起点のどれかが札のホストにあるときだけ押せる
+ * チェックを起点に合わせる。サイト用のスクリプトは、起点のどれかが札のホストにあるときだけ押せる
  * （台帳の決まりの写し。`start.js` の `onSeed`）。**人が外したチェックは覚えたまま** —— 起点を
  * 書き換えて合わなくなれば押せなくなり、合うようになれば、外していない限り付く。
  */
@@ -384,7 +384,7 @@ const runOf = () => {
 };
 
 /**
- * その場の JS を欄に戻し、新しいクロールの画面へ移る。直して撮り直すため。**起点と目録の選びは触らない。**
+ * その場の JS を欄に戻し、新しいクロールの画面へ移る。直して撮り直すため。**起点とスクリプトの選びは触らない。**
  * source は詳しい所に無い（capture-ledger v0.59.0）ので、名前の口から取る。
  */
 const putBack = async (crawlId, name) => {
@@ -651,20 +651,20 @@ const drawArchives = () => {
   }
 };
 
-// ── 目録（読む所）─────────────────────────────────────────────────
+// ── スクリプト（読む所）────────────────────────────────────────────
 /**
  * 読む所の状態。**取るのは開いたときだけ** —— 一覧（有効な各 id の最新版）は引き直しの答えを使い、版の札と
  * 1 版の中身は開いた id の分だけ取る。受け皿の型は画面を最初に開いたとき 1 回で、refresh には入れない
  * （入れると、型を取り込んでいない台帳で引き直し全体が落ちる）。
  */
 const reading = {
-  /** 最後に開いた URL。タブ「目録」はここへ戻る（中身の画面の wacz.hash と同じ） */
+  /** 最後に開いた URL。タブ「スクリプト」はここへ戻る（中身の画面の wacz.hash と同じ） */
   hash: undefined,
   /** 開いている物: URL が名指した物（target）と、その中身（doc。版か型） */
   open: undefined,
   /** 1 版の中身。`id@版` で覚え、版の札の sha256 と食い違えば取り直す（番号は使い回される） */
   docs: new Map(),
-  /** 有効な各 id の最新版（GET /api/scripts の最後の答え）。サイト用の台本も札つきで入る */
+  /** 有効な各 id の最新版（GET /api/scripts の最後の答え）。サイト用のスクリプトも札つきで入る */
   latest: [],
   /** 受け皿の型。undefined はまだ訊いていない、null は台帳に無い（404） */
   types: undefined,
@@ -678,7 +678,7 @@ const TYPES_KEY = "types";
 const keyOf = (target) => target.id ?? TYPES_KEY;
 
 /**
- * 本文を出す所の組。目録の画面（読む所）と、新しいクロールの右の列（読む窓）が同じ部品で描き、
+ * 本文を出す所の組。スクリプトの画面（読む所）と、新しいクロールの右の列（読む窓）が同じ部品で描き、
  * 違うのは要素の組だけ —— 見出し・本文の上の 1 行・色の 1 行・書きかけの確認・本文。
  */
 const placeOf = (prefix) => ({
@@ -738,7 +738,7 @@ const drawReadingList = () => {
     const onSites = reading.latest.filter((s) => s.sites.length > 0);
     nav.replaceChildren(tag("span", "既定で走る", "grp"));
     if (anywhere.length === 0) {
-      nav.append(tag("span", reading.latest.length === 0 ? "（目録が空）" : "（無し）", "muted"));
+      nav.append(tag("span", reading.latest.length === 0 ? "（台帳にスクリプトが無い）" : "（無し）", "muted"));
     }
     nav.append(...anywhere.map(item));
     if (onSites.length > 0) {
@@ -979,7 +979,7 @@ const openScript = async (target, stale) => {
   if (stale()) return;
   if (listed === undefined) {
     drawReadingHead(IN_CATALOG, { name: target.id, facts: [] });
-    readingNote(IN_CATALOG, `目録に ${target.id} はありません。`, "", "bad");
+    readingNote(IN_CATALOG, `台帳に ${target.id} はありません。`, "", "bad");
     drawLines(IN_CATALOG, undefined);
     return;
   }
@@ -990,7 +990,7 @@ const openScript = async (target, stale) => {
   if (entry === undefined) {
     drawReadingHead(IN_CATALOG, { name: `${target.id} v${String(version)}`, chips, facts: [] });
     readingNote(IN_CATALOG, 
-      `v${String(version)} は目録に在りません（消されています）。`,
+      `v${String(version)} は台帳に在りません（消されています）。`,
       "走った物はアーカイブの behaviors/custom.jsonl に在ります（変換後の JS）。",
     );
     drawLines(IN_CATALOG, undefined);
@@ -1012,8 +1012,8 @@ const openScript = async (target, stale) => {
   if (target.sha !== undefined && !doc.sha256.startsWith(target.sha)) {
     readingNote(IN_CATALOG, 
       `このクロールが走らせた v${String(version)} とは中身が違います。`,
-      `クロールの記録は sha256 ${target.sha}…、目録の v${String(version)} は ` +
-        `${doc.sha256.slice(0, 12)}… です。v${String(version)} は目録から消され、別の中身で足し直されて` +
+      `クロールの記録は sha256 ${target.sha}…、台帳の v${String(version)} は ` +
+        `${doc.sha256.slice(0, 12)}… です。v${String(version)} は台帳から消され、別の中身で足し直されて` +
         "います。走った物はアーカイブの behaviors/custom.jsonl に在ります（変換後の JS）。",
     );
   } else {
@@ -1054,7 +1054,7 @@ const openReading = async (asked) => {
     drawReadingList();
     if (target === undefined) {
       reading.open = undefined;
-      drawReadingHead(IN_CATALOG, { name: "目録", facts: [] });
+      drawReadingHead(IN_CATALOG, { name: "スクリプト", facts: [] });
       readingNote(IN_CATALOG, undefined);
       drawLines(IN_CATALOG, undefined);
       return;
@@ -1083,7 +1083,7 @@ const askReplace = (at, doc, lines) => {
 };
 
 /**
- * 目録の 1 版を、その場の JS の欄に写して新しいクロールの画面へ移る。**書きかけを黙って消さない** —— 欄が空で
+ * スクリプトの 1 版を、その場の JS の欄に写して新しいクロールの画面へ移る。**書きかけを黙って消さない** —— 欄が空で
  * なければ、置き換えるかを本文の上で訊く（replace は「置き換える」を押したときだけ true。訊くのは at の所）。
  * 入れ方は「欄に戻す」（putBack）と同じ。
  */
@@ -1100,7 +1100,7 @@ const putTemplate = (doc, { replace = false, at = IN_CATALOG } = {}) => {
   box.value = source;
   // 元を外す。両方走ると 2 回走り、coverage は id を見ずに、先に走る写しの報告を採る
   unpicked.add(doc.id);
-  catalogKey = undefined; // drawPicks は目録が変わったときだけ描くので、ここで描き直させる
+  catalogKey = undefined; // drawPicks は台帳のスクリプトが変わったときだけ描くので、ここで描き直させる
   drawPicks(reading.latest);
   const said = $("start-answer");
   said.hidden = false;
@@ -1110,8 +1110,8 @@ const putTemplate = (doc, { replace = false, at = IN_CATALOG } = {}) => {
     (changed.length === 0
       ? "id を替える所はありませんでした。"
       : `${changed.join("・")} 行目の id を inline-${name} に替えました。`) +
-    `目録の ${doc.id} は外しました（両方走ると 2 回走ります）。` +
-    // その場の JS は札を持たない。台本の冒頭の見分けが、ほかのサイトでは何もさせない
+    `台帳の ${doc.id} は外しました（両方走ると 2 回走ります）。` +
+    // その場の JS は札を持たない。スクリプトの冒頭の見分けが、ほかのサイトでは何もさせない
     (doc.sites.length === 0
       ? ""
       : `札（${doc.sites.join("・")}）は写しに付きません。その場の JS は、どの起点でも走ります。`);
@@ -1127,8 +1127,8 @@ const putTemplate = (doc, { replace = false, at = IN_CATALOG } = {}) => {
 
 // ── 新しいクロールの読む窓 ─────────────────────────────────────────
 /**
- * 新しいクロールの右の列で読んでいる物（目録の 1 版か受け皿の型）。開けるのは 1 つで、別の「読む」で
- * 入れ替わる。target は readingHash の形（版つきの目録の 1 版か、id の無い受け皿の型）。
+ * 新しいクロールの右の列で読んでいる物（スクリプトの 1 版か受け皿の型）。開けるのは 1 つで、別の「読む」で
+ * 入れ替わる。target は readingHash の形（版つきのスクリプトの 1 版か、id の無い受け皿の型）。
  */
 const startRead = { target: undefined, doc: undefined, ticket: 0 };
 const IN_START = placeOf("start-read");
@@ -1159,7 +1159,7 @@ const showStartTab = (tab) => {
 /** 読む窓の見出し。名前はタブに在るので描かない（サイト用の札は standing の文が言う）。 */
 const drawStartReadHead = () => {
   const { target, doc } = startRead;
-  const full = tag("a", "目録の画面で開く");
+  const full = tag("a", "スクリプトの画面で開く");
   full.href = readingHash(target);
   if (target.id === undefined) {
     drawReadingHead(IN_START, { facts: metaOf(doc), actions: [copyButton(doc.source), full] });
@@ -1174,7 +1174,7 @@ const drawStartReadHead = () => {
 };
 
 /**
- * 右の列で読む。**移らない。** 中身と色は目録の画面と同じ覚え（docOf は id@版、colorsOf は sha256）を
+ * 右の列で読む。**移らない。** 中身と色はスクリプトの画面と同じ覚え（docOf は id@版、colorsOf は sha256）を
  * 使うので、同じ版を 2 度は取らない。
  */
 const readInStart = async (target) => {
@@ -1221,7 +1221,7 @@ $("start-tab-read").onclick = () => showStartTab("read");
 $("start-tab-close").onclick = () => closeStartRead();
 
 // 「読む」（チェックの横と、注意書きの型）は、ふつうに押せば右の列で開く。修飾キーと中ボタンは
-// ブラウザに任せる（href は目録の画面なので、別のタブで開ける）
+// ブラウザに任せる（href はスクリプトの画面なので、別のタブで開ける）
 $("start").addEventListener("click", (event) => {
   const a = event.target.closest("a[data-read]");
   if (a === null || !plainClick(event)) return;
@@ -1229,7 +1229,7 @@ $("start").addEventListener("click", (event) => {
   void readInStart(parseReading(a.getAttribute("href")));
 });
 
-// 読む窓の行を押すと印を付ける。URL は #start のまま（行を人に渡すのは目録の画面で）
+// 読む窓の行を押すと印を付ける。URL は #start のまま（行を人に渡すのはスクリプトの画面で）
 IN_START.lines.addEventListener("click", (event) => {
   const li = event.target.closest("li");
   if (li !== null) markLine(IN_START, Number(li.dataset.n), { scroll: false });
@@ -1569,7 +1569,7 @@ const show = (face) => {
 };
 
 /**
- * URL が画面を決める。`#wacz/…` は中身の画面、`#scripts` と `#scripts/…` は目録の画面（読む所）、
+ * URL が画面を決める。`#wacz/…` は中身の画面、`#scripts` と `#scripts/…` はスクリプトの画面（読む所）、
  * それ以外はほかの画面のどれか。
  */
 const route = () => {
@@ -1588,7 +1588,7 @@ const route = () => {
   show(FACES.includes(face) && face !== "wacz" && face !== "scripts" ? face : "crawls");
 };
 
-// 中身の画面と目録の画面は、最後に読んだ所へ戻る
+// 中身の画面とスクリプトの画面は、最後に読んだ所へ戻る
 for (const b of document.querySelectorAll("#tabs button")) {
   b.onclick = () => {
     const face = b.dataset.face;

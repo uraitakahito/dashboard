@@ -10,7 +10,7 @@ JavaScript that runs as-is in the browser. Nothing goes through a framework, so 
 no install, no lockfile and no audit (the same call as
 [capture-scripts](https://github.com/uraitakahito/capture-scripts)). If it grows enough to want
 splitting up, that is the time to add them. **The one exception is `public/vendor/shiki.js`,** the
-coloring of the catalog view, bundled into a single file and committed (see
+coloring of the scripts view, bundled into a single file and committed (see
 [The bundled coloring](#the-bundled-coloring)). The dashboard only reads it, so it still needs no
 install.
 
@@ -33,7 +33,7 @@ installing anything is part of the dashboard's nature too.
 
 ## The bundled coloring
 
-The catalog view colors the source with `public/vendor/shiki.js`:
+The scripts view colors the source with `public/vendor/shiki.js`:
 [Shiki](https://shiki.style) with only the TypeScript grammar and two themes (GitHub Light High
 Contrast and GitHub Dark Default), bundled by esbuild (`highlighter/entry.mjs` names what goes in).
 The bundle is minified, so its diff cannot be reviewed by reading it. Review the lockfile and
@@ -48,7 +48,7 @@ produce.
 - **The build stops if anything it bundles is not MIT** (`highlighter/build.mjs`), and then writes
   nothing. The license texts of everything bundled are in `public/vendor/shiki.LICENSES.txt`.
 - **The colors are measured against the screen's backgrounds.** `test/highlight.test.mjs` reads
-  `--ground` from `public/app.css` and requires every color the catalog's files use to reach
+  `--ground` from `public/app.css` and requires every color the script files use to reach
   4.5:1 in both schemes, so changing the background or the theme measures again.
 - **`npm run check` looks for `innerHTML` under all of `public/`,** the bundle included.
 - **The coloring runs in a worker** (`public/highlight-worker.js`): Shiki builds its grammar on
@@ -95,12 +95,12 @@ in `sandbox/samples/SOURCE.md`.
 | To | Do |
 | --- | --- |
 | change what it shows | edit the scenario. The stand-in reads it on every request, so the change reaches the screen without restarting anything |
-| see an empty catalog | set `"emptyCatalog"` to `true` in the scenario. The catalog face then lists only the receptacle types |
-| change the catalog | edit the scenario's `catalog`: one entry per version, naming a file under `sandbox/catalog/` (copies of capture-scripts v0.2.1's scripts and receptacle types). The stand-in computes `sha256` and `bytes` from the file, as the ledger does, and its list is the newest enabled version of each id. autoscroll v2 is the same file with different `options`. A version with `sites` is a site script and runs by default only when a seed is on one of those hosts; the sample `example-title` (sites `example.com`) keeps its file under `sandbox/sites/` (it is not in capture-scripts). `hostTypes` is the receptacle types; remove it to see a ledger that has not imported them. The copies are left out of `check:terms`: they are another repository's words, and editing them would shift their line numbers |
+| see a ledger with no scripts | set `"emptyCatalog"` to `true` in the scenario. The scripts view then lists only the receptacle types |
+| change the scripts | edit the scenario's `catalog`: one entry per version, naming a file under `sandbox/catalog/` (copies of capture-scripts v0.2.1's scripts and receptacle types). The stand-in computes `sha256` and `bytes` from the file, as the ledger does, and its list is the newest enabled version of each id. autoscroll v2 is the same file with different `options`. A version with `sites` is a site script and runs by default only when a seed is on one of those hosts; the sample `example-title` (sites `example.com`) keeps its file under `sandbox/sites/` (it is not in capture-scripts). `hostTypes` is the receptacle types; remove it to see a ledger that has not imported them. The copies are left out of `check:terms`: they are another repository's words, and editing them would shift their line numbers |
 | list other WACZ files | `SANDBOX_WACZ_DIR=<dir> npm run sandbox` (relative to this repository, for example `../wacz-validator/samples`). The stand-in and the daemon both get the same directory |
 | put an updated wacz-validator into the daemon | `npm run sandbox:build`. `npm run sandbox` only builds the image when there is none |
-| try the new crawl view | Start a crawl from the new crawl view. The stand-in runs each crawl it accepts for the scenario's `submit.runsSeconds` seconds, then completes it. Pressing again while it runs gives a 409; a URL that cannot be read gives a 400. It takes `scripts` (ticked catalog scripts and a script of your own) the way the ledger does, answers an unknown catalog id, the same id twice, a misspelt name, a site script that fits no seed, or an empty default (an empty catalog, or nothing that fits the seeds) with the ledger's 400, and lists what ran when you open the row. 読む (read) next to a checkbox opens the script in the right column (the stand-in's autoscroll is v2, with options; example-title cannot be ticked without an example.com seed, but can be read) |
-| see rows with scripts | Give a crawl in the scenario a `scripts` list (a script written on the spot carries `inline`). The bundled scenario has a crawl that ran one and completed, and one that failed at the compile step. Like the ledger, the stand-in leaves the source out of a crawl's detail, and "put back in the form" fetches it from the route by name (`/api/crawls/:id/inline/:name`). The `sha256` of crawl `5b0c0008`'s autoscroll differs from catalog v1's on purpose, to show the warning a crawl's "read" link gives when a version number has been reused |
+| try the new crawl view | Start a crawl from the new crawl view. The stand-in runs each crawl it accepts for the scenario's `submit.runsSeconds` seconds, then completes it. Pressing again while it runs gives a 409; a URL that cannot be read gives a 400. It takes `scripts` (ticked registered scripts and a script of your own) the way the ledger does, answers an unknown script id, the same id twice, a misspelt name, a site script that fits no seed, or an empty default (no scripts at all, or nothing that fits the seeds) with the ledger's 400, and lists what ran when you open the row. 読む (read) next to a checkbox opens the script in the right column (the stand-in's autoscroll is v2, with options; example-title cannot be ticked without an example.com seed, but can be read) |
+| see rows with scripts | Give a crawl in the scenario a `scripts` list (a script written on the spot carries `inline`). The bundled scenario has a crawl that ran one and completed, and one that failed at the compile step. Like the ledger, the stand-in leaves the source out of a crawl's detail, and "put back in the form" fetches it from the route by name (`/api/crawls/:id/inline/:name`). The `sha256` of crawl `5b0c0008`'s autoscroll differs from the ledger's v1 on purpose, to show the warning a crawl's "read" link gives when a version number has been reused |
 
 There are things the stand-in does not do:
 

@@ -1,22 +1,22 @@
 ---
 title: Screens
-description: What the five views show — crawls, start, archives, catalog and contents — how a crawl's state is worded, and how often the dashboard polls
+description: What the five views show — crawls, start, archives, scripts and contents — how a crawl's state is worded, and how often the dashboard polls
 ---
 
 The dashboard has five views. You switch with the tabs at the top, and the `#` in the URL decides
-which view is shown (`#crawls`, `#start`, `#archives`, `#scripts`; in the catalog view it also names
+which view is shown (`#crawls`, `#start`, `#archives`, `#scripts`; in the scripts view it also names
 what you are reading). The contents tab only appears once you
 enter it with 開く (open) on an archive row. The dashboard itself is in Japanese; the tab names are
-クロール, 新しいクロール, アーカイブ, 目録 and 中身.
+クロール, 新しいクロール, アーカイブ, スクリプト and 中身.
 
-![The tabs at the top: クロール, 新しいクロール, アーカイブ and 目録, with 新しいクロール selected](../../assets/screens/tabs.webp)
+![The tabs at the top: クロール, 新しいクロール, アーカイブ and スクリプト, with 新しいクロール selected](../../assets/screens/tabs.webp)
 
 | View | What it lists |
 | --- | --- |
 | Crawls | one row per crawl: state, pages captured, pages discovered, number of WACZ files (the archive format that packs captured pages into one ZIP), time taken, link to the run |
-| New crawl | the form that starts a crawl: seed URLs, catalog scripts, depth, and a script of your own in a box as tall as the window; a catalog script can be read in a tab of the right column |
+| New crawl | the form that starts a crawl: seed URLs, registered scripts, depth, and a script of your own in a box as tall as the window; a registered script can be read in a tab of the right column |
 | Archives | the WACZ files you can see; from a row, validate, open the contents, or open in [replay](https://github.com/uraitakahito/replay) (which plays a WACZ back in the browser) |
-| Catalog | the scripts that run inside the captured page and the types they are written against, to read line by line, older versions too; says so in red when it is empty |
+| Scripts | the scripts that run inside the captured page and the types they are written against, to read line by line, older versions too; says so in red when the ledger has none |
 | Contents | inside one WACZ; see [Inspecting a WACZ](/wacz/) |
 
 The top of the screen says who you are looking as, and that it is a development identity. The
@@ -55,7 +55,7 @@ WACZ files and the time taken. "run ↗" at the right end opens the Windmill run
   fetched.** Only then does the dashboard fetch `/api/crawls/:id`. The ledger's `error` comes first,
   in its own words: a crawl that failed at the compile step captured nothing, so its list of failed
   pages is empty and would otherwise read like a success. Next is what ran, in the order it ran:
-  catalog scripts with their version and a 読む (read) link to the [catalog view](#catalog) at the
+  registered scripts with their version and a 読む (read) link to the [scripts view](#scripts) at the
   version the crawl ran, and scripts written in the form marked その場 (written on the spot) with
   their size in bytes, each with a 欄に戻す (back to the form) button that takes you to the
   [new crawl view](#start-a-crawl). A site script carries its sites, as a chip such as
@@ -77,17 +77,17 @@ tests read the same file the browser reads, so there is no copy to rot.
 
 ## Start a crawl
 
-The 新しいクロール (new crawl) view starts a crawl. The left column holds the seed URLs, the catalog scripts,
+The 新しいクロール (new crawl) view starts a crawl. The left column holds the seed URLs, the registered scripts,
 the depth and the 始める (start) button; the right column holds the box for a script of your own. The box
 stretches to the bottom of the window and has line numbers on its left, so a large script can be
 pasted, read, fixed a little and run. Write the seed URLs one per line, choose このページだけ (this
 page only) or リンクを辿る (follow links, the ledger's default), and press 始める. The right column
-has tabs, and switches to a window for reading a catalog script.
+has tabs, and switches to a window for reading a registered script.
 
-![The new crawl view: seed URLs, catalog checkboxes and 始める on the left; the tabs, the name of the script and the script box on the right](../../assets/screens/start.webp)
+![The new crawl view: seed URLs, script checkboxes and 始める on the left; the tabs, the name of the script and the script box on the right](../../assets/screens/start.webp)
 
 ① seed URLs\
-② 目録から (from the catalog): the checkboxes and 読む (read)\
+② スクリプト (scripts): the checkboxes and 読む (read)\
 ③ 始める (start)\
 ④ the right column's tabs\
 ⑤ JS の名前 (name of the script)\
@@ -97,9 +97,9 @@ has tabs, and switches to a window for reading a catalog script.
   from the default.** このページだけ sends `maxDepth: 0`; リンクを辿る adds nothing (the depth and
   the page limit are the ledger's defaults). With the default set the seeds decide (the scripts
   without sites, and the site scripts for a seed's host) ticked and no script of your own, the form
-  sends no `scripts`, and the ledger picks the same set from the seeds. An empty catalog is still a
-  400, and so, with its own message, is a catalog in which nothing fits the seeds. Otherwise it
-  sends `scripts`: your script first, then the ticked catalog scripts in catalog
+  sends no `scripts`, and the ledger picks the same set from the seeds. A ledger with no scripts is still a
+  400, and so, with its own message, is one in which no script fits the seeds. Otherwise it
+  sends `scripts`: your script first, then the ticked registered scripts in the ledger's
   order; unticking all of them sends `[]`, which runs nothing. The dashboard checks neither the URLs
   nor the script's name; the ledger says what is wrong with a 400, naming the ids it refused.
 - **A site script can be ticked only when a seed is on its site.** A script with sites can be
@@ -136,17 +136,17 @@ has tabs, and switches to a window for reading a catalog script.
   frame on every navigation and has no `__bh`. ファイルを読む (read a file) loads a file into the
   box, in the browser only; if the name box is empty, it takes the file name without its extension.
   Fix it before starting if it breaks the rule above (capital letters or `_`).
-- **A catalog script can be read in the right column.** Press 読む (read) next to its checkbox:
+- **A registered script can be read in the right column.** Press 読む (read) next to its checkbox:
   a second tab opens in the right column, named like `autoscroll v2`, with the source of that
   version in colour. The view does not change. The box is only hidden: your script, its scroll
   position and the cursor stay, and the その場の JS (your script) tab brings it back. You can tick
   and untick while reading, and read a site script whose checkbox is disabled. One script is open
   at a time; another 読む replaces it, and × closes it. The window has 写す (copy), 下敷きにする
-  (use as a template) and a link that opens the script in the [catalog view](#catalog), which alone
-  has the version chips and line URLs. With ⌘ or Ctrl held, the browser opens the catalog view in
+  (use as a template) and a link that opens the script in the [scripts view](#scripts), which alone
+  has the version chips and line URLs. With ⌘ or Ctrl held, the browser opens the scripts view in
   another tab instead.
 
-![The right column of the new crawl view, reading the catalog script autoscroll v2 in colour](../../assets/screens/start-read.webp)
+![The right column of the new crawl view, reading the script autoscroll v2 in colour](../../assets/screens/start-read.webp)
 
 - **A 202 or a 409 takes you to the crawls view.** When the crawl is accepted, its row gets a mark;
   if a crawl is already running, the row in the way gets the mark (the ledger runs one crawl at a
@@ -158,13 +158,13 @@ has tabs, and switches to a window for reading a catalog script.
 - **欄に戻す (back to the form) brings you back here.** Open a row in the crawls view and press
   欄に戻す on a script of your own: this view opens with its name, phase and source. The source
   comes from the ledger's `/api/crawls/:id/inline/:name` (a crawl's detail only carries its size).
-  The seed URLs and the catalog choice are left alone. If the right column was showing a catalog
+  The seed URLs and the ticked scripts are left alone. If the right column was showing a registered
   script, it switches back to the その場の JS tab.
-- **下敷きにする (use as a template) in the [catalog view](#catalog) brings a catalog script
+- **下敷きにする (use as a template) in the [scripts view](#scripts) brings a registered script
   here** as a script of your own, named `my-<id>` unless the name box already has one. Only the two
   forms that name the script's own id, `__bh.opts["<id>"]` and `__bh.report("<id>"`, are changed to
   `inline-<name>`; the message under the left column says on which lines. The original is unticked,
-  so it does not run twice. If the box already holds a script, the catalog view asks before
+  so it does not run twice. If the box already holds a script, the scripts view asks before
   replacing it. 下敷きにする in the right column's reading window does the same, and asks inside
   that window; afterwards the その場の JS tab is in front, and the reading window stays open for
   comparing. A site script's sites do not come along: a script of your own runs from any seed,
@@ -193,7 +193,7 @@ The WACZ files you can see, newest capture first.
 - **"replay ↗" opens it in replay.** The link is built from the replay origin the server hands
   out through `/healthz` and the `objectKey` the ledger returns.
 
-## Catalog
+## Scripts
 
 The scripts that run inside the pages being captured, to read before writing one of your own, or
 to see exactly what a crawl ran. On the left is a list in three groups: the scripts that run by
@@ -202,10 +202,10 @@ names none), the site scripts (those with sites, which run only when a seed is o
 under 書くための型 (types to write against), `host.d.ts`, the types of `__bh`, the object the
 capture server puts in the page for scripts to use. On the right is the TypeScript as it was
 written, with line numbers. The default scripts and the site scripts also appear as checkboxes
-under 目録から (from the catalog) in the [new crawl view](#start-a-crawl), where 読む (read) next to
+under スクリプト (scripts) in the [new crawl view](#start-a-crawl), where 読む (read) next to
 one opens it in the right column.
 
-![The catalog view: the list on the left; autoscroll v2 with its version chips and coloured source on the right](../../assets/screens/catalog.webp)
+![The scripts view: the list on the left; autoscroll v2 with its version chips and coloured source on the right](../../assets/screens/catalog.webp)
 
 | URL | Opens |
 | --- | --- |
@@ -251,8 +251,8 @@ one opens it in the right column.
   `GET /api/host-types` (from v0.60.0; the sites from v0.61.0), passed through as in
   [Routes](/routes/).
 
-**An empty catalog is shown in red.** The capture server (BrowserHive) does not bring any scripts
-of its own, so with an empty catalog nothing runs inside the page. Nothing scrolls and nothing
+**A ledger with no scripts is shown in red.** The capture server (BrowserHive) does not bring any scripts
+of its own, so with no scripts in the ledger nothing runs inside the page. Nothing scrolls and nothing
 lazy-loads, yet the capture still succeeds and an archive still comes out. The red message
 includes the command that imports the scripts with [capture-ledger](https://github.com/uraitakahito/capture-ledger) (the
 ledger that starts crawls and records what came back).

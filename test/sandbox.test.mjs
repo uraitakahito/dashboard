@@ -3,7 +3,7 @@
  *
  * 欄の集合を台帳の応答と揃えておくことと、同梱の台本が画面の状態を全部出せることを固定する。
  * 台帳の欄は capture-ledger v0.57.4 から写した —— 台帳が欄を足したら、ここと代役を直す。
- * 目録を読む口（版の一覧・1 版・受け皿の型）は v0.60.0 から、札（`sites`）と起点で選ぶ既定は v0.61.0 から。
+ * スクリプトを読む口（版の一覧・1 版・受け皿の型）は v0.60.0 から、札（`sites`）と起点で選ぶ既定は v0.61.0 から。
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -30,7 +30,7 @@ import {
 } from "../sandbox/fake-ledger.mjs";
 
 const scenario = JSON.parse(readFileSync(new URL("../sandbox/scenario.json", import.meta.url), "utf8"));
-/** 台本の目録（版の並び。source は sandbox/catalog の写しと、見本の sandbox/sites）。 */
+/** 台本のスクリプト（版の並び。source は sandbox/catalog の写しと、見本の sandbox/sites）。 */
 const versions = catalogOf(scenario);
 /** 版を `id@版` で並べる（既定の顔ぶれ・走らせたものを 1 行で比べる）。 */
 const at = (list) => list.map((v) => `${v.id}@${String(v.version)}`);
@@ -215,7 +215,7 @@ test("同梱の台本に、その場の JS で完走した行と、compile の�
   assert.deepEqual(withInline.map((c) => c.state).sort(), ["failed", "succeeded"]);
   const broken = crawlDetail(withInline.find((c) => c.state === "failed"));
   assert.match(broken.error, /compile 422 .*inline-close-banner\.ts/);
-  // 台帳と同じく、その場の物にだけ inline が付き、目録の物は身元だけ
+  // 台帳と同じく、その場の物にだけ inline が付き、台帳のスクリプトは身元だけ
   assert.equal(broken.scripts[0].id, "inline-close-banner");
   assert.equal(broken.scripts[0].inline.name, "close-banner");
   assert.equal("inline" in broken.scripts[1], false);
@@ -272,7 +272,7 @@ test("名前の口は、受けた行と台本の行の両方で、その場の J
   assert.match(theirs.body.source, /close/);
 });
 
-test("名前の口は、目録の物・知らない名前・知らない行には 404（台帳と同じ文）", () => {
+test("名前の口は、台帳のスクリプト・知らない名前・知らない行には 404（台帳と同じ文）", () => {
   const rows = [];
   submitCrawl(
     rows,
@@ -309,7 +309,7 @@ test("走行中でも、走らせるものの誤りは 409 より先に 400 —�
   assert.equal(ok.status, 409);
 });
 
-test("scripts を省くと、起点で選んだ既定を走らせたものとして返す —— 合うサイト用の台本は札ごと", () => {
+test("scripts を省くと、起点で選んだ既定を走らせたものとして返す —— 合うサイト用のスクリプトは札ごと", () => {
   const ranFrom = (seed) => {
     const rows = [];
     submitCrawl(rows, { seeds: [seed] }, NOW, RUNS, versions);
@@ -325,7 +325,7 @@ test("scripts を省くと、起点で選んだ既定を走らせたものとし
   );
 });
 
-test("一覧の口（有効な各 id の最新版）は、サイト用の台本も札つきで返す（無効な版は飛ばす）", () => {
+test("一覧の口（有効な各 id の最新版）は、サイト用のスクリプトも札つきで返す（無効な版は飛ばす）", () => {
   assert.deepEqual(at(latestEnabled(versions)), ["autofetch@1", "autoscroll@2", "example-title@1"]);
   assert.deepEqual(latestEnabled(versions)[2].sites, ["example.com"]);
   const off = versions.map((v) => (v.id === "autoscroll" && v.version === 2 ? { ...v, enabled: false } : v));
@@ -373,7 +373,7 @@ test("代役の既定と、新しいクロールの画面の既定（public/star
   }
 });
 
-test("起点に合わないサイト用の台本を名指すと、台帳と同じ文で 400 —— 走行中でも 409 より先", () => {
+test("起点に合わないサイト用のスクリプトを名指すと、台帳と同じ文で 400 —— 走行中でも 409 より先", () => {
   const rows = [];
   const post = (seeds) =>
     submitCrawl(rows, { seeds, scripts: [{ catalog: "autofetch" }, { catalog: "example-title" }] }, NOW, RUNS, versions);
@@ -390,12 +390,12 @@ test("起点に合わないサイト用の台本を名指すと、台帳と同�
   assert.equal(post(["https://example.org/"]).status, 400);
 });
 
-test("既定が空なら 400 —— 目録が空と、全部が別のサイト用とで文を分ける（台帳と同じ文）", () => {
+test("既定が空なら 400 —— 台帳にスクリプトが無いのと、全部が別のサイト用とで文を分ける（台帳と同じ文）", () => {
   const post = (list, body = {}) => submitCrawl([], { seeds: ["https://example.org/"], ...body }, NOW, RUNS, list);
   assert.deepEqual(post([]), {
     status: 400,
     body: {
-      error: "the script catalog is empty",
+      error: "no scripts are registered",
       hint: "pnpm run scripts import .upstream/capture-scripts (run nothing on purpose: send scripts: [])",
     },
   });
@@ -449,7 +449,7 @@ test("受け皿の型は台本の file の中身。台本に無ければ 404（�
   assert.deepEqual(hostTypesOf(without), { status: 404, body: { error: "not found" } });
 });
 
-test("台本のクロールが走らせた目録の物は、目録のその版と同じ sha256（5b0c0008 の autoscroll だけはわざと違う）", () => {
+test("台本のクロールが走らせた台帳のスクリプトは、台帳のその版と同じ sha256（5b0c0008 の autoscroll だけはわざと違う）", () => {
   const MISMATCH = "5b0c0008-6a1e-4000-8000-000000000008 autoscroll@1";
   const seen = [];
   for (const c of scenario.crawls) {
@@ -469,13 +469,13 @@ test("下敷きを実物の写しに掛けると、替わるのは autoscroll �
   assert.deepEqual(asTemplate(sourceOf("autofetch"), "autofetch", "my-autofetch").changed, [14, 17, 92]);
 });
 
-test("知らない目録の id・重ね・形の誤り・scriptIds は、台帳と同じ文で 400", () => {
+test("知らないスクリプトの id・重ね・形の誤り・scriptIds は、台帳と同じ文で 400", () => {
   const post = (body) =>
     submitCrawl([], { seeds: ["https://example.com/"], ...body }, NOW, RUNS, versions);
   const inline = (name) => ({ inline: { name, phase: "behavior", source: "x;" } });
   assert.deepEqual(post({ scripts: [{ catalog: "typo-scroll" }] }), {
     status: 400,
-    body: { error: "unknown catalog scripts", ids: ["typo-scroll"] },
+    body: { error: "unknown script ids", ids: ["typo-scroll"] },
   });
   assert.deepEqual(post({ scripts: [inline("a"), inline("a")] }).body, {
     error: "duplicate script ids",
