@@ -1,7 +1,7 @@
 /**
  * dashboard。**素の JS**（bundler も framework も通さない）。
  *
- * 読むのは台帳の口と、WACZ の中身へ行く `/wacz/` の口だけ。ここで畳むのは「どの面を
+ * 読むのは台帳の口と、WACZ の中身へ行く `/wacz/` の口だけ。ここで畳むのは「どの画面を
  * 出すか」と「どう描くか」で、何が起きたかは全部向こうが知っている。
  *
  * **撮った中身は他人が書いたもの。** 文字は `textContent`、画像は raster だけを
@@ -148,7 +148,7 @@ const failuresText = (one) => {
     : failures.map((f) => `${f.url} — ${f.reason ?? "理由なし"}`).join("\n");
 };
 
-/** 札の印（サイト用の台本のホスト名）。一覧・見出し・新しいクロールの面・クロールの詳しい所で同じ形。 */
+/** 札の印（サイト用の台本のホスト名）。一覧・見出し・新しいクロールの画面・クロールの詳しい所で同じ形。 */
 const siteChip = (sites, suffix = " 用") => tag("span", `${sites.join("・")}${suffix}`, "site");
 
 /**
@@ -287,7 +287,7 @@ const drawCrawls = () => {
 
 // ── 新しいクロール ─────────────────────────────────────────────────
 /**
- * 描いた目録のチェック（目録の面と同じ並び。札の無い物もサイト用の物も）。チェックはこの並びで描き、
+ * 描いた目録のチェック（目録の画面と同じ並び。札の無い物もサイト用の物も）。チェックはこの並びで描き、
  * 送るときもこの並び。`why` はサイト用の台本にだけ在る、押せない理由の欄。
  */
 let picks = [];
@@ -319,7 +319,7 @@ const drawPicks = (scripts) => {
     const label = document.createElement("label");
     label.className = "pick";
     const name = tag("span", `${script.id} v${String(script.version)}`, "mono");
-    // 中身を読む。ふつうに押せば右の列でこの版を開き、修飾キーなら目録の面を別のタブで（data-read の
+    // 中身を読む。ふつうに押せば右の列でこの版を開き、修飾キーなら目録の画面を別のタブで（data-read の
     // click）。label の中の <a> は、押してもチェックを替えない —— 押せないチェックの横でも読める
     const read = tag("a", "読む", "read");
     read.href = readingHash({ id: script.id, version: script.version });
@@ -336,7 +336,7 @@ const drawPicks = (scripts) => {
     box.append(label);
     picks.push({ script, input, why });
   }
-  if (scripts.length === 0) box.append(tag("span", "目録が空です（目録の面を見てください）", "muted"));
+  if (scripts.length === 0) box.append(tag("span", "目録が空です（目録の画面を見てください）", "muted"));
   syncPicks();
   // 読む窓の版が既定から外れたかもしれない。standing（既定で走る版か）を今の目録で言い直す
   if (startRead.doc !== undefined && startRead.target.id !== undefined) drawStartReadHead();
@@ -384,7 +384,7 @@ const runOf = () => {
 };
 
 /**
- * その場の JS を欄に戻し、新しいクロールの面へ移る。直して撮り直すため。**起点と目録の選びは触らない。**
+ * その場の JS を欄に戻し、新しいクロールの画面へ移る。直して撮り直すため。**起点と目録の選びは触らない。**
  * source は詳しい所に無い（capture-ledger v0.59.0）ので、名前の口から取る。
  */
 const putBack = async (crawlId, name) => {
@@ -400,7 +400,7 @@ const putBack = async (crawlId, name) => {
   $("start-inline-source").value = back.source;
   $("start-answer").hidden = true; // 前の答えは、戻した JS の物ではない
   location.hash = "start";
-  // 面とタブを今出す —— 隠れた箱には focus が効かない（hashchange が面を出すのは、この後）
+  // 画面とタブを今出す —— 隠れた箱には focus が効かない（hashchange が画面を出すのは、この後）
   show("start");
   showStartTab("js");
   drawSource();
@@ -500,7 +500,7 @@ const startCrawl = async (event) => {
   // 202 は始めた 1 本、409 は塞いでいる 1 本。どちらも印を付けて、すぐ引き直す
   if (typeof answer.crawlId === "string") {
     spotlight = answer.crawlId;
-    location.hash = "crawls"; // 印は一覧の面で見る
+    location.hash = "crawls"; // 印は一覧の画面で見る
     await refresh();
   }
 };
@@ -654,11 +654,11 @@ const drawArchives = () => {
 // ── 目録（読む所）─────────────────────────────────────────────────
 /**
  * 読む所の状態。**取るのは開いたときだけ** —— 一覧（有効な各 id の最新版）は引き直しの答えを使い、版の札と
- * 1 版の中身は開いた id の分だけ取る。受け皿の型は面を最初に開いたとき 1 回で、refresh には入れない
+ * 1 版の中身は開いた id の分だけ取る。受け皿の型は画面を最初に開いたとき 1 回で、refresh には入れない
  * （入れると、型を取り込んでいない台帳で引き直し全体が落ちる）。
  */
 const reading = {
-  /** 最後に開いた URL。タブ「目録」はここへ戻る（中身の面の wacz.hash と同じ） */
+  /** 最後に開いた URL。タブ「目録」はここへ戻る（中身の画面の wacz.hash と同じ） */
   hash: undefined,
   /** 開いている物: URL が名指した物（target）と、その中身（doc。版か型） */
   open: undefined,
@@ -678,7 +678,7 @@ const TYPES_KEY = "types";
 const keyOf = (target) => target.id ?? TYPES_KEY;
 
 /**
- * 本文を出す所の組。目録の面（読む所）と、新しいクロールの右の列（読む窓）が同じ部品で描き、
+ * 本文を出す所の組。目録の画面（読む所）と、新しいクロールの右の列（読む窓）が同じ部品で描き、
  * 違うのは要素の組だけ —— 見出し・本文の上の 1 行・色の 1 行・書きかけの確認・本文。
  */
 const placeOf = (prefix) => ({
@@ -772,7 +772,7 @@ const markLine = (at, n, { scroll }) => {
   if (scroll) li.scrollIntoView({ block: "center" });
 };
 
-/** 本文。1 行 1 つの <li>（中身の面の行の並びと同じ組み方）。行の印は class 1 つ。 */
+/** 本文。1 行 1 つの <li>（中身の画面の行の並びと同じ組み方）。行の印は class 1 つ。 */
 const drawLines = (at, source, line) => {
   const list = at.lines;
   if (source === undefined) {
@@ -790,7 +790,7 @@ const drawLines = (at, source, line) => {
   if (line !== undefined) markLine(at, line, { scroll: true });
 };
 
-// 押した行を URL に。**hashchange を発火させずに**（中身の面の remember と同じ。発火すると読み直す）
+// 押した行を URL に。**hashchange を発火させずに**（中身の画面の remember と同じ。発火すると読み直す）
 IN_CATALOG.lines.addEventListener("click", (event) => {
   const li = event.target.closest("li");
   if (li === null || reading.open?.doc === undefined) return;
@@ -1083,7 +1083,7 @@ const askReplace = (at, doc, lines) => {
 };
 
 /**
- * 目録の 1 版を、その場の JS の欄に写して新しいクロールの面へ移る。**書きかけを黙って消さない** —— 欄が空で
+ * 目録の 1 版を、その場の JS の欄に写して新しいクロールの画面へ移る。**書きかけを黙って消さない** —— 欄が空で
  * なければ、置き換えるかを本文の上で訊く（replace は「置き換える」を押したときだけ true。訊くのは at の所）。
  * 入れ方は「欄に戻す」（putBack）と同じ。
  */
@@ -1116,7 +1116,7 @@ const putTemplate = (doc, { replace = false, at = IN_CATALOG } = {}) => {
       ? ""
       : `札（${doc.sites.join("・")}）は写しに付きません。その場の JS は、どの起点でも走ります。`);
   location.hash = "start";
-  // 面とタブを今出す —— 隠れた箱には focus が効かない（hashchange が面を出すのは、この後）。
+  // 画面とタブを今出す —— 隠れた箱には focus が効かない（hashchange が画面を出すのは、この後）。
   // 読む窓は閉じない —— タブで元と見比べられる
   show("start");
   showStartTab("js");
@@ -1159,7 +1159,7 @@ const showStartTab = (tab) => {
 /** 読む窓の見出し。名前はタブに在るので描かない（サイト用の札は standing の文が言う）。 */
 const drawStartReadHead = () => {
   const { target, doc } = startRead;
-  const full = tag("a", "目録の面で開く");
+  const full = tag("a", "目録の画面で開く");
   full.href = readingHash(target);
   if (target.id === undefined) {
     drawReadingHead(IN_START, { facts: metaOf(doc), actions: [copyButton(doc.source), full] });
@@ -1174,7 +1174,7 @@ const drawStartReadHead = () => {
 };
 
 /**
- * 右の列で読む。**移らない。** 中身と色は目録の面と同じ覚え（docOf は id@版、colorsOf は sha256）を
+ * 右の列で読む。**移らない。** 中身と色は目録の画面と同じ覚え（docOf は id@版、colorsOf は sha256）を
  * 使うので、同じ版を 2 度は取らない。
  */
 const readInStart = async (target) => {
@@ -1221,7 +1221,7 @@ $("start-tab-read").onclick = () => showStartTab("read");
 $("start-tab-close").onclick = () => closeStartRead();
 
 // 「読む」（チェックの横と、注意書きの型）は、ふつうに押せば右の列で開く。修飾キーと中ボタンは
-// ブラウザに任せる（href は目録の面なので、別のタブで開ける）
+// ブラウザに任せる（href は目録の画面なので、別のタブで開ける）
 $("start").addEventListener("click", (event) => {
   const a = event.target.closest("a[data-read]");
   if (a === null || !plainClick(event)) return;
@@ -1229,7 +1229,7 @@ $("start").addEventListener("click", (event) => {
   void readInStart(parseReading(a.getAttribute("href")));
 });
 
-// 読む窓の行を押すと印を付ける。URL は #start のまま（行を人に渡すのは目録の面で）
+// 読む窓の行を押すと印を付ける。URL は #start のまま（行を人に渡すのは目録の画面で）
 IN_START.lines.addEventListener("click", (event) => {
   const li = event.target.closest("li");
   if (li !== null) markLine(IN_START, Number(li.dataset.n), { scroll: false });
@@ -1330,7 +1330,7 @@ const drawHead = (entry, extra) => {
   }
 };
 
-/** 面に入る。archive が変われば検証し直し、木を組み直す。同じなら選び直すだけ。 */
+/** 画面に入る。archive が変われば検証し直し、木を組み直す。同じなら選び直すだけ。 */
 const openWacz = async ({ archiveId, path, n }) => {
   const archive = archives.find((a) => a.id === archiveId);
   if (archive === undefined) {
@@ -1557,7 +1557,7 @@ const openRecord = async (path, offset, length) => {
   panel.scrollIntoView({ block: "nearest" });
 };
 
-// ── 面の切り替え ───────────────────────────────────────────────────
+// ── 画面の切り替え ───────────────────────────────────────────────────
 const FACES = ["crawls", "start", "archives", "scripts", "wacz"];
 
 const show = (face) => {
@@ -1565,12 +1565,12 @@ const show = (face) => {
     b.classList.toggle("on", b.dataset.face === face);
   }
   for (const name of FACES) $(`face-${name}`).hidden = name !== face;
-  document.body.dataset.face = face; // 新しいクロールの面だけ、CSS が窓の高さに収める
+  document.body.dataset.face = face; // 新しいクロールの画面だけ、CSS が窓の高さに収める
 };
 
 /**
- * URL が面を決める。`#wacz/…` は中身の面、`#scripts` と `#scripts/…` は目録の面（読む所）、
- * それ以外はほかの面のどれか。
+ * URL が画面を決める。`#wacz/…` は中身の画面、`#scripts` と `#scripts/…` は目録の画面（読む所）、
+ * それ以外はほかの画面のどれか。
  */
 const route = () => {
   const target = parseWaczHash(location.hash);
@@ -1588,7 +1588,7 @@ const route = () => {
   show(FACES.includes(face) && face !== "wacz" && face !== "scripts" ? face : "crawls");
 };
 
-// 中身の面と目録の面は、最後に読んだ所へ戻る
+// 中身の画面と目録の画面は、最後に読んだ所へ戻る
 for (const b of document.querySelectorAll("#tabs button")) {
   b.onclick = () => {
     const face = b.dataset.face;

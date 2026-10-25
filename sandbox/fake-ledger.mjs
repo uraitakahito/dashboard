@@ -8,7 +8,7 @@
  * 署名付き URL の代わりに、置き場の `file://` の URL を返す。検証の daemon
  * (sandbox-validator) も同じ置き場を同じ path に mount しているので、それを読める。
  *
- * `POST /api/crawls` (dashboard の新しいクロールの面) にも答える。受けた行は代役が起きている間だけ在り、
+ * `POST /api/crawls` (dashboard の新しいクロールの画面) にも答える。受けた行は代役が起きている間だけ在り、
  * 台本の `submit.runsSeconds` 秒走ってから完走になる (台本の行とは別に持つ)。走らせるもの
  * (`scripts`。目録の名指しとその場の JS) も台帳と同じ形で受け、1 本の詳しい所に返す。
  *

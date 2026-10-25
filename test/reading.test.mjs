@@ -1,7 +1,7 @@
 /**
- * 目録の面（読む所）の部品（`public/reading.js`）。URL の読み書き・行の数え方・見出しの文。
+ * 目録の画面（読む所）の部品（`public/reading.js`）。URL の読み書き・行の数え方・見出しの文。
  *
- * 面そのもの（一覧・本文・押した行）は `app.js` に在り、試験は import しない。代役で開いて見る。
+ * 画面そのもの（一覧・本文・押した行）は `app.js` に在り、試験は import しない。代役で開いて見る。
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -50,7 +50,7 @@ test("受け皿の型と、id が types の目録を取り違えない", () => {
   assert.equal(parseReading("#scripts/types/other.d.ts"), undefined);
 });
 
-test("合わない形は undefined（壊れた %・版の無い sha・ほかの面の URL）", () => {
+test("合わない形は undefined（壊れた %・版の無い sha・ほかの画面の URL）", () => {
   assert.equal(parseReading("#scripts/%E0"), undefined);
   assert.equal(parseReading("#scripts/autoscroll~c9956819ffea"), undefined);
   assert.equal(parseReading("#scripts/autoscroll@1~XYZ"), undefined);

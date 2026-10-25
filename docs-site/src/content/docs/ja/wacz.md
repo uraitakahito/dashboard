@@ -79,9 +79,9 @@ wacz-validator を出しても、動いている daemon は起こしたときの
 [capture-ledger](https://github.com/uraitakahito/capture-ledger)（クロールを始め、撮れたものを記録する台帳）の `pnpm run dev:status` も、動いている build を checkout と比べて言います。
 起こし直すのは、capture-ledger で `pnpm run dev:up --from validator` です。
 
-## 中身の面
+## 中身の画面
 
-アーカイブの行の「開く」で、その 1 本の面に入ります。
+アーカイブの行の「開く」で、その 1 本の画面に入ります。
 URL は `#wacz/<archiveId>` で、選んだ entry と行まで載ります（`#wacz/<archiveId>/indexes%2Findex.cdxj:66` のように指せます）。
 
 開くと検証が走り、左の木は報告の entry の一覧から組みます。
@@ -102,7 +102,7 @@ wacz-validator の端末の画面（waxlens）と、同じ入力・同じ罫線�
 - **1 レコード**: WARC の見出し、HTTP の状態行と見出し、本文です。
   本文は文字か、raster の画像か、大きさだけです。
 
-中身の面の中で entry や行を選んでも、URL を書き換えるだけで、検証はやり直しません。
+中身の画面の中で entry や行を選んでも、URL を書き換えるだけで、検証はやり直しません。
 別の archive を開いたときだけ、検証し直して木を組み直します。
 
 ## 撮った中身は他人が書いたもの

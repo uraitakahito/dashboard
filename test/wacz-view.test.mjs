@@ -1,5 +1,5 @@
 /**
- * 中身の面の純関数。木の罫線は waxlens（`render/tree.ts`）と同じ入力・同じ期待。
+ * 中身の画面の純関数。木の罫線は waxlens（`render/tree.ts`）と同じ入力・同じ期待。
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -99,7 +99,7 @@ test("索引の行の fields から、開くレコードの位置を取る", () 
   assert.equal(recordOpener([{ label: "line", value: "plain", fromJson: false }]), undefined);
 });
 
-test("面の URL は行まで指せて、読み戻せる", () => {
+test("画面の URL は行まで指せて、読み戻せる", () => {
   const hash = waczHash("3a34dd38-1f05", "indexes/index.cdxj", 66);
   assert.equal(hash, "#wacz/3a34dd38-1f05/indexes%2Findex.cdxj:66");
   assert.deepEqual(parseWaczHash(hash), { archiveId: "3a34dd38-1f05", path: "indexes/index.cdxj", n: 66 });

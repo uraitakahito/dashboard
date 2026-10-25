@@ -353,7 +353,7 @@ test("既定は最新版を選んでから札で絞る —— 札を付け直し
   assert.deepEqual(at(defaultSet(resited, seedHosts("https://example.org/"))), ["autofetch@1", "autoscroll@2"]);
 });
 
-test("代役の既定と、新しいクロールの面の既定（public/start.js）は、同じ起点に同じ顔ぶれを出す", () => {
+test("代役の既定と、新しいクロールの画面の既定（public/start.js）は、同じ起点に同じ顔ぶれを出す", () => {
   // 決まりの正は台帳。2 つの写しが食い違えば、dashboard が「省いても同じ」と送った頼みで別の物が走る
   const seeds = [
     "",

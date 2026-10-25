@@ -1,5 +1,5 @@
 /**
- * 新しいクロールの面の部品（`public/start.js`）。送る body と、答えの言い方。
+ * 新しいクロールの画面の部品（`public/start.js`）。送る body と、答えの言い方。
  *
  * 送る道（`POST /api/crawls` の中継）と門は http の口に在り、門の判定は `lib.test.mjs` が見る。
  */
@@ -84,7 +84,7 @@ test("dashboard のサーバに届かなければ、そう言う", () => {
 });
 
 /**
- * 走らせるものの欄。目録は札の無い autofetch・autoscroll の 2 本（目録の面と同じ id 順）で、
+ * 走らせるものの欄。目録は札の無い autofetch・autoscroll の 2 本（目録の画面と同じ id 順）で、
  * どちらも既定の顔ぶれ。
  */
 const CATALOG = ["autofetch", "autoscroll"];
