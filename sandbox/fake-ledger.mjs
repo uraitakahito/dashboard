@@ -102,18 +102,30 @@ export const inlineSource = (scripts, name) => {
 };
 
 /**
- * /api/crawls/:id。台帳はほかの欄 (範囲・上限など) も返すが、dashboard が読むのは seeds・
+ * /api/crawls/:id。台帳はほかの欄 (上限など) も返すが、dashboard が読むのは seeds・rules・
  * error・scripts・failures なので、そこまでにしてある。受けた行は走らせたものを行に持たない
- * (行の欄は一覧と揃えて試験が固定している) ので、`scripts` で渡す。
+ * (行の欄は一覧と揃えて試験が固定している) ので、`scripts` で渡す。規則は行に無ければ台帳の既定。
  */
-export const crawlDetail = (c, scripts = c.scripts ?? []) => ({
+export const crawlDetail = (c, scripts = c.scripts ?? [], rules = c.rules ?? DEFAULT_RULES) => ({
   crawlId: c.crawlId,
   seeds: c.seeds,
+  rules,
   state: c.state,
   stopReason: c.stopReason ?? null,
   error: c.error ?? null,
   scripts: scripts.map(detailScript),
   failures: c.failures ?? [],
+});
+
+/**
+ * /api/crawls/:id/decisions。欄は capture-ledger v0.62.0 の src/api/crawls.ts と同じ。台本の行は
+ * `decisions` と `robots` を持てる (無ければ空)。受けた行は何も辿っていないので空。
+ */
+export const decisionsOf = (c, rules = c.rules ?? DEFAULT_RULES) => ({
+  crawlId: c.crawlId,
+  rules,
+  decisions: c.decisions ?? [],
+  robots: c.robots ?? [],
 });
 
 /**
@@ -140,6 +152,179 @@ const httpUrl = (raw) => {
   } catch {
     return false;
   }
+};
+
+// ── 規則（台帳 v0.62.0 の src/crawl/rules.ts と scope.ts の写し）────────────
+/** 規則を省いた頼みの並び (台帳と同じ)。 */
+const DEFAULT_RULES = [{ follow: "same-origin" }];
+const SCOPES = new Set(["same-origin", "same-host", "same-site", "any"]);
+const ACTIONS = ["follow", "capture", "skip"];
+const HOSTNAME = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/;
+const RANK = { "same-origin": 0, "same-host": 1, "same-site": 2, any: 3 };
+
+/**
+ * サイト (登録ドメイン)。**代役は Public Suffix List を持たない** —— ホスト名の最後の 2 ラベルで近似する。
+ * `example.co.jp` を `co.jp` と読み違えるのは代役だけ (台帳は tldts。docs の development に書いてある)。
+ */
+export const siteOf = (hostname) => hostname.split(".").slice(-2).join(".");
+
+const parseUrl = (raw) => {
+  let url;
+  try {
+    url = new URL(raw);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
+  url.hash = "";
+  return { normalized: url.toString(), host: url.host, hostname: url.hostname, origin: url.origin };
+};
+
+const parsePattern = (raw) => {
+  if (SCOPES.has(raw)) return { kind: "scope", scope: raw };
+  if (HOSTNAME.test(raw)) return { kind: "domain", domain: raw };
+  const url = parseUrl(raw);
+  return url === undefined ? undefined : { kind: "prefix", url };
+};
+
+const under = (hostname, domain) => hostname === domain || hostname.endsWith(`.${domain}`);
+
+const inScope = (url, seeds, scope) =>
+  scope === "any" ||
+  seeds.some((seed) =>
+    scope === "same-site"
+      ? siteOf(seed.hostname) === siteOf(url.hostname)
+      : scope === "same-host"
+        ? seed.host === url.host
+        : seed.origin === url.origin,
+  );
+
+const matches = (url, pattern, seeds) =>
+  pattern.kind === "scope"
+    ? inScope(url, seeds, pattern.scope)
+    : pattern.kind === "domain"
+      ? under(url.hostname, pattern.domain)
+      : url.normalized.startsWith(pattern.url.normalized);
+
+/** 言い切れるときだけ覆いと言う (台帳と同じ組)。 */
+const covers = (a, b, seeds) => {
+  if (a.kind === "scope" && a.scope === "any") return true;
+  if (b.kind === "scope") return a.kind === "scope" && RANK[a.scope] >= RANK[b.scope];
+  if (b.kind === "domain") {
+    if (a.kind === "domain") return under(b.domain, a.domain);
+    return a.kind === "scope" && a.scope === "same-site" && seeds.some((seed) => siteOf(seed.hostname) === siteOf(b.domain));
+  }
+  if (a.kind === "prefix") return b.url.normalized.startsWith(a.url.normalized);
+  return b.url.normalized.startsWith(`${b.url.origin}/`) && matches(b.url, a, seeds);
+};
+
+const patternText = (pattern) =>
+  pattern.kind === "scope" ? pattern.scope : pattern.kind === "domain" ? pattern.domain : pattern.url.normalized;
+
+/** 上から当て、最初に当たった規則の動き。どれにも当たらなければ落とす。 */
+const decide = (url, read, seeds) => read.find((rule) => matches(url, rule.pattern, seeds))?.action ?? "skip";
+
+/**
+ * 規則の並びを確かめる (台帳の `checkRules`)。読めない行は覆いと起点の判定から外し、番号は頼まれたまま。
+ */
+export const checkRules = (rules, seeds) => {
+  const read = rules.map((rule) => {
+    const [action, raw] = Object.entries(rule)[0];
+    const pattern = parsePattern(raw);
+    return pattern === undefined ? undefined : { action, pattern };
+  });
+  const invalid = rules.flatMap((rule, i) =>
+    read[i] === undefined ? [{ rule: i + 1, pattern: Object.values(rule)[0] }] : [],
+  );
+  const covered = read.flatMap((rule, j) => {
+    if (rule === undefined) return [];
+    const by = read.slice(0, j).findIndex((earlier) => earlier !== undefined && covers(earlier.pattern, rule.pattern, seeds));
+    return by < 0 ? [] : [{ rule: j + 1, coveredBy: by + 1 }];
+  });
+  const usable = read.filter((rule) => rule !== undefined);
+  const unfollowedSeeds = seeds.filter((seed) => decide(seed, usable, seeds) !== "follow").map((seed) => seed.normalized);
+  return { read, invalid, covered, unfollowedSeeds };
+};
+
+/** `rules` の形を見る (台帳の schema)。断るなら文を返す。 */
+const rulesRefusal = (rules) => {
+  if (!Array.isArray(rules)) return "body/rules must be array";
+  if (rules.length < 1) return "body/rules must NOT have fewer than 1 items";
+  if (rules.length > 32) return "body/rules must NOT have more than 32 items";
+  for (const [i, rule] of rules.entries()) {
+    const at = `body/rules/${String(i)}`;
+    const keys = rule !== null && typeof rule === "object" ? Object.keys(rule) : [];
+    if (keys.some((key) => !ACTIONS.includes(key))) return `${at} must NOT have additional properties`;
+    if (keys.length > 1) return `${at} must NOT have more than 1 properties`;
+    if (keys.length === 0) return `${at} must NOT have fewer than 1 properties`;
+    const value = rule[keys[0]];
+    if (typeof value !== "string" || value === "") return `${at}/${keys[0]} must NOT have fewer than 1 characters`;
+    if (value.length > 2048) return `${at}/${keys[0]} must NOT have more than 2048 characters`;
+  }
+  return undefined;
+};
+
+/**
+ * 始める口の規則の 400 (台帳 v0.62.0 と同じ順と文)。通れば、読んだ形で固定する規則を返す。
+ */
+const resolveRules = (rules, seeds) => {
+  // 形は submitCrawl が先に見ている (schema の 400 は handler より前)
+  const checked = checkRules(rules ?? DEFAULT_RULES, seeds);
+  if (checked.invalid.length > 0) {
+    return { status: 400, body: { error: "invalid rule patterns", rules: checked.invalid } };
+  }
+  if (checked.covered.length > 0) {
+    return { status: 400, body: { error: "rules that can never match", rules: checked.covered } };
+  }
+  if (checked.unfollowedSeeds.length > 0) {
+    return { status: 400, body: { error: "seeds the rules do not follow", seeds: checked.unfollowedSeeds } };
+  }
+  return { rules: checked.read.map(({ action, pattern }) => ({ [action]: patternText(pattern) })) };
+};
+
+/**
+ * 確かめの口 (`GET /api/crawl-rules/check`)。答えの形は台帳 v0.62.0 と同じ。規則は「動き:当てる物」で、
+ * 動きの名前が違えば schema の 400。
+ */
+export const crawlRulesCheck = (seedTexts, ruleTexts) => {
+  const bad = ruleTexts.find((text) => !/^(follow|capture|skip):/.test(text));
+  if (bad !== undefined || ruleTexts.length > 32) {
+    return schemaError('querystring/rule/0 must match pattern "^(follow|capture|skip):"');
+  }
+  const asked = ruleTexts.map((text) => {
+    const at = text.indexOf(":");
+    return { [text.slice(0, at)]: text.slice(at + 1) };
+  });
+  const parsed = seedTexts.map(parseUrl).filter((seed) => seed !== undefined);
+  const checked = checkRules(asked, parsed);
+  const coveredBy = new Map(checked.covered.map((c) => [c.rule, c.coveredBy]));
+  const unfollowed = new Set(checked.unfollowedSeeds);
+  const seeds = seedTexts.map((raw) => {
+    const url = parseUrl(raw);
+    return url === undefined
+      ? { url: raw, valid: false }
+      : { url: url.normalized, valid: true, site: siteOf(url.hostname), followed: !unfollowed.has(url.normalized) };
+  });
+  const rules = asked.map((rule, i) => {
+    const [action, raw] = Object.entries(rule)[0];
+    const read = checked.read[i];
+    const by = coveredBy.get(i + 1);
+    return {
+      rule: i + 1,
+      action,
+      kind: read === undefined ? "invalid" : read.pattern.kind,
+      pattern: read === undefined ? raw : patternText(read.pattern),
+      ...(by === undefined ? {} : { coveredBy: by }),
+    };
+  });
+  return {
+    status: 200,
+    body: {
+      seeds,
+      rules,
+      ok: checked.invalid.length === 0 && checked.covered.length === 0 && seeds.every((seed) => seed.valid && seed.followed === true),
+    },
+  };
 };
 
 /** その場の JS の名前の綴り (台帳の schema と同じ。`inline-` と合わせて 64 字まで)。 */
@@ -363,8 +548,13 @@ export const hostTypesOf = (s, read = readBeside) => {
  * 出さない。
  */
 export const submitCrawl = (rows, body, now, runsSeconds, versions) => {
-  if (body !== null && typeof body === "object" && "scriptIds" in body) {
+  // 消した鍵 (scriptIds・scope) は、知らない鍵として 400
+  if (body !== null && typeof body === "object" && ("scriptIds" in body || "scope" in body)) {
     return schemaError("body must NOT have additional properties");
+  }
+  if (body !== null && typeof body === "object" && "rules" in body) {
+    const refused = rulesRefusal(body.rules);
+    if (refused !== undefined) return schemaError(refused);
   }
   if (!Array.isArray(body?.seeds)) {
     return { status: 400, body: { error: "provide exactly one of seeds or fromTargets" } };
@@ -373,7 +563,10 @@ export const submitCrawl = (rows, body, now, runsSeconds, versions) => {
   if (!body.seeds.every(httpUrl)) {
     return { status: 400, body: { error: "every seed must be an http(s) URL" } };
   }
-  // 走らせるものの誤りは、走行中でも 400 が先 —— 台帳は解いてから行を立て、409 は行を立てる所で出る
+  // 規則の誤りは起点の次 (台帳と同じ順)。走らせるものの誤りも、走行中でも 400 が先 —— 台帳は解いてから
+  // 行を立て、409 は行を立てる所で出る
+  const ruled = resolveRules(body.rules, body.seeds.map(parseUrl));
+  if (ruled.status !== undefined) return ruled;
   const hosts = new Set(body.seeds.map((seed) => new URL(seed).hostname));
   const run = resolveRun(body.scripts, versions, hosts);
   if (run.status !== undefined) return run;
@@ -394,6 +587,7 @@ export const submitCrawl = (rows, body, now, runsSeconds, versions) => {
     startedAt: now,
     runsSeconds,
     scripts: run.scripts,
+    rules: ruled.rules,
   };
   rows.unshift(row);
   return { status: 202, body: { crawlId: row.crawlId } };
@@ -507,6 +701,20 @@ const handle = (req, res, raw) => {
     send(res, answer.status, answer.body);
     return;
   }
+  // 規則が何を決めたか (台帳 v0.62.0)。受けた行は何も辿っていないので空
+  const decided = /^\/api\/crawls\/([^/]+)\/decisions$/.exec(pathname);
+  if (req.method === "GET" && decided !== null) {
+    const mine = submitted.find((row) => row.crawlId === decided[1]);
+    const c = mine ?? s.crawls.find((x) => x.crawlId === decided[1]);
+    send(res, c === undefined ? 404 : 200, c === undefined ? { error: "not found" } : decisionsOf(mine === undefined ? c : { crawlId: mine.crawlId }, c.rules));
+    return;
+  }
+  if (req.method === "GET" && pathname === "/api/crawl-rules/check") {
+    const query = new URL(req.url ?? "/", "http://sandbox").searchParams;
+    const answer = crawlRulesCheck(query.getAll("seed"), query.getAll("rule"));
+    send(res, answer.status, answer.body);
+    return;
+  }
   const one = /^\/api\/crawls\/([^/]+)$/.exec(pathname);
   if (req.method === "GET" && one !== null) {
     const mine = submitted.find((row) => row.crawlId === one[1]);
@@ -516,7 +724,7 @@ const handle = (req, res, raw) => {
             const c = s.crawls.find((x) => x.crawlId === one[1]);
             return c === undefined ? undefined : crawlDetail(c);
           })()
-        : crawlDetail(submittedRow(mine, Date.now()), mine.scripts);
+        : crawlDetail(submittedRow(mine, Date.now()), mine.scripts, mine.rules);
     send(res, detail === undefined ? 404 : 200, detail ?? { error: "not found" });
     return;
   }

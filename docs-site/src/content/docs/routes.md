@@ -61,7 +61,9 @@ cannot call it directly, the server relays it to make it same-origin.
 - The ledger's status, `content-type` and body are returned as they are.
 
 Which ledger routes are read is decided by the dashboard (`public/app.js`); the server does not
-choose. It keeps no list of allowed routes.
+choose. It keeps no list of allowed routes. So the ledger's `GET /api/crawl-rules/check` (the new
+crawl view checking its rules as you write them) and `GET /api/crawls/:id/decisions` (what an
+opened crawl's rules decided) need nothing here: they are reads, and pass through like the lists.
 
 ## POST /api/crawls — the route that starts a crawl
 

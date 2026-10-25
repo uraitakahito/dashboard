@@ -9,18 +9,28 @@
  */
 import { judgedUnder, severityKind, stateOf, statsOf, took, verdict } from "/format.js";
 import {
+  ACTIONS,
+  addRow,
+  addSkipRow,
   asTemplate,
   bodyBytes,
+  checkQuery,
   defaultIds,
   hasNocheck,
+  marksOf,
+  moveRow,
   onSeed,
   plainClick,
+  PRESETS,
+  removeRow,
   seedHosts,
   sizeOf,
   startAnswer,
   startBody,
+  summaryOf,
   withNocheck,
 } from "/start.js";
+import { dropsOf, inspectHref, ruleTallies } from "/decisions.js";
 import {
   labelOf,
   linesOf,
@@ -186,6 +196,69 @@ const ranOf = (one) => {
   return box;
 };
 
+/** 動きの画面の言い方（新しいクロールの画面の選ぶ欄と同じ）。 */
+const ACTION_LABEL = Object.fromEntries(ACTIONS);
+
+/**
+ * 規則が何を決めたか（台帳の `GET /api/crawls/:id/decisions`）。規則ごとの数（段を跨いで足し、0 回の規則に
+ * 印）と、落とした物（規則・どれにも当たらない・robots.txt、ホスト名ごと）、その下に Windmill で調べる 1 行。
+ * **決めたリンクが 1 本も無ければ数を並べない** —— このページだけのクロールでも全部の規則に「当たって
+ * いません」が付き、読み違える。読めなければ 1 行で言う（台帳が古ければ口が無い）。
+ */
+const decisionsOf = (one) => {
+  const box = document.createElement("div");
+  box.className = "decided";
+  const decided = one.decided;
+  if (decided === undefined) return box;
+  if (decided instanceof Error) {
+    box.append(tag("p", `規則の判断を読めません: ${decided.message}`, "muted"));
+    return box;
+  }
+  if (decided.decisions.length === 0) {
+    box.append(tag("p", "規則で決めたリンクはありません（リンクを見ていないか、1 本も見つけていない）", "muted"));
+  } else {
+    box.append(tag("p", "規則ごと（段を跨いで足した、別々の URL の数）"));
+    const list = document.createElement("ol");
+    list.className = "tally";
+    for (const t of ruleTallies(decided.rules, decided.decisions)) {
+      const item = document.createElement("li");
+      item.append(
+        tag("span", t.rule === 0 ? "どれにも当たらない（落とす）" : `${String(t.rule)}. ${ACTION_LABEL[t.action] ?? t.action}`),
+        tag("span", t.pattern, "mono"),
+        tag("span", `${count(t.links)} 本`, "num mono"),
+      );
+      if (t.rule !== 0 && t.links === 0) item.append(tag("span", "当たっていません", "state warn"));
+      list.append(item);
+    }
+    box.append(list);
+  }
+  const drops = dropsOf(decided.decisions, decided.robots);
+  if (drops.length > 0) {
+    box.append(tag("p", "落とした物（規則と robots.txt・ホスト名ごと）"));
+    const table = document.createElement("table");
+    table.className = "drops";
+    for (const d of drops) {
+      const row = document.createElement("tr");
+      row.append(
+        cell(d.why === "robots" ? "robots.txt" : d.why === 0 ? "どれにも当たらない" : `規則 ${String(d.why)}`),
+        cell(d.hostname, "mono"),
+        cell(`${count(d.links)} 本`, "num mono"),
+        cell(d.sample, "mono muted"),
+      );
+      table.append(row);
+    }
+    box.append(table);
+  }
+  const line = document.createElement("p");
+  const inspect = tag("a", "f/waggle/inspect_crawl", "mono");
+  inspect.href = inspectHref(settings.windmillOrigin, settings.windmillWorkspace, one.crawlId);
+  inspect.target = "_blank";
+  inspect.rel = "noopener";
+  line.append("Windmill で調べる: ", inspect, `（crawl = ${one.crawlId.slice(0, 8)}）`);
+  box.append(line);
+  return box;
+};
+
 /**
  * 1 本の詳しい所。**失敗の文が先** —— compile の段で落ちたクロールは 1 枚も撮っていないので
  * failures が空で、それだけを出すと「取れなかったページはありません」と、成功のように読める。
@@ -196,6 +269,7 @@ const detailOf = (one) => [
     ? []
     : [tag("p", `失敗の文: ${one.error}`, "state bad pre")]),
   ranOf(one),
+  decisionsOf(one),
   tag("p", failuresText(one), "pre"),
 ];
 
@@ -214,11 +288,20 @@ const detailRow = (crawl) => {
   return row;
 };
 
-/** 1 本を引いて覚え、その行だけを描き直す。**開いたときと、変わりうるときだけ引く。** */
+/**
+ * 1 本を引いて覚え、その行だけを描き直す。**開いたときと、変わりうるときだけ引く。** 規則の判断も
+ * 同時に引き、答えに `decided` として持たせる（引けなければ Error。詳しい所は描く）。
+ */
 const loadDetail = async (crawlId) => {
   let one;
   try {
-    one = await api(`/api/crawls/${crawlId}`);
+    const [detail, decided] = await Promise.all([
+      api(`/api/crawls/${crawlId}`),
+      api(`/api/crawls/${crawlId}/decisions`).catch((err) =>
+        err instanceof Error ? err : new Error(String(err)),
+      ),
+    ]);
+    one = { ...detail, decided };
   } catch (err) {
     one = err instanceof Error ? err : new Error(String(err));
   }
@@ -442,7 +525,8 @@ const drawGutter = () => {
  * 知らなければ止めない —— 門が 413 で言う）。欄の下に、行数・本文の大きさ・上限に対する割合を出す。
  */
 const syncStart = () => {
-  const body = startBody($("start-seeds").value, $("start-page").checked, runOf());
+  const follow = followOf();
+  const body = startBody($("start-seeds").value, follow, runOf());
   const limit = settings.writeLimit ?? Infinity;
   const size = sizeOf($("start-inline-source").value, bodyBytes(body), limit);
   const line = $("start-size");
@@ -451,8 +535,201 @@ const syncStart = () => {
     : `${count(size.lines)} 行 · 本文 ${count(size.bytes)} バイト` +
       (limit === Infinity ? "" : ` · 上限の ${String(size.percent)}%`);
   line.classList.toggle("bad", size.over);
-  $("start-go").disabled = body.seeds.length === 0 || size.over;
+  // 辿るなら、規則が無いときと、台帳が今の表を「始められない」と言っているときも押せない。台帳に
+  // 確かめられなかった（答えが無い）なら止めない —— 始めれば台帳が 400 で言う
+  const answer = currentCheck();
+  const rulesBad = follow !== null && (follow.rows.length === 0 || (answer !== undefined && !answer.ok));
+  $("start-go").disabled = body.seeds.length === 0 || size.over || rulesBad;
 };
+
+// ── 辿り方（規則の表）───────────────────────────────────────────────
+/** 表の行（`{ action, pattern }`）。始めた後も残す —— 同じ並びで撮り直すことが多い。 */
+let ruleRows = PRESETS.host.map((row) => ({ ...row }));
+
+/**
+ * 台帳の確かめ。`key` は問うた query で、答えは表と起点がその形のときにだけ使う —— 遅れて届いた前の
+ * 答えで印を描かない。`answer` が undefined なら、台帳に確かめられなかった（届かない・口が無い）。
+ */
+const rulesCheck = { key: undefined, answer: undefined, timer: undefined };
+
+const following = () => $("start-follow").checked;
+
+/** 送る形の「辿り方」。このページだけなら null。 */
+const followOf = () =>
+  following()
+    ? { maxDepth: $("start-max-depth").value, maxPages: $("start-max-pages").value, rows: ruleRows }
+    : null;
+
+/** 今の表と起点に合う答え。合わなければ（確かめている間も）undefined。 */
+const currentCheck = () =>
+  rulesCheck.key === checkQuery($("start-seeds").value, ruleRows) ? rulesCheck.answer : undefined;
+
+/** 行ごとの印と、最後の 1 行。表の欄は描き直さない（打っている字の位置が飛ぶ）。 */
+const drawMarks = () => {
+  const answer = currentCheck();
+  const marks = marksOf(answer, ruleRows.length);
+  for (const row of $("start-rule-rows").rows) {
+    const mark = marks[Number(row.dataset.i)];
+    row.cells[3].textContent = mark.text;
+    row.cells[3].className = mark.bad ? "mark bad" : "mark muted";
+  }
+  const said = $("start-said");
+  if (ruleRows.length === 0) {
+    said.textContent = "規則がありません。型から埋めるか、行を足してください。";
+    said.className = "start-said bad";
+    return;
+  }
+  if (answer === undefined) {
+    const asked = rulesCheck.key === checkQuery($("start-seeds").value, ruleRows);
+    said.textContent = asked ? "台帳に確かめられません（始めれば、台帳が答えで言います）" : "台帳に確かめています…";
+    said.className = "start-said muted";
+    return;
+  }
+  const summary = summaryOf(answer, followOf());
+  said.textContent = summary.text;
+  said.className = summary.bad ? "start-said bad" : "start-said";
+};
+
+/**
+ * 表を描き直す。行の数か並びが変わったときだけ（打っている間は `drawMarks` だけ）。`focus` は描いた後に
+ * 置く先 —— 移した行の同じボタン、足した行の当てる物、など。↑↓× は行の番号を言う。
+ */
+const drawRules = (focus) => {
+  const body = $("start-rule-rows");
+  body.replaceChildren();
+  ruleRows.forEach((rule, i) => {
+    const n = String(i + 1);
+    const row = document.createElement("tr");
+    row.dataset.i = String(i);
+    row.append(cell(n, "num mono"));
+    const action = document.createElement("select");
+    action.dataset.field = "action";
+    action.setAttribute("aria-label", `${n} 行目の動き`);
+    for (const [value, label] of ACTIONS) {
+      const option = tag("option", label);
+      option.value = value;
+      option.selected = value === rule.action;
+      action.append(option);
+    }
+    const pattern = document.createElement("input");
+    pattern.type = "text";
+    pattern.spellcheck = false;
+    pattern.dataset.field = "pattern";
+    pattern.value = rule.pattern;
+    pattern.placeholder = "same-site・ads.example.com・https://…/search";
+    pattern.setAttribute("aria-label", `${n} 行目の当てる物`);
+    const actionCell = document.createElement("td");
+    actionCell.append(action);
+    const patternCell = document.createElement("td");
+    patternCell.append(pattern);
+    const tools = document.createElement("td");
+    tools.className = "tools";
+    for (const [label, op, what] of [
+      ["↑", "-1", "上へ移す"],
+      ["↓", "1", "下へ移す"],
+      ["×", "0", "消す"],
+    ]) {
+      const b = button(label);
+      b.dataset.op = op;
+      b.setAttribute("aria-label", `${n} 行目を${what}`);
+      b.disabled = (op === "-1" && i === 0) || (op === "1" && i === ruleRows.length - 1);
+      tools.append(b);
+    }
+    row.append(actionCell, patternCell, cell("", "mark muted"), tools);
+    body.append(row);
+  });
+  drawMarks();
+  if (focus !== undefined) body.rows[focus.i]?.querySelector(focus.selector)?.focus();
+};
+
+/** 表か起点が変わったら、300 ms 止まってから台帳に確かめる。予約は 1 つだけ。 */
+const scheduleCheck = () => {
+  clearTimeout(rulesCheck.timer);
+  if (!following()) return;
+  rulesCheck.timer = setTimeout(() => void runCheck(), 300);
+};
+
+const runCheck = async () => {
+  const key = checkQuery($("start-seeds").value, ruleRows);
+  let answer;
+  try {
+    answer = ruleRows.length === 0 ? undefined : await api(`/api/crawl-rules/check?${key}`);
+  } catch {
+    answer = undefined;
+  }
+  if (key !== checkQuery($("start-seeds").value, ruleRows)) return; // 表が変わった。次の確かめが描く
+  rulesCheck.key = key;
+  rulesCheck.answer = answer;
+  drawMarks();
+  syncStart();
+};
+
+/** 表を替えた後の 3 つ（描く・確かめる・「始める」を合わせる）。 */
+const rulesChanged = (focus) => {
+  drawRules(focus);
+  scheduleCheck();
+  syncStart();
+};
+
+$("start-rule-rows").addEventListener("input", (event) => {
+  const row = event.target.closest("tr");
+  const field = event.target.dataset.field;
+  if (row === null || field === undefined) return;
+  const i = Number(row.dataset.i);
+  ruleRows = ruleRows.map((rule, k) => (k === i ? { ...rule, [field]: event.target.value } : rule));
+  drawMarks(); // 前の答えの印は、今の表に合わないので消える
+  scheduleCheck();
+  // 「始める」は、form の input の受け手が合わせる
+});
+$("start-rule-rows").addEventListener("click", (event) => {
+  const b = event.target.closest("button[data-op]");
+  if (b === null) return;
+  const i = Number(b.closest("tr").dataset.i);
+  const op = Number(b.dataset.op);
+  if (op === 0) {
+    ruleRows = removeRow(ruleRows, i);
+    // 消した行の位置に来た行の ×。最後の行を消したなら 1 つ上の ×、空なら「行を足す」へ
+    const next = Math.min(i, ruleRows.length - 1);
+    if (next < 0) {
+      rulesChanged();
+      $("start-add-row").focus();
+    } else rulesChanged({ i: next, selector: 'button[data-op="0"]' });
+    return;
+  }
+  ruleRows = moveRow(ruleRows, i, op);
+  // 移した先の、同じボタン。端に着いて押せなくなったら、反対向きのボタン
+  const to = i + op;
+  const end = (op === -1 && to === 0) || (op === 1 && to === ruleRows.length - 1);
+  rulesChanged({ i: to, selector: `button[data-op="${end ? String(-op) : String(op)}"]` });
+});
+$("start-presets").addEventListener("click", (event) => {
+  const b = event.target.closest("button[data-preset]");
+  if (b === null) return;
+  ruleRows = PRESETS[b.dataset.preset].map((row) => ({ ...row }));
+  rulesChanged();
+});
+$("start-add-skip").onclick = () => {
+  ruleRows = addSkipRow(ruleRows);
+  rulesChanged({ i: 0, selector: 'input[data-field="pattern"]' });
+};
+$("start-add-row").onclick = () => {
+  ruleRows = addRow(ruleRows);
+  rulesChanged({ i: ruleRows.length - 1, selector: 'input[data-field="pattern"]' });
+};
+
+/** 2 択に合わせて「辿り方」のタブを出し入れする。辿るを選んだら、そのタブを開いて確かめる。 */
+const syncFollow = () => {
+  if (following()) {
+    showStartTab("rules");
+    scheduleCheck();
+  } else if (!$("start-rules").hidden) {
+    showStartTab("js");
+  } else {
+    $("start-tab-rules").hidden = true;
+  }
+};
+$("start-page").addEventListener("change", syncFollow);
+$("start-follow").addEventListener("change", syncFollow);
 
 /**
  * 箱の中身が変わったら、溝と「型を検査しない」のチェックを中身に合わせる（貼った JS が印を持っていれば
@@ -470,7 +747,7 @@ const drawSource = () => {
  */
 const startCrawl = async (event) => {
   event.preventDefault();
-  const body = startBody($("start-seeds").value, $("start-page").checked, runOf());
+  const body = startBody($("start-seeds").value, followOf(), runOf());
   if (body.seeds.length === 0) return;
   $("start-go").disabled = true;
   let status = 0;
@@ -495,6 +772,7 @@ const startCrawl = async (event) => {
   if (status === 202) {
     $("start-seeds").value = "";
     syncPicks();
+    scheduleCheck(); // 起点が変わった
   }
   syncStart();
   // 202 は始めた 1 本、409 は塞いでいる 1 本。どちらも印を付けて、すぐ引き直す
@@ -509,7 +787,12 @@ const startCrawl = async (event) => {
 // 箱のときだけ、サイト用のチェックは起点のときだけ
 $("start").addEventListener("input", (event) => {
   if (event.target === $("start-inline-source")) drawSource();
-  if (event.target === $("start-seeds")) syncPicks();
+  if (event.target === $("start-seeds")) {
+    syncPicks();
+    drawMarks(); // 前の起点の答えは、今の起点に合わない
+    scheduleCheck(); // same-site は起点で変わり、起点が辿られるかも台帳が見る
+  }
+  if (event.target === $("start-max-depth") || event.target === $("start-max-pages")) drawMarks();
   syncStart();
 });
 $("start-inline-source").addEventListener("scroll", (event) => {
@@ -1150,10 +1433,13 @@ const showStartTab = (tab) => {
   const open = startRead.target !== undefined;
   $("start-tab-read").hidden = !open;
   $("start-tab-close").hidden = !open;
+  $("start-tab-rules").hidden = !following();
   $("start-tab-js").classList.toggle("on", tab === "js");
   $("start-tab-read").classList.toggle("on", tab === "read");
+  $("start-tab-rules").classList.toggle("on", tab === "rules");
   $("start-js").hidden = tab !== "js";
   $("start-read").hidden = tab !== "read";
+  $("start-rules").hidden = tab !== "rules";
 };
 
 /** 読む窓の見出し。名前はタブに在るので描かない（サイト用の札は standing の文が言う）。 */
@@ -1217,6 +1503,7 @@ const closeStartRead = () => {
 };
 
 $("start-tab-js").onclick = () => showStartTab("js");
+$("start-tab-rules").onclick = () => showStartTab("rules");
 $("start-tab-read").onclick = () => showStartTab("read");
 $("start-tab-close").onclick = () => closeStartRead();
 
@@ -1644,6 +1931,7 @@ const start = async () => {
   } catch {
     $("who").textContent = "dashboard 自身に届きません";
   }
+  drawRules();
   syncStart(); // 上限を知ってから、欄の下の行を出す
   await refresh();
   route();

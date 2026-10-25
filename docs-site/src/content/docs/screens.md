@@ -35,12 +35,14 @@ Each row is one crawl. It shows the state, the first 8 characters of the id, who
 for which organization, the first seed URL, pages captured, pages discovered, the number of
 WACZ files and the time taken. "run ↗" at the right end opens the Windmill run in a new tab.
 
-![The crawls view: running, finished, cut-off and failed rows, and an opened row showing what ran and 欄に戻す](../../assets/screens/crawls.webp)
+![The crawls view: running, finished, cut-off and failed rows, and an opened row showing what ran, 欄に戻す, what the rules decided and the link to Windmill](../../assets/screens/crawls.webp)
 
 ① state\
 ② what ran (in run order)\
 ③ 欄に戻す (back to the form)\
-④ the link to the run
+④ the link to the run\
+⑤ what the rules decided\
+⑥ the link to Windmill's inspect_crawl
 
 - **Pages captured and pages discovered are separate columns.** Pages discovered
   (`pagesDiscovered`) counts what was found by following links, so a crawl of depth 0 ends up as
@@ -61,6 +63,14 @@ WACZ files and the time taken. "run ↗" at the right end opens the Windmill run
   [new crawl view](#start-a-crawl). A site script carries its sites, as a chip such as
   `example.com 用`. Last are the pages that failed, as many
   as the ledger returns; if none did, it says so and lists the seed URLs.
+- **An opened row also shows what the crawl's rules decided** (the ledger's
+  `/api/crawls/:id/decisions`, fetched together with the detail). First, per rule, the distinct URLs it
+  matched, added up over the levels; a rule that never matched is marked 当たっていません (not hit),
+  since a rule that never fires usually does not say what its author meant. Then what was dropped,
+  by host name: by a rule, by no rule, and the pages robots.txt kept the crawl from taking. A crawl
+  that looked at no links says so in one line instead of listing rules that all show 0. Last is a
+  link, Windmill で調べる (inspect in Windmill), to the script `f/waggle/inspect_crawl` in Windmill
+  with this crawl's id already filled in (Windmill keeps a run's arguments in the URL's hash).
 - **An opened row stays open.** The table is rebuilt on every fetch, so the dashboard remembers the
   open rows by id and opens them again from the last answer. It fetches a row again only while the
   crawl is running or when its state has changed.
@@ -78,11 +88,13 @@ tests read the same file the browser reads, so there is no copy to rot.
 ## Start a crawl
 
 The 新しいクロール (new crawl) view starts a crawl. The left column holds the seed URLs, the registered scripts,
-the depth and the 始める (start) button; the right column holds the box for a script of your own. The box
+the depth and the 始める (start) button; the right column holds the box for a script of your own, and
+how to follow links. The box
 stretches to the bottom of the window and has line numbers on its left, so a large script can be
 pasted, read, fixed a little and run. Write the seed URLs one per line, choose このページだけ (this
-page only) or リンクを辿る (follow links, the ledger's default), and press 始める. The right column
-has tabs, and switches to a window for reading a registered script.
+page only) or リンクを辿る (follow links), and press 始める. The right column has tabs: it switches to
+a window for reading a registered script, and, while リンクを辿る is chosen, to 辿り方 (how to
+follow).
 
 ![The new crawl view: seed URLs, script checkboxes and 始める on the left; the tabs, the name of the script and the script box on the right](../../assets/screens/start.webp)
 
@@ -94,8 +106,8 @@ has tabs, and switches to a window for reading a registered script.
 ⑥ the script box
 
 - **It sends the seed URLs, whether the depth is 0, and what runs — the last only when it differs
-  from the default.** このページだけ sends `maxDepth: 0`; リンクを辿る adds nothing (the depth and
-  the page limit are the ledger's defaults). With the default set the seeds decide (the scripts
+  from the default.** このページだけ sends `maxDepth: 0`; リンクを辿る sends the rules, and the depth
+  and the page limit only when they are written (empty, they are the ledger's defaults). With the default set the seeds decide (the scripts
   without sites, and the site scripts for a seed's host) ticked and no script of your own, the form
   sends no `scripts`, and the ledger picks the same set from the seeds. A ledger with no scripts is still a
   400, and so, with its own message, is one in which no script fits the seeds. Otherwise it
@@ -148,6 +160,34 @@ has tabs, and switches to a window for reading a registered script.
 
 ![The right column of the new crawl view, reading the script autoscroll v2 in colour](../../assets/screens/start-read.webp)
 
+- **リンクを辿る opens the 辿り方 (how to follow) tab.** It holds the depth and the page limit, the
+  presets, and the rules. A rule is an action — 撮って辿る (capture and follow), 撮るだけ (capture
+  only) or 落とす (drop) — and what it matches: `same-origin`, `same-host`, `same-site` or `any`
+  (compared with the seeds), a lower-case host name (that host and the subdomains under it), or an
+  `http(s)` URL (a prefix). The ledger tries the rules from the top, the first match decides, and a
+  link no rule matches is dropped. The tab starts with ホストの中 (within the host); the presets
+  サイトの中 (within the site), サイトの中＋外は 1 歩 (within the site, one step outside),
+  ホストの中 and どこでも (anywhere) each hold a 撮って辿る rule, because the ledger refuses seeds
+  that do not land on one. ＋ 落とす行を足す adds a drop rule at the top — below a broad 撮って辿る
+  rule it could never match. The ↑ ↓ × buttons name their row for screen readers, and focus follows
+  the row that moved.
+
+![The 辿り方 tab of the new crawl view: depth 3 and 200 pages, the presets, four rules with the last one marked as covered by the third, and the sentence that restates them](../../assets/screens/start-rules.webp)
+
+① 辿り方 (how to follow)\
+② the presets\
+③ the action of each rule\
+④ the ledger's check of each rule\
+⑤ adding a drop rule at the top\
+⑥ what the crawl will do, restated
+
+- **The ledger checks the rules as you write them.** After a 300 ms pause the view asks the ledger's
+  `GET /api/crawl-rules/check` (it writes nothing, so it rides the same pass-through as the
+  lists). Each row then says what the ledger read — 範囲 (scope), ドメイン (domain) or 前方一致
+  (prefix) — or, in red, that it cannot be read or that an earlier row covers it; the sentence
+  under the table restates what will be followed, in the ledger's reading (a URL prefix appears
+  normalised). While the ledger says the rules cannot start, 始める cannot be pressed. When the
+  ledger cannot be asked, nothing is blocked: starting gets its answer instead.
 - **A 202 or a 409 takes you to the crawls view.** When the crawl is accepted, its row gets a mark;
   if a crawl is already running, the row in the way gets the mark (the ledger runs one crawl at a
   time, overall). An accepted crawl is running, so the footer starts polling every 2 seconds.

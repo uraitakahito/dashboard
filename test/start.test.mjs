@@ -7,39 +7,60 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  addRow,
+  addSkipRow,
   asTemplate,
   bodyBytes,
+  checkQuery,
   defaultIds,
   hasNocheck,
+  marksOf,
+  moveRow,
   NOCHECK,
   onSeed,
   plainClick,
+  PRESETS,
+  removeRow,
   scriptsOf,
   seedHosts,
   sizeOf,
   startAnswer,
   startBody,
+  summaryOf,
   withNocheck,
 } from "../public/start.js";
 
 test("起点は 1 行に 1 本 —— 前後の空白と空行を落とし、順番は保つ", () => {
-  const body = startBody("  https://example.com/ \n\n https://example.com/docs/\n", true);
+  const body = startBody("  https://example.com/ \n\n https://example.com/docs/\n", null);
   assert.deepEqual(body.seeds, ["https://example.com/", "https://example.com/docs/"]);
 });
 
-test("「このページだけ」は maxDepth: 0 を送り、「リンクを辿る」は何も足さない", () => {
-  assert.equal(startBody("https://example.com/", true).maxDepth, 0);
-  // 辿るときは鍵ごと送らない —— 深さも枚数も台帳の既定に任せる
-  assert.equal("maxDepth" in startBody("https://example.com/", false), false);
-  assert.deepEqual(Object.keys(startBody("https://example.com/", false)), ["seeds"]);
+test("「このページだけ」は maxDepth: 0 だけを送り、規則は送らない", () => {
+  assert.deepEqual(startBody("https://example.com/", null), { seeds: ["https://example.com/"], maxDepth: 0 });
+});
+
+test("「リンクを辿る」は規則を必ず送り、深さと枚数は書いたときだけ送る（空なら台帳の既定）", () => {
+  const rows = [
+    { action: "skip", pattern: " ads.example.com " },
+    { action: "follow", pattern: "same-site" },
+  ];
+  const blank = startBody("https://example.com/", { maxDepth: "", maxPages: " ", rows });
+  assert.deepEqual(blank, {
+    seeds: ["https://example.com/"],
+    // 当てる物は前後の空白だけ落とす。鍵が 1 つの object（台帳の形）
+    rules: [{ skip: "ads.example.com" }, { follow: "same-site" }],
+  });
+  const filled = startBody("https://example.com/", { maxDepth: "3", maxPages: "200", rows });
+  assert.equal(filled.maxDepth, 3);
+  assert.equal(filled.maxPages, 200);
 });
 
 test("URL は検査しない —— 読めない URL も、そのまま台帳へ送る", () => {
-  assert.deepEqual(startBody("ftp://example.com/\nnot a url", true).seeds, ["ftp://example.com/", "not a url"]);
+  assert.deepEqual(startBody("ftp://example.com/\nnot a url", null).seeds, ["ftp://example.com/", "not a url"]);
 });
 
 test("空の欄は、空の seeds になる（dashboard はこれを送らない）", () => {
-  assert.deepEqual(startBody(" \n \n", true).seeds, []);
+  assert.deepEqual(startBody(" \n \n", null).seeds, []);
 });
 
 test("202 は始めた 1 本を、409 は塞いでいる 1 本を、決めた文で名指す", () => {
@@ -93,7 +114,7 @@ const run = (picked, inline = NO_INLINE) => ({ catalog: CATALOG, picked, default
 
 test("走らせるものが既定のまま（既定の顔ぶれを全部選び、その場の JS が空）なら scripts を送らない", () => {
   // 台帳の既定と、台帳にスクリプトが無いときの 400 を生かす
-  assert.equal("scripts" in startBody("https://example.com/", true, run(CATALOG)), false);
+  assert.equal("scripts" in startBody("https://example.com/", null, run(CATALOG)), false);
   // 台帳にスクリプトが無く、その場の JS も無いときも送らない（台帳が「スクリプトが無い」と言う）
   assert.equal(scriptsOf({ catalog: [], picked: [], defaults: [], inline: NO_INLINE }), undefined);
 });
@@ -148,12 +169,12 @@ test("起点に合うサイト用のスクリプトを外したら scripts を�
 });
 
 test("全部外すと scripts: [] を送る —— 何も走らせない", () => {
-  assert.deepEqual(startBody("https://example.com/", true, run([])).scripts, []);
+  assert.deepEqual(startBody("https://example.com/", null, run([])).scripts, []);
 });
 
 test("その場の JS は先頭に、名前・phase・source を送る（source は削らない）", () => {
   const source = "\n(() => {\n  void 0;\n})();\n\n";
-  const body = startBody("https://example.com/", true, run(CATALOG, { name: " close-banner ", phase: "preload", source }));
+  const body = startBody("https://example.com/", null, run(CATALOG, { name: " close-banner ", phase: "preload", source }));
   assert.deepEqual(body.scripts, [
     { inline: { name: "close-banner", phase: "preload", source } },
     { catalog: "autofetch" },
@@ -166,7 +187,7 @@ test("空白だけの JS は送らない", () => {
 });
 
 test("名前の綴りは検査しない —— 読めない名前も、そのまま台帳へ送る", () => {
-  const body = startBody("https://example.com/", true, run(CATALOG, { name: "Close_Banner", phase: "behavior", source: "x;" }));
+  const body = startBody("https://example.com/", null, run(CATALOG, { name: "Close_Banner", phase: "behavior", source: "x;" }));
   assert.equal(body.scripts[0].inline.name, "Close_Banner");
 });
 
@@ -264,4 +285,132 @@ test("「読む」を右の列で開くのは、ふつうに押したときだ�
     assert.equal(plainClick({ ...plain, [key]: true }), false, key);
   }
   assert.equal(plainClick({ ...plain, button: 1 }), false);
+});
+
+// ── 辿り方（規則の表）─────────────────────────────────────────────
+
+test("型はどれも「撮って辿る」を 1 本持つ —— 起点が当たらないと台帳が 400 で断る", () => {
+  for (const [name, rows] of Object.entries(PRESETS)) {
+    assert.ok(rows.some((row) => row.action === "follow"), name);
+  }
+  assert.deepEqual(PRESETS.siteAndOneHop, [
+    { action: "follow", pattern: "same-site" },
+    { action: "capture", pattern: "any" },
+  ]);
+});
+
+test("落とす行はいちばん上に、ふつうの行はいちばん下に足す", () => {
+  const rows = [{ action: "follow", pattern: "same-site" }];
+  // 広い「撮って辿る」の下に置くと覆われる（台帳が 400 で断る）ので、上に入れる
+  assert.deepEqual(addSkipRow(rows), [{ action: "skip", pattern: "" }, ...rows]);
+  assert.deepEqual(addRow(rows), [...rows, { action: "capture", pattern: "" }]);
+  // 元の並びは変えない（表は答えが来るまで前の並びで描くことがある）
+  assert.equal(rows.length, 1);
+});
+
+test("行を上下に移し、端を越える動きは何もしない。消すと詰める", () => {
+  const rows = ["a", "b", "c"].map((pattern) => ({ action: "skip", pattern }));
+  const names = (list) => list.map((row) => row.pattern).join("");
+  assert.equal(names(moveRow(rows, 2, -1)), "acb");
+  assert.equal(names(moveRow(rows, 0, 1)), "bac");
+  assert.equal(moveRow(rows, 0, -1), rows);
+  assert.equal(moveRow(rows, 2, 1), rows);
+  assert.equal(names(removeRow(rows, 1)), "ac");
+});
+
+test("確かめの query は、起点の空行を落とし、規則を「動き:当てる物」で並べる", () => {
+  const query = checkQuery("https://www.example.com/\n\n", [
+    { action: "skip", pattern: " https://www.example.com/search?q=1 " },
+    { action: "follow", pattern: "same-site" },
+  ]);
+  const params = new URLSearchParams(query);
+  assert.deepEqual(params.getAll("seed"), ["https://www.example.com/"]);
+  // 当てる物の : と ? と = は、台帳が最初の : で切るので崩れない
+  assert.deepEqual(params.getAll("rule"), ["skip:https://www.example.com/search?q=1", "follow:same-site"]);
+});
+
+/** 台帳の確かめの口の答え（capture-ledger v0.62.0 の形）。 */
+const ANSWER = {
+  seeds: [{ url: "https://www.example.com/", valid: true, site: "example.com", followed: true }],
+  rules: [
+    { rule: 1, action: "skip", kind: "prefix", pattern: "https://www.example.com/search" },
+    { rule: 2, action: "follow", kind: "scope", pattern: "same-site" },
+    { rule: 3, action: "capture", kind: "scope", pattern: "any" },
+  ],
+  ok: true,
+};
+const FOLLOW = { maxDepth: "3", maxPages: "200", rows: [] };
+
+test("行ごとの印は、読めた種類か、読めない・覆われているの文", () => {
+  const answer = {
+    ...ANSWER,
+    rules: [
+      { rule: 1, action: "follow", kind: "scope", pattern: "same-site" },
+      { rule: 2, action: "skip", kind: "domain", pattern: "ads.example.com", coveredBy: 1 },
+      { rule: 3, action: "skip", kind: "invalid", pattern: "ADS.example.com" },
+    ],
+    ok: false,
+  };
+  assert.deepEqual(marksOf(answer, 3), [
+    { text: "範囲", bad: false },
+    { text: "1 行目に覆われて当たりません。上へ移してください", bad: true },
+    { text: "読めません（小文字のホスト名・http(s) の URL・範囲の名前のどれか）", bad: true },
+  ]);
+});
+
+test("答えの行の数が表と違えば、印を出さない（表を変えた直後の、前の表の答え）", () => {
+  assert.deepEqual(marksOf(ANSWER, 2), [
+    { text: "", bad: false },
+    { text: "", bad: false },
+  ]);
+  assert.deepEqual(marksOf(undefined, 1), [{ text: "", bad: false }]);
+});
+
+test("確かめの文は、上の行から何をするかを言い、same-site は起点のサイトの名前で言う", () => {
+  const said = summaryOf(ANSWER, FOLLOW);
+  assert.equal(said.bad, false);
+  assert.equal(
+    said.text,
+    "上の行から当てます。1 行目 https://www.example.com/search で始まる URL は落とす、" +
+      "2 行目 example.com の中は撮って辿る、3 行目 どこでも撮るだけ。" +
+      "どれにも当たらないリンクは落とします。3 段・200 枚まで。",
+  );
+});
+
+test("深さと枚数が空なら台帳の既定と言い、始められない理由を最後に並べる", () => {
+  const answer = {
+    seeds: [
+      { url: "https://ads.example.com/", valid: true, site: "example.com", followed: false },
+      { url: "not a url", valid: false },
+    ],
+    rules: [
+      { rule: 1, action: "follow", kind: "scope", pattern: "same-site" },
+      { rule: 2, action: "skip", kind: "domain", pattern: "ads.example.com", coveredBy: 1 },
+      { rule: 3, action: "skip", kind: "invalid", pattern: "*.example.com" },
+    ],
+    ok: false,
+  };
+  const said = summaryOf(answer, { maxDepth: "", maxPages: "", rows: [] });
+  assert.equal(said.bad, true);
+  assert.match(said.text, /台帳の既定の深さ・台帳の既定の枚数まで。/);
+  assert.match(said.text, /2 行目は 1 行目に覆われて当たりません。/);
+  assert.match(said.text, /3 行目の当てる物が読めません。/);
+  assert.match(said.text, /起点 https:\/\/ads\.example\.com\/ は撮って辿る行に当たりません。/);
+  assert.match(said.text, /起点 not a url は http\(s\) の URL ではありません。/);
+  assert.match(said.text, /このままでは始められません。$/);
+});
+
+test("規則の 400 は、名指した行と起点を文の後に添える", () => {
+  assert.equal(
+    startAnswer(400, { error: "rules that can never match", rules: [{ rule: 2, coveredBy: 1 }] }).text,
+    "400 —— rules that can never match: 2 行目（1 行目に覆われる）",
+  );
+  assert.equal(
+    startAnswer(400, { error: "invalid rule patterns", rules: [{ rule: 3, pattern: "ADS.example.com" }] }).text,
+    "400 —— invalid rule patterns: 3 行目（ADS.example.com）",
+  );
+  assert.equal(
+    startAnswer(400, { error: "seeds the rules do not follow", seeds: ["https://ads.example.com/"] }).text,
+    "400 —— seeds the rules do not follow: https://ads.example.com/",
+  );
 });
