@@ -58,6 +58,7 @@ dashboard は開いたときにこれを読み、誰として見ているかと�
 
 どの口を読むかは dashboard（`public/app.js`）が決め、サーバは選びません。
 口の一覧（allowlist）は持っていません。
+だから台帳の `GET /api/crawl-rules/check`（新しいクロールの画面が、書いている規則を確かめる）と `GET /api/crawls/:id/decisions`（開いたクロールの規則が何を決めたか）も、ここでは何も要りません。どちらも読む口で、一覧と同じく素通しです。
 
 ## POST /api/crawls —— クロールを始める口
 

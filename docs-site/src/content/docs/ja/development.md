@@ -91,6 +91,7 @@ dashboard が読む設定は `sandbox/sandbox.env` だけで、あなたの `.en
 | 別の WACZ を並べる | `SANDBOX_WACZ_DIR=<dir> npm run sandbox`（相対なら、この repo から。例: `../wacz-validator/samples`）。代役と daemon の両方に同じ置き場が入る |
 | wacz-validator の更新を daemon に入れる | `npm run sandbox:build`。`npm run sandbox` は、image が無いときにしか建てない |
 | 新しいクロールの画面を試す | 新しいクロールの画面から始める。代役は受けた行を台本の `submit.runsSeconds` 秒だけ走らせてから完走にする。走っている間にもう 1 度押すと 409、読めない URL は 400。走らせるもの（スクリプトのチェックとその場の JS）も台帳と同じ形で受け、知らないスクリプトの id・同じ id の重ね・名前の綴り・起点に合わないサイト用のスクリプトの名指し・既定が空（台帳にスクリプトが無いか、全部が別のサイト用）は台帳と同じ文で 400。行を開くと走らせたものが出る。チェックの横の「読む」は右の列に開く（代役の autoscroll は v2 で設定つき、example-title は起点に example.com が無いと押せないが読める） |
+| 規則を試す | 新しいクロールの画面で「リンクを辿る」を選ぶ。代役は台帳 v0.62.0 と同じく規則を確かめる（同じ 3 つの 400 を同じ文で、`/api/crawl-rules/check` も同じ答え）し、`/api/crawls/:id/decisions` にも答える。台本のクロール `5b0c0007` は `rules`・`decisions`・`robots` を持ち、1 度も当たらない規則が 1 本ある。**`same-site` は近似**: 代役は Public Suffix List を持たず、ホスト名の最後の 2 ラベルをサイトとする。だから `example.co.jp` と `other.co.jp` を同じサイトと読む（台帳は tldts で、そう読まない） |
 | 走らせたものの在る行を見る | 台本のクロールに `scripts` を書く（その場の物は `inline` つき）。同梱の台本には、その場の JS で完走した行と、compile の段で落ちた行が在る。代役も台帳と同じく、1 本の詳しい所には source を載せず、「欄に戻す」は名前の口（`/api/crawls/:id/inline/:name`）から取る。クロール `5b0c0008` の autoscroll の `sha256` はわざと台帳の v1 と違えてあり、版の番号が使い回されたときに、クロールの「読む」が出す知らせを見られる |
 
 代役にできないこともあります。

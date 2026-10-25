@@ -71,7 +71,8 @@
             </fieldset>
             <div class="start-row">
               <label><input type="radio" name="start-depth" id="start-page" checked /> このページだけ</label>
-              <label><input type="radio" name="start-depth" id="start-follow" /> リンクを辿る（台帳の既定）</label>
+              <!-- 辿るときは、右の列の「辿り方」のタブで深さ・枚数・規則を決める -->
+              <label><input type="radio" name="start-depth" id="start-follow" /> リンクを辿る</label>
             </div>
             <div class="start-row">
               <button type="submit" id="start-go" disabled>始める</button>
@@ -95,6 +96,7 @@
             <!-- 右の列のタブ。読む窓のタブと × は、スクリプトの「読む」で開いている間だけ出る（app.js の showStartTab） -->
             <div class="start-tabs">
               <button type="button" id="start-tab-js" class="on">その場の JS</button>
+              <button type="button" id="start-tab-rules" hidden>辿り方</button>
               <button type="button" id="start-tab-read" hidden></button>
               <button type="button" id="start-tab-close" aria-label="読む窓を閉じる" hidden>×</button>
             </div>
@@ -125,6 +127,39 @@
                 ></textarea>
               </div>
               <p id="start-size" class="start-size">0 行</p>
+            </div>
+            <!--
+              辿り方。「リンクを辿る」のときだけタブが出る。規則は上から当て、最初に当たった行が決める（台帳の決まり）。
+              行を変えて 300 ms 止まると、台帳の確かめの口（GET /api/crawl-rules/check）を引き、行ごとの印と最後の
+              1 行（何を辿るかの言い直し）を描き直す。台帳が「始められない」と言っている間は「始める」を押せない
+            -->
+            <div id="start-rules" class="start-rules" hidden>
+              <div class="start-row">
+                <label for="start-max-depth">深さ</label>
+                <input type="number" id="start-max-depth" min="1" max="10" placeholder="既定" />
+                <span class="muted">段まで</span>
+                <label for="start-max-pages">枚数</label>
+                <input type="number" id="start-max-pages" min="1" max="10000" placeholder="既定" />
+                <span class="muted">枚まで（空なら台帳の既定）</span>
+              </div>
+              <div class="start-row" id="start-presets">
+                <span class="muted">型から埋める:</span>
+                <button type="button" data-preset="site">サイトの中</button>
+                <button type="button" data-preset="siteAndOneHop">サイトの中＋外は 1 歩</button>
+                <button type="button" data-preset="host">ホストの中</button>
+                <button type="button" data-preset="any">どこでも</button>
+              </div>
+              <table class="rules">
+                <thead>
+                  <tr><th>行</th><th>動き</th><th>当てる物</th><th>台帳の確かめ</th><th></th></tr>
+                </thead>
+                <tbody id="start-rule-rows"></tbody>
+              </table>
+              <div class="start-row">
+                <button type="button" id="start-add-skip">＋ 落とす行を足す（いちばん上に入る）</button>
+                <button type="button" id="start-add-row">＋ 行を足す</button>
+              </div>
+              <p id="start-said" class="start-said" aria-live="polite"></p>
             </div>
             <!--
               読む窓。スクリプトの 1 版か受け皿の型を、スクリプトの画面と同じ部品で出す（app.js の IN_START）。版の札と

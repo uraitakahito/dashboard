@@ -214,6 +214,32 @@ tr.detail .ran li {
   color: var(--ink);
 }
 
+/* 規則が何を決めたか: 規則ごとの数（走らせたものと同じ並べ方）と、落とした物の表 */
+tr.detail .tally {
+  margin: 0 0 6px;
+  padding-left: 0;
+  list-style: none;
+}
+
+tr.detail .tally li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 2px 0;
+  color: var(--ink);
+}
+
+tr.detail .drops {
+  border-collapse: collapse;
+  margin: 0 0 6px;
+}
+
+tr.detail .drops td {
+  padding: 1px 12px 1px 0;
+  border: 0;
+}
+
 tr.head {
   cursor: pointer;
 }
@@ -284,7 +310,8 @@ body[data-face="start"] main {
  * その場の JS と読む窓の見た目は class で書く —— id で書くと、id の重みがこの規則に勝ち、2 つが両方出る
  */
 .start-js[hidden],
-.start-read[hidden] {
+.start-read[hidden],
+.start-rules[hidden] {
   display: none;
 }
 
@@ -318,6 +345,107 @@ body[data-face="start"] main {
 .start-read .rlines:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
+}
+
+/* 辿り方: 深さと枚数・型・規則の表・足すボタン・言い直しの 1 行。行が多ければ、この中だけ流す */
+.start-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.start-rules input,
+.start-rules select {
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--ink);
+  background: var(--ground);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.start-rules input[type="number"] {
+  width: 6em;
+}
+
+.start-rules input:focus-visible,
+.start-rules select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.rules {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.rules th {
+  text-align: left;
+  font-weight: normal;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 2px 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.rules td {
+  padding: 4px;
+  vertical-align: middle;
+}
+
+/* 当てる物は URL が入るので、残りの幅を全部 */
+.rules td:nth-child(3) {
+  width: 55%;
+}
+
+.rules td input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.rules td.mark {
+  font-size: 12px;
+}
+
+.rules td.mark.muted {
+  color: var(--muted);
+}
+
+.rules td.mark.bad {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+.rules td.tools {
+  white-space: nowrap;
+}
+
+.rules td.tools button {
+  padding: 2px 7px;
+}
+
+.rules td.tools button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.start-said {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.start-said.muted {
+  color: var(--muted);
+}
+
+.start-said.bad {
+  color: var(--bad);
 }
 
 /* タブ: 選んだタブが下の中身とつながる形。読む窓のタブは名前なので等幅 */

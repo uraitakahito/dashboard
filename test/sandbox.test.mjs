@@ -4,6 +4,7 @@
  * 欄の集合を台帳の応答と揃えておくことと、同梱の台本が画面の状態を全部出せることを固定する。
  * 台帳の欄は capture-ledger v0.57.4 から写した —— 台帳が欄を足したら、ここと代役を直す。
  * スクリプトを読む口（版の一覧・1 版・受け皿の型）は v0.60.0 から、札（`sites`）と起点で選ぶ既定は v0.61.0 から。
+ * 規則の並び（`rules`・400 の 3 つ・確かめの口・判断の口）は v0.62.0 から。
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -16,6 +17,8 @@ import {
   catalogOf,
   crawlDetail,
   crawlRow,
+  crawlRulesCheck,
+  decisionsOf,
   defaultSet,
   hostTypesOf,
   idOf,
@@ -522,4 +525,102 @@ test("id は名前から決まり、UUID の形をしている", () => {
   assert.equal(idOf("good.wacz"), idOf("good.wacz"));
   assert.notEqual(idOf("good.wacz"), idOf("ghost.wacz"));
   assert.match(idOf("good.wacz"), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+});
+
+// ── 規則の並び（capture-ledger v0.62.0 の src/crawl/rules.ts と src/api/crawls.ts から写した）──
+
+test("規則を省けば、台帳の既定（same-origin を辿る 1 本）で固定する", () => {
+  const rows = [];
+  submitCrawl(rows, { seeds: ["https://example.com/"] }, NOW, RUNS, versions);
+  assert.deepEqual(rows[0].rules, [{ follow: "same-origin" }]);
+  assert.deepEqual(crawlDetail(submittedRow(rows[0], NOW), [], rows[0].rules).rules, [{ follow: "same-origin" }]);
+});
+
+test("規則は読んだ形で固定する —— 前方一致は正規化した URL", () => {
+  const rows = [];
+  const answer = submitCrawl(
+    rows,
+    {
+      seeds: ["https://www.example.com/"],
+      rules: [{ skip: "HTTPS://WWW.Example.com:443/search" }, { skip: "ads.example.com" }, { follow: "same-site" }, { capture: "any" }],
+    },
+    NOW,
+    RUNS,
+    versions,
+  );
+  assert.equal(answer.status, 202);
+  assert.deepEqual(rows[0].rules, [
+    { skip: "https://www.example.com/search" },
+    { skip: "ads.example.com" },
+    { follow: "same-site" },
+    { capture: "any" },
+  ]);
+});
+
+test("規則の 400 は台帳と同じ 3 つの文で、名指す物も同じ形。scope は知らない鍵", () => {
+  const rows = [];
+  const say = (body) => submitCrawl(rows, { seeds: ["https://www.example.com/"], ...body }, NOW, RUNS, versions);
+  assert.deepEqual(say({ rules: [{ follow: "same-host" }, { skip: "ADS.example.com" }] }), {
+    status: 400,
+    body: { error: "invalid rule patterns", rules: [{ rule: 2, pattern: "ADS.example.com" }] },
+  });
+  assert.deepEqual(say({ rules: [{ follow: "same-site" }, { skip: "ads.example.com" }] }), {
+    status: 400,
+    body: { error: "rules that can never match", rules: [{ rule: 2, coveredBy: 1 }] },
+  });
+  assert.deepEqual(
+    say({ seeds: ["https://www.example.com/", "https://ads.example.com/"], rules: [{ skip: "ads.example.com" }, { follow: "same-site" }] }),
+    { status: 400, body: { error: "seeds the rules do not follow", seeds: ["https://ads.example.com/"] } },
+  );
+  assert.equal(say({ scope: "same-host" }).body.message, "body must NOT have additional properties");
+  assert.equal(say({ rules: [] }).body.message, "body/rules must NOT have fewer than 1 items");
+  assert.equal(say({ rules: [{ follow: "a", skip: "b" }] }).body.message, "body/rules/0 must NOT have more than 1 properties");
+  assert.equal(say({ rules: [{ crawl: "any" }] }).body.message, "body/rules/0 must NOT have additional properties");
+  assert.equal(rows.length, 0, "断った本は行にしない");
+});
+
+test("代役の same-site は、ホスト名の最後の 2 ラベルで近似する（Public Suffix List を持たない）", () => {
+  const rows = [];
+  // 台帳なら example.co.jp と other.co.jp は別のサイト。代役は co.jp で同じと読む —— docs の development に書いてある
+  const answer = submitCrawl(
+    rows,
+    { seeds: ["https://www.example.co.jp/"], rules: [{ follow: "same-site" }, { skip: "other.co.jp" }] },
+    NOW,
+    RUNS,
+    versions,
+  );
+  assert.deepEqual(answer.body, { error: "rules that can never match", rules: [{ rule: 2, coveredBy: 1 }] });
+});
+
+test("確かめの口は、行ごとの読めた種類と覆い、起点ごとのサイトと辿るかを、台帳と同じ形で返す", () => {
+  const answer = crawlRulesCheck(
+    ["https://www.example.com/", "not a url"],
+    ["follow:same-site", "skip:ads.example.com", "skip:HTTPS://WWW.Example.com:443/a", "capture:*.x"],
+  );
+  assert.equal(answer.status, 200);
+  assert.deepEqual(answer.body, {
+    seeds: [
+      { url: "https://www.example.com/", valid: true, site: "example.com", followed: true },
+      { url: "not a url", valid: false },
+    ],
+    rules: [
+      { rule: 1, action: "follow", kind: "scope", pattern: "same-site" },
+      { rule: 2, action: "skip", kind: "domain", pattern: "ads.example.com", coveredBy: 1 },
+      { rule: 3, action: "skip", kind: "prefix", pattern: "https://www.example.com/a", coveredBy: 1 },
+      { rule: 4, action: "capture", kind: "invalid", pattern: "*.x" },
+    ],
+    ok: false,
+  });
+  assert.equal(crawlRulesCheck([], ["crawl:any"]).status, 400);
+});
+
+test("判断の口は、台本の行の規則・判断・robots を返す（受けた行は空）", () => {
+  const c = scenario.crawls.find((x) => x.crawlId.startsWith("5b0c0007"));
+  const answer = decisionsOf(c);
+  assert.deepEqual(Object.keys(answer), ["crawlId", "rules", "decisions", "robots"]);
+  assert.ok(answer.decisions.length > 0 && answer.robots.length > 0, "画面の絵に出す行がある");
+  // 台本の規則は台帳が断らない並びであること（覆われた行を絵に載せない）
+  const seeds = c.seeds.map((seed) => new URL(seed).href);
+  assert.equal(submitCrawl([], { seeds, rules: c.rules, scripts: [] }, NOW, RUNS, versions).status, 202);
+  assert.deepEqual(decisionsOf({ crawlId: "x" }), { crawlId: "x", rules: [{ follow: "same-origin" }], decisions: [], robots: [] });
 });

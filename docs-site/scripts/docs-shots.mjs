@@ -106,8 +106,9 @@ const SHOTS = [
     window: 1000,
     hash: "#crawls",
     box: "#face-crawls table",
-    until: "#crawls tr.detail",
-    maxHeight: 480,
+    // 開いた行の「規則ごと」と Windmill の 1 行まで入れ、取れなかったページの行で切る（1 枚 40 KB に収める）
+    until: "#crawls tr.detail .decided",
+    maxHeight: 780,
     prepare: async (page) => {
       await page.evaluate(() => {
         [...document.querySelectorAll("#crawls tr.head")]
@@ -120,12 +121,15 @@ const SHOTS = [
     },
     ready: () =>
       document.querySelector("#crawls tr.head td:nth-child(8)")?.textContent === "1m 40s" &&
-      document.querySelector("#crawls tr.detail")?.textContent.includes("走らせたもの"),
+      document.querySelector("#crawls tr.detail")?.textContent.includes("走らせたもの") &&
+      document.querySelector("#crawls tr.detail .decided a") !== null,
     marks: [
       { n: 1, at: "#crawls tr.head:first-child td:first-child" },
       { n: 2, at: "#crawls tr.detail p" },
       { n: 3, at: "#crawls tr.detail button", edge: "box" },
       { n: 4, at: "#crawls tr.head:first-child td:last-child a" },
+      { n: 5, at: "#crawls tr.detail .decided p" },
+      { n: 6, at: "#crawls tr.detail .decided > p:last-child" },
     ],
   },
   {
@@ -152,6 +156,43 @@ const SHOTS = [
       { n: 4, at: "#start-tab-js", edge: "box" },
       { n: 5, at: 'label[for="start-inline-name"]' },
       { n: 6, at: ".start-editor", edge: "inside" },
+    ],
+  },
+  {
+    name: "start-rules",
+    // 右の列に表を広く出す（800 だと当てる物の欄が詰まる）
+    window: 1100,
+    hash: "#start",
+    box: ".start-code",
+    until: "#start-said",
+    maxHeight: 420,
+    prepare: async (page) => {
+      await fill(page, "start-seeds", "https://sandbox.example/news");
+      await page.click("#start-follow");
+      await press(page, "#start-presets", "サイトの中＋外は 1 歩");
+      // 落とす行は上に入り、当てる物に字の位置が来る
+      await page.click("#start-add-skip");
+      await page.keyboard.type("ads.sandbox.example");
+      // 下に足した落とす行は「どこでも撮るだけ」に覆われる —— 印と、始められない文が出る
+      await page.click("#start-add-row");
+      await page.select("#start-rule-rows tr:last-child select", "skip");
+      await page.focus("#start-rule-rows tr:last-child input");
+      await page.keyboard.type("tracker.example.net");
+      await fill(page, "start-max-depth", "3");
+      await fill(page, "start-max-pages", "200");
+      await page.waitForFunction(() => document.querySelector("#start-rule-rows tr:last-child td.mark.bad") !== null);
+      await page.evaluate(() => document.activeElement?.blur());
+    },
+    ready: () =>
+      document.getElementById("start-said").textContent.includes("覆われて当たりません") &&
+      document.getElementById("start-go").disabled,
+    marks: [
+      { n: 1, at: "#start-tab-rules", edge: "box" },
+      { n: 2, at: "#start-presets .muted" },
+      { n: 3, at: ".rules th:nth-child(2)" },
+      { n: 4, at: ".rules th:nth-child(4)" },
+      { n: 5, at: "#start-add-skip", edge: "box" },
+      { n: 6, at: "#start-said", edge: "inside" },
     ],
   },
   {

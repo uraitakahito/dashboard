@@ -108,11 +108,26 @@
       "state": "succeeded",
       "stopReason": "completed",
       "seeds": ["https://sandbox.example/news"],
+      "//rules": "規則と、規則が何を決めたか（台帳の GET /api/crawls/:id/decisions の形）。3 行目は 1 度も当たらない",
+      "rules": [
+        { "skip": "ads.sandbox.example" },
+        { "skip": "https://sandbox.example/news/archive/" },
+        { "skip": "tracker.example.net" },
+        { "follow": "same-site" },
+        { "capture": "any" }
+      ],
+      "decisions": [
+        { "depth": 1, "rule": 1, "action": "skip", "hostname": "ads.sandbox.example", "links": 3, "samples": ["https://ads.sandbox.example/banner?id=1"] },
+        { "depth": 1, "rule": 2, "action": "skip", "hostname": "sandbox.example", "links": 12, "samples": ["https://sandbox.example/news/archive/2026-10-01"] },
+        { "depth": 1, "rule": 4, "action": "follow", "hostname": "sandbox.example", "links": 4, "samples": ["https://sandbox.example/news/1"] },
+        { "depth": 1, "rule": 5, "action": "capture", "hostname": "partner.example.org", "links": 2, "samples": ["https://partner.example.org/"] }
+      ],
+      "robots": [{ "hostname": "sandbox.example", "pages": 1, "samples": ["https://sandbox.example/private/"] }],
       "startedSecondsAgo": 600,
       "tookSeconds": 38,
-      "pagesCaptured": 1,
-      "pagesDiscovered": 0,
-      "waczCount": 1,
+      "pagesCaptured": 7,
+      "pagesDiscovered": 6,
+      "waczCount": 7,
       "scripts": [
         {
           "id": "inline-close-banner",
