@@ -377,8 +377,13 @@ body[data-face="start"] main {
   outline-offset: 1px;
 }
 
+/*
+ * 規則の表は右の列に入る（窓 996 で 614px）。全体の表の min-width（720px）を引き継ぐと欄からはみ出し、
+ * 行の右端の ↑↓× が欄の外に出る
+ */
 .rules {
   width: 100%;
+  min-width: 0;
   border-collapse: collapse;
   font-size: 13px;
 }
@@ -397,9 +402,9 @@ body[data-face="start"] main {
   vertical-align: middle;
 }
 
-/* 当てる物は URL が入るので、残りの幅を全部 */
+/* 当てる物は URL が入るので広く。印（台帳の確かめ）が窓 996 で 2 行に収まる所まで（55% だと 5 行） */
 .rules td:nth-child(3) {
-  width: 55%;
+  width: 40%;
 }
 
 .rules td input[type="text"] {
@@ -408,8 +413,10 @@ body[data-face="start"] main {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/* 印の文は長い（「3 行目に覆われて当たりません。上へ移してください」）。th, td の nowrap を外して折り返す */
 .rules td.mark {
   font-size: 12px;
+  white-space: normal;
 }
 
 .rules td.mark.muted {
