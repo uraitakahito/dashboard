@@ -14,7 +14,7 @@
  *
  * 台帳のスクリプト (台本の `catalog`) は版の並びで、source は sandbox/catalog の写しから読む。スクリプトを読む口
  * (版の一覧・1 版・受け皿の型) にも答える。札 (`sites`) のある版はサイト用のスクリプトで、台帳と同じく
- * 起点のホストで選び、合わない名指しは 400 で断る。見本のスクリプトは sandbox/sites に置く。
+ * 起点のホストで選び、合わない名指しは 400 で断る。
  *
  * 試験から関数を import できるように、server は直に走らせたときだけ立てる。
  */
@@ -449,8 +449,8 @@ const emptyDefault = (versions) => {
 };
 
 /**
- * 台本のスクリプト（版の並び）に source を読み込む。source は sandbox/catalog の写し（見本のサイト用のスクリプトは
- * sandbox/sites）で、sha256 と bytes は台帳と同じく source から数える（手で書いた sha256 は、本物の
+ * 台本のスクリプト（版の並び）に source を読み込む。source は sandbox/catalog の写し（capture-scripts のファイル）で、
+ * sha256 と bytes は台帳と同じく source から数える（手で書いた sha256 は、本物の
  * 中身と結び付かない）。欄は capture-ledger v0.61.0 の 1 版の口（`GET /api/scripts/:id/versions/:version`）と同じ。
  */
 export const catalogOf = (s, read = readBeside) =>

@@ -14,11 +14,11 @@
     "        頼まれた要素 inline (name・phase・source) を付ける (台帳は、その場の物にだけ返す)。",
     "        台帳のスクリプトの sha256 は、台帳のその版と同じ値にする。**5b0c0008 の autoscroll だけはわざと違う** ——",
     "        読む所が「このクロールが走らせた v1 とは中身が違う」と言うのを見る場 (版の番号は使い回される)。",
-    "catalog: スクリプトの版の並び。source は file (sandbox/catalog の写し・capture-scripts v0.2.1) から読み、",
+    "catalog: スクリプトの版の並び。source は file (sandbox/catalog の写し・capture-scripts v0.4.0) から読み、",
     "         sha256 と bytes は代役が source から数える。options と enabled は省けば {} と true。",
     "         /api/scripts は有効な各 id の最新版。autoscroll v2 は中身が同じで設定だけ違う版。",
     "         sites (札) のある版はサイト用のスクリプト —— 既定で走るのは、起点のどれかが札のホストにあるときだけ。",
-    "         example-title は見本 (file は sandbox/sites。capture-scripts には無い) で、札は example.com。",
+    "         egov-law-search は札が laws.e-gov.go.jp のサイト用のスクリプトで、本物の台帳と同じ版。",
     "hostTypes: 受け皿の型 (/api/host-types)。消すと、型を取り込んでいない台帳の 404 になる。"
   ],
   "capturedAt": "2026-10-12T09:00:00.000Z",
@@ -182,12 +182,12 @@
       "options": { "maxSteps": 60 }
     },
     {
-      "id": "example-title",
+      "id": "egov-law-search",
       "version": 1,
       "phase": "behavior",
-      "file": "sites/example-title.ts",
-      "sites": ["example.com"],
-      "createdAt": "2026-10-17T00:00:00.000Z"
+      "file": "catalog/egov-law-search.ts",
+      "sites": ["laws.e-gov.go.jp"],
+      "createdAt": "2026-10-29T00:00:00.000Z"
     }
   ],
   "hostTypes": { "version": 1, "file": "catalog/host.d.ts", "createdAt": "2026-10-17T00:36:15.178Z" }

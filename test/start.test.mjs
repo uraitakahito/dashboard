@@ -137,8 +137,8 @@ test("読めない行と空行は、起点のホストに数えない（台帳�
   assert.equal(seedHosts("").size, 0);
 });
 
-/** 札の無い 2 本と、example.com 用の 1 本（id 順）。 */
-const SITE = { id: "example-title", sites: ["example.com"] };
+/** 札の無い 2 本と、laws.e-gov.go.jp 用の 1 本（id 順）。 */
+const SITE = { id: "egov-law-search", sites: ["laws.e-gov.go.jp"] };
 const SCRIPTS = [{ id: "autofetch", sites: [] }, { id: "autoscroll", sites: [] }, SITE];
 const IDS = SCRIPTS.map((script) => script.id);
 
@@ -148,9 +148,9 @@ test("札の無いスクリプトは、起点が無くても、どの起点で�
 });
 
 test("サイト用のスクリプトは、起点のどれかが札のホストにあるときだけ既定 —— ポートは見ない", () => {
-  assert.deepEqual(defaultIds(SCRIPTS, seedHosts("https://example.org/\nhttp://example.com:8080/a")), IDS);
-  // 完全一致。www. の付いたホストは別
-  assert.equal(onSeed(SITE, seedHosts("https://www.example.com/")), false);
+  assert.deepEqual(defaultIds(SCRIPTS, seedHosts("https://example.org/\nhttp://laws.e-gov.go.jp:8080/a")), IDS);
+  // 完全一致。同じ e-Gov でも別のホスト（www.e-gov.go.jp）は合わない
+  assert.equal(onSeed(SITE, seedHosts("https://www.e-gov.go.jp/")), false);
 });
 
 test("起点に合わないサイト用のスクリプトは既定に数えない —— 残りを全部選んでいれば scripts を省く", () => {
@@ -159,7 +159,7 @@ test("起点に合わないサイト用のスクリプトは既定に数えな�
 });
 
 test("起点に合うサイト用のスクリプトを外したら scripts を送る —— 省くと台帳が既定で入れる", () => {
-  const defaults = defaultIds(SCRIPTS, seedHosts("https://example.com/"));
+  const defaults = defaultIds(SCRIPTS, seedHosts("https://laws.e-gov.go.jp/"));
   assert.deepEqual(scriptsOf({ catalog: IDS, picked: ["autofetch", "autoscroll"], defaults, inline: NO_INLINE }), [
     { catalog: "autofetch" },
     { catalog: "autoscroll" },
