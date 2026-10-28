@@ -165,24 +165,38 @@ npm run docs:shots -- start crawls   # only the named ones
 
 - **After changing the dashboard, re-take the pictures before opening the PR.** Changing the dashboard
   (`public/`, the bundled coloring in `public/vendor/` included), the stand-in (`sandbox/`) or the
-  tool makes `site:check` fail with 絵の元が、撮ったときと違う (the sources of the pictures differ from when they were
+  tool makes `site:check` fail with 絵の元が、撮ったときと違う (the sources of the pictures differ from when the
   pictures were taken). Re-taking all of them sets the stamp in `shots.json` (`source`) to the
   sha256 of the current contents, and writes only the pictures whose pixels changed; a fix that
   changes nothing visible changes only the stamp. Do not copy the stamp by hand to turn it green:
   the pictures would stay stale.
 - **Taking named pictures leaves the stamp alone.** Only a run that takes all of them brings it up
   to date.
-- **The pictures are lossless WebP, at most 40 KB each and 150 KB in all,** because every re-take
+- **The pictures are lossless WebP, at most 32 KB each and 200 KB in all,** because every re-take
   piles up in git. Going over makes `site:check` fail; then make the cropped box smaller, or lower
   its height limit (`maxHeight`), in `SHOTS` in `docs-shots.mjs`.
+- **A picture meant to be read fits the docs' column.** The docs show a picture at its pixel size,
+  and one wider than the column shrinks (at a 1280 window, a 960px picture shrank to 0.66 and its
+  text could not be read). So every picture is taken in the same window (`WINDOW` in
+  `docs-shots.mjs`) at a DPR (devicePixelRatio) of 1, and cropped to the column's width (`COLUMN`
+  in `scripts/shots-source.mjs`, the column at a 1280 window). Only a table shown shrunk in the
+  column (`wide: true` in `SHOTS`) may be wider. `site:check` reads the width from the picture
+  itself and fails on one that is too wide.
+- **The tool stops rather than take a picture it should not.** Before taking one, it checks three
+  things: the width (within `COLUMN` unless wide), the crop's edges (no visible text crosses them),
+  and the number marks (inside the crop, on top of no text). Text the dashboard hides itself (long
+  lines in the reading pane, an ellipsis) does not count as cut. When it stops, fix how `SHOTS`
+  crops (`maxWidth`, `maxHeight`, `snap`) or where a mark goes, or shorten the text in the
+  stand-in's scenario (`sandbox/scenario.json`). Text spilling out of its own box is a bug in the
+  dashboard.
 - **Chrome's version is pinned** (`CHROME_BUILD` in `docs-shots.mjs`). If it is missing, the tool
   first installs it into `~/.cache/puppeteer`. Glyphs also depend on the OS's fonts, so the
   pictures are taken on macOS.
 - **To add a picture, add one entry to `SHOTS`, take it, and put it on both screens pages (ja and
   en).** `site:check` fails on a file in the folder that `shots.json` does not list, and on a
   picture in `shots.json` that either screens page leaves out. The number marks are drawn inside
-  the picture and carry only digits, so both languages use the same picture, and each says in its
-  own words what the marks point at.
+  the picture, carry only digits and start from 1 in each picture, so both languages use the same
+  picture, and each says in its own words what the marks point at.
 
 ## Releasing and publishing
 
