@@ -99,7 +99,7 @@ const pressValidate = (page, file) =>
 
 /** 新しいクロールの左の列（起点）と右の列（その場の JS）に書く。start と start-js は同じ状態の両側。 */
 const writeStart = async (page) => {
-  await fill(page, "start-seeds", "https://example.com/");
+  await fill(page, "start-seeds", "https://laws.e-gov.go.jp/");
   await fill(page, "start-inline-name", "close-banner");
   await fill(page, "start-inline-source", INLINE);
 };
@@ -166,7 +166,7 @@ const SHOTS = [
     prepare: writeStart,
     ready: () => {
       const site = [...document.querySelectorAll("#start-picks label.pick")].find((l) =>
-        l.textContent.startsWith("example-title"),
+        l.textContent.startsWith("egov-law-search"),
       );
       return site?.querySelector("input").checked === true && !document.getElementById("start-go").disabled;
     },

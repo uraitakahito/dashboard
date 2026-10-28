@@ -33,7 +33,7 @@ import {
 } from "../sandbox/fake-ledger.mjs";
 
 const scenario = JSON.parse(readFileSync(new URL("../sandbox/scenario.json", import.meta.url), "utf8"));
-/** 台本のスクリプト（版の並び。source は sandbox/catalog の写しと、見本の sandbox/sites）。 */
+/** 台本のスクリプト（版の並び。source は sandbox/catalog の写し —— capture-scripts のファイル）。 */
 const versions = catalogOf(scenario);
 /** 版を `id@版` で並べる（既定の顔ぶれ・走らせたものを 1 行で比べる）。 */
 const at = (list) => list.map((v) => `${v.id}@${String(v.version)}`);
@@ -319,31 +319,31 @@ test("scripts を省くと、起点で選んだ既定を走らせたものとし
     return crawlDetail(submittedRow(rows[0], NOW), rows[0].scripts).scripts;
   };
   assert.deepEqual(at(ranFrom("https://example.org/")), ["autofetch@1", "autoscroll@2"]);
-  const onSite = ranFrom("https://example.com/");
-  assert.deepEqual(at(onSite), ["autofetch@1", "autoscroll@2", "example-title@1"]);
+  const onSite = ranFrom("https://laws.e-gov.go.jp/");
+  assert.deepEqual(at(onSite), ["autofetch@1", "autoscroll@2", "egov-law-search@1"]);
   // 札は台帳 v0.61.0 と同じく詳しい所に出る。札の無い物は空の並び
   assert.deepEqual(
     onSite.map((s) => s.sites),
-    [[], [], ["example.com"]],
+    [[], [], ["laws.e-gov.go.jp"]],
   );
 });
 
 test("一覧の口（有効な各 id の最新版）は、サイト用のスクリプトも札つきで返す（無効な版は飛ばす）", () => {
-  assert.deepEqual(at(latestEnabled(versions)), ["autofetch@1", "autoscroll@2", "example-title@1"]);
-  assert.deepEqual(latestEnabled(versions)[2].sites, ["example.com"]);
+  assert.deepEqual(at(latestEnabled(versions)), ["autofetch@1", "autoscroll@2", "egov-law-search@1"]);
+  assert.deepEqual(latestEnabled(versions)[2].sites, ["laws.e-gov.go.jp"]);
   const off = versions.map((v) => (v.id === "autoscroll" && v.version === 2 ? { ...v, enabled: false } : v));
-  assert.deepEqual(at(latestEnabled(off)), ["autofetch@1", "autoscroll@1", "example-title@1"]);
+  assert.deepEqual(at(latestEnabled(off)), ["autofetch@1", "autoscroll@1", "egov-law-search@1"]);
 });
 
 test("既定の顔ぶれは、札の無い物と、起点に合うサイト用の物 —— ポートは見ない", () => {
   assert.deepEqual(at(defaultSet(versions, new Set())), ["autofetch@1", "autoscroll@2"]);
-  assert.deepEqual(at(defaultSet(versions, seedHosts("https://example.com:8443/a"))), [
+  assert.deepEqual(at(defaultSet(versions, seedHosts("https://laws.e-gov.go.jp:8443/a"))), [
     "autofetch@1",
     "autoscroll@2",
-    "example-title@1",
+    "egov-law-search@1",
   ]);
-  // 完全一致。www. の付いたホストは別
-  assert.deepEqual(at(defaultSet(versions, seedHosts("https://www.example.com/"))), ["autofetch@1", "autoscroll@2"]);
+  // 完全一致。同じ e-Gov でも別のホスト（www.e-gov.go.jp）は合わない
+  assert.deepEqual(at(defaultSet(versions, seedHosts("https://www.e-gov.go.jp/"))), ["autofetch@1", "autoscroll@2"]);
 });
 
 test("既定は最新版を選んでから札で絞る —— 札を付け直した id の、札の無い古い版は出てこない", () => {
@@ -361,10 +361,10 @@ test("代役の既定と、新しいクロールの画面の既定（public/star
   const seeds = [
     "",
     "https://example.org/",
-    "https://example.com/",
-    "http://example.com:8080/a\nhttps://example.org/",
-    "https://www.example.com/",
-    "not a url\nHTTPS://EXAMPLE.COM/",
+    "https://laws.e-gov.go.jp/",
+    "http://laws.e-gov.go.jp:8080/a\nhttps://example.org/",
+    "https://www.e-gov.go.jp/",
+    "not a url\nHTTPS://LAWS.E-GOV.GO.JP/",
   ];
   for (const text of seeds) {
     const hosts = seedHosts(text);
@@ -379,17 +379,17 @@ test("代役の既定と、新しいクロールの画面の既定（public/star
 test("起点に合わないサイト用のスクリプトを名指すと、台帳と同じ文で 400 —— 走行中でも 409 より先", () => {
   const rows = [];
   const post = (seeds) =>
-    submitCrawl(rows, { seeds, scripts: [{ catalog: "autofetch" }, { catalog: "example-title" }] }, NOW, RUNS, versions);
+    submitCrawl(rows, { seeds, scripts: [{ catalog: "autofetch" }, { catalog: "egov-law-search" }] }, NOW, RUNS, versions);
   assert.deepEqual(post(["https://example.org/"]), {
     status: 400,
     body: {
       error: "site scripts need a seed on their site",
-      ids: ["example-title"],
-      hint: "example-title: example.com",
+      ids: ["egov-law-search"],
+      hint: "egov-law-search: laws.e-gov.go.jp",
     },
   });
   // 起点のどれかが合えば通る（ポートは見ない）
-  assert.equal(post(["https://example.org/", "https://example.com:8443/"]).status, 202);
+  assert.equal(post(["https://example.org/", "https://laws.e-gov.go.jp:8443/"]).status, 202);
   assert.equal(post(["https://example.org/"]).status, 400);
 });
 
@@ -402,12 +402,12 @@ test("既定が空なら 400 —— 台帳にスクリプトが無いのと、�
       hint: "pnpm run scripts import .upstream/capture-scripts (run nothing on purpose: send scripts: [])",
     },
   });
-  const onlySite = versions.filter((v) => v.id === "example-title");
+  const onlySite = versions.filter((v) => v.id === "egov-law-search");
   assert.deepEqual(post(onlySite), {
     status: 400,
     body: {
       error: "no default scripts for these seeds",
-      hint: "example-title: example.com (run nothing on purpose: send scripts: [])",
+      hint: "egov-law-search: laws.e-gov.go.jp (run nothing on purpose: send scripts: [])",
     },
   });
   // 「何も走らせない」は書ける
