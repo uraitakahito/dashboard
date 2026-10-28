@@ -9,6 +9,10 @@ what you are reading). The contents tab only appears once you
 enter it with 開く (open) on an archive row. The dashboard itself is in Japanese; the tab names are
 クロール, 新しいクロール, アーカイブ, スクリプト and 中身.
 
+The pictures on this page are taken against the stand-in ledger (the
+[sandbox](/development/#opening-the-dashboard-in-the-sandbox)). Its scripts are copies from capture-scripts,
+the same ones a real ledger lists; only autoscroll v2 is the stand-in's own version, there to show version chips.
+
 ![The tabs at the top: クロール, 新しいクロール, アーカイブ and スクリプト, with 新しいクロール selected](../../assets/screens/tabs.webp)
 
 | View | What it lists |
@@ -65,7 +69,7 @@ WACZ files and the time taken. "run ↗" at the right end opens the Windmill run
   version the crawl ran, and scripts written in the form marked その場 (written on the spot) with
   their size in bytes, each with a 欄に戻す (back to the form) button that takes you to the
   [new crawl view](#start-a-crawl). A site script carries its sites, as a chip such as
-  `example.com 用`. Last are the pages that failed, as many
+  `laws.e-gov.go.jp 用`. Last are the pages that failed, as many
   as the ledger returns; if none did, it says so and lists the seed URLs.
 - **An opened row also shows what the crawl's rules decided** (the ledger's
   `/api/crawls/:id/decisions`, fetched together with the detail). First, per rule, the distinct URLs it
@@ -100,7 +104,7 @@ page only) or リンクを辿る (follow links), and press 始める. The right 
 a window for reading a registered script, and, while リンクを辿る is chosen, to 辿り方 (how to
 follow).
 
-![The left column of the new crawl view: seed URLs, script checkboxes, this page only or follow links, and 始める](../../assets/screens/start.webp)
+![The left column of the new crawl view: the seed URL (e-Gov Law Search), script checkboxes including the site script egov-law-search, this page only or follow links, and 始める](../../assets/screens/start.webp)
 
 ① seed URLs\
 ② スクリプト (scripts): the checkboxes and 読む (read)\
@@ -123,11 +127,14 @@ follow).
   nor the script's name; the ledger says what is wrong with a 400, naming the ids it refused.
 - **A site script can be ticked only when a seed is on its site.** A script with sites can be
   ticked only while one of the seeds is on one of those hosts. The seed's hostname must match
-  exactly and its port is ignored (`example.com` and `www.example.com` are different hosts).
+  exactly and its port is ignored (`laws.e-gov.go.jp` and `www.e-gov.go.jp` are different hosts).
   Writing a seed ticks the site scripts that fit it; the others cannot be ticked and say why, as in
-  起点に example.com がありません (no seed on example.com). With no seed yet, they say
+  起点に laws.e-gov.go.jp がありません (no seed on laws.e-gov.go.jp). With no seed yet, they say
   起点を書くと選べます (write a seed to choose). A box you unticked stays unticked when the seeds
   change. The rule is the ledger's: naming a site script that fits no seed gets a 400 from it.
+  The example is `egov-law-search` from capture-scripts (sites `laws.e-gov.go.jp`), which searches law titles
+  for 「セキュリティ」 within [e-Gov Law Search](https://laws.e-gov.go.jp/); seed `https://laws.e-gov.go.jp/` to
+  choose it, as in the picture above.
 - **It shows the size before sending.** Under the box are the number of lines, the size of the body
   it will send (UTF-8 bytes) and how much of the limit that is. The limit is the one the writing
   route enforces, handed out by the server as `writeLimit` in `/healthz`. Over it, the line turns
@@ -251,7 +258,7 @@ capture server puts in the page for scripts to use. The default scripts and the 
 appear as checkboxes under スクリプト (scripts) in the [new crawl view](#start-a-crawl), where 読む
 (read) next to one opens it in the right column.
 
-![The list on the left of the scripts view: autofetch and autoscroll (open) run by default, the site script example-title with its chip example.com, and host.d.ts under 書くための型](../../assets/screens/scripts.webp)
+![The list on the left of the scripts view: autofetch and autoscroll (open) run by default, the site script egov-law-search with its chip laws.e-gov.go.jp, and host.d.ts under 書くための型](../../assets/screens/scripts.webp)
 
 On the right is the TypeScript as it was written, with line numbers.
 
@@ -269,8 +276,8 @@ On the right is the TypeScript as it was written, with line numbers.
   default one marked 既定. Under them are the line count, the size, the start of the sha256, the day
   it was imported, the options it is given (`{}` means the defaults written in the code), and
   whether it is the version that runs by default. A site script has its sites beside its name, and
-  its default version reads 起点に example.com があれば既定で走る版 (runs by default when a seed
-  is on example.com).
+  its default version reads 起点に laws.e-gov.go.jp があれば既定で走る版 (runs by default when a seed
+  is on laws.e-gov.go.jp).
 - **Sites mark a script that only makes sense on certain sites.** The sites (`sites`) are a list
   of hostnames, written in the `catalog.json` of
   [capture-scripts](https://github.com/uraitakahito/capture-scripts) and kept by the ledger with
