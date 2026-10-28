@@ -296,9 +296,13 @@ body[data-face="start"] main {
   color: var(--muted);
 }
 
-/* 右の列: タブと、その下の中身 1 つ（その場の JS か読む窓）。中身が残りの高さを全部使う */
+/*
+ * 右の列: タブと、その下の中身 1 つ（その場の JS か読む窓）。中身が残りの高さを全部使う。列は右の列の幅に
+ * 留める —— 既定の auto の列は読む窓の長い行の幅まで伸び、本文が横に流れず窓の右端で切れた
+ */
 .start-code {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   gap: 6px;
   min-width: 0;
