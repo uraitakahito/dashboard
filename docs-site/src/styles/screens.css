@@ -1,0 +1,7 @@
+/* 画面の絵（段落に絵 1 枚）の端を見せる。明るい色では、絵の白い所が本文の地とつながり、
+   どこまでが dashboard か分からなかった。枠は外側の影で描く —— border は box-sizing: border-box の
+   幅に食い込み、絵が 2px 縮んで字がぼけた。 */
+.sl-markdown-content p > img:only-child {
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px var(--sl-color-gray-5);
+}

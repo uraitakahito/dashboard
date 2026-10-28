@@ -21,7 +21,7 @@ export default defineConfig({
     starlight({
       title: "dashboard Docs",
       // 表の中の code (口・環境変数の名前) を折り返さない
-      customCss: ["./src/styles/tables.css"],
+      customCss: ["./src/styles/tables.css", "./src/styles/screens.css"],
       // 英語が根 (接頭辞無し)、日本語は /ja/ の下。crawler の他の repo と同じ形
       defaultLocale: "root",
       locales: {
