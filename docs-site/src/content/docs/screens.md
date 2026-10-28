@@ -35,14 +35,10 @@ Each row is one crawl. It shows the state, the first 8 characters of the id, who
 for which organization, the first seed URL, pages captured, pages discovered, the number of
 WACZ files and the time taken. "run ↗" at the right end opens the Windmill run in a new tab.
 
-![The crawls view: running, finished, cut-off and failed rows, and an opened row showing what ran, 欄に戻す, what the rules decided and the link to Windmill](../../assets/screens/crawls.webp)
+![The crawls table: running, finished, cut-off and failed rows](../../assets/screens/crawls.webp)
 
 ① state\
-② what ran (in run order)\
-③ 欄に戻す (back to the form)\
-④ the link to the run\
-⑤ what the rules decided\
-⑥ the link to Windmill's inspect_crawl
+② the link to the run
 
 - **Pages captured and pages discovered are separate columns.** Pages discovered
   (`pagesDiscovered`) counts what was found by following links, so a crawl of depth 0 ends up as
@@ -53,6 +49,14 @@ WACZ files and the time taken. "run ↗" at the right end opens the Windmill run
 - **run ↗ is the run of the last level that was handed over.** The link is built from the id of
   `lastJob` that the ledger returns, plus the Windmill origin and workspace the server hands out
   through `/healthz`. Rows where the ledger has no `lastJob` get no link.
+
+![An opened row of the crawls view: what ran (欄に戻す next to the script written on the spot), the count per rule, what was dropped, and the link to inspect in Windmill](../../assets/screens/crawl-detail.webp)
+
+① what ran (in run order)\
+② 欄に戻す (back to the form)\
+③ the count per rule\
+④ Windmill で調べる (inspect in Windmill), the link to inspect_crawl
+
 - **Click a row to see why it failed, what ran in the page, and the URLs that could not be
   fetched.** Only then does the dashboard fetch `/api/crawls/:id`. The ledger's `error` comes first,
   in its own words: a crawl that failed at the compile step captured nothing, so its list of failed
@@ -96,14 +100,17 @@ page only) or リンクを辿る (follow links), and press 始める. The right 
 a window for reading a registered script, and, while リンクを辿る is chosen, to 辿り方 (how to
 follow).
 
-![The new crawl view: seed URLs, script checkboxes and 始める on the left; the tabs, the name of the script and the script box on the right](../../assets/screens/start.webp)
+![The left column of the new crawl view: seed URLs, script checkboxes, this page only or follow links, and 始める](../../assets/screens/start.webp)
 
 ① seed URLs\
 ② スクリプト (scripts): the checkboxes and 読む (read)\
-③ 始める (start)\
-④ the right column's tabs\
-⑤ JS の名前 (name of the script)\
-⑥ the script box
+③ 始める (start)
+
+![The right column of the new crawl view: the tab その場の JS, the name of the script, when it runs, and the script box](../../assets/screens/start-js.webp)
+
+① the right column's tabs\
+② JS の名前 (name of the script)\
+③ the script box
 
 - **It sends the seed URLs, whether the depth is 0, and what runs — the last only when it differs
   from the default.** このページだけ sends `maxDepth: 0`; リンクを辿る sends the rules, and the depth
@@ -240,12 +247,15 @@ to see exactly what a crawl ran. On the left is a list in three groups: the scri
 default (the newest enabled version of each id without sites, which is what a crawl runs when it
 names none), the site scripts (those with sites, which run only when a seed is on their site), and,
 under 書くための型 (types to write against), `host.d.ts`, the types of `__bh`, the object the
-capture server puts in the page for scripts to use. On the right is the TypeScript as it was
-written, with line numbers. The default scripts and the site scripts also appear as checkboxes
-under スクリプト (scripts) in the [new crawl view](#start-a-crawl), where 読む (read) next to
-one opens it in the right column.
+capture server puts in the page for scripts to use. The default scripts and the site scripts also
+appear as checkboxes under スクリプト (scripts) in the [new crawl view](#start-a-crawl), where 読む
+(read) next to one opens it in the right column.
 
-![The scripts view: the list on the left; autoscroll v2 with its version chips and coloured source on the right](../../assets/screens/catalog.webp)
+![The list on the left of the scripts view: autofetch and autoscroll (open) run by default, the site script example-title with its chip example.com, and host.d.ts under 書くための型](../../assets/screens/scripts.webp)
+
+On the right is the TypeScript as it was written, with line numbers.
+
+![The right of the scripts view: autoscroll v2 with its version chips, the line with its size and sha256, 写す and 下敷きにする, and the coloured source](../../assets/screens/script-read.webp)
 
 | URL | Opens |
 | --- | --- |

@@ -15,8 +15,9 @@
  *   6. README の Documentation の 2 本の URL が、docs-site/astro.config.ts の `site` ＋ `BASE` から
  *      組んだものと一致する (base を変えた日に、README だけが 404 を指し続けないように)
  *   7. 「画面」の絵 (`docs-site/src/assets/screens/`) が shots.json の一覧と揃い、ja・en の screens.md が
- *      全部を載せている。どれも lossless の WebP で、予算 (1 枚 40 KB・全部で 150 KB) の中。絵の元
- *      (`public/`・`sandbox/`・撮る道具) が、撮ったときから変わっていない
+ *      全部を載せている。どれも DPR 1 の lossless の WebP で、予算 (1 枚 32 KB・全部で 200 KB) の中。
+ *      wide (本文に縮めて載せる表) でない絵は、本文の幅 (`COLUMN`) 以内。絵の元 (`public/`・`sandbox/`・
+ *      撮る道具) が、撮ったときから変わっていない
  *
  * 4 と 5 が要るのは、表が手で写した物だから。口や変数を足しても、表は誰かが直すまで古いまま ——
  * README に表があった頃、dashboard が読まなくなった口が書かれたまま残っていた。それをこの検査が PR で止める。
@@ -28,7 +29,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { SHOT_SOURCES, shotsSource } from "./shots-source.mjs";
+import { COLUMN, SHOT_SOURCES, shotsSource } from "./shots-source.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const DOCS = resolve(ROOT, "docs-site/src/content/docs");
@@ -162,15 +163,19 @@ if (site === undefined || base === undefined) {
 
 // ─── 7. 「画面」の絵 ⇔ shots.json ⇔ いまの絵の元 ───────────────────────────────
 // 絵は npm run docs:shots (docs-site/scripts/docs-shots.mjs) の生成物。CI では撮らない (代役のコンテナが
-// 要る) ので、撮った物のほうを見る。予算があるのは、撮り直すたびに git に積もるから。古さの物差しは撮る
-// 道具と同じ関数 (scripts/shots-source.mjs)。この赤は撮り直して消す —— shots.json の source を手で写すと、
-// 絵が古いまま緑になる
+// 要る) ので、撮った物のほうを見る。予算があるのは、撮り直すたびに git に積もるから。幅の上限があるのは、
+// 本文より広い絵が縮んで字が読めなくなるから (窓 1280 で 960px の絵が 0.66 になった)。古さの物差しと本文の
+// 幅は、撮る道具と同じ物 (scripts/shots-source.mjs)。この赤は撮り直して消す —— shots.json の source を手で
+// 写すと、絵が古いまま緑になる
 const SHOTS_REL = "docs-site/src/assets/screens";
 const SHOTS = resolve(ROOT, SHOTS_REL);
-const BUDGET = { one: 40 * 1024, all: 150 * 1024 };
+const BUDGET = { one: 32 * 1024, all: 200 * 1024 };
 const kb = (bytes) => `${(bytes / 1024).toFixed(1)} KB`;
 const manifest = JSON.parse(readFileSync(join(SHOTS, "shots.json"), "utf8"));
 const isShot = (name) => Object.hasOwn(manifest.shots, name);
+
+// docs は絵を画素の大きさのまま載せる (Astro の passthrough)。DPR 2 で撮ると、どの絵も倍の幅で載る
+if (manifest.dpr !== 1) problems.push(`${SHOTS_REL}/shots.json: dpr ${String(manifest.dpr)} —— DPR 1 で撮る`);
 
 // 置き場に在るのは shots.json と、そこに名の在る WebP だけ (撮らない絵・手で撮った絵を残さない)
 for (const f of readdirSync(SHOTS)) {
@@ -187,8 +192,14 @@ for (const name of Object.keys(manifest.shots)) {
   const webp = readFileSync(join(SHOTS, `${name}.webp`));
   shotBytes += webp.length;
   // lossless の WebP は RIFF・大きさ・WEBPVP8L で始まる (非可逆は VP8 、拡張の形は VP8X)
-  if (webp.toString("latin1", 0, 4) !== "RIFF" || webp.toString("latin1", 8, 16) !== "WEBPVP8L")
+  if (webp.toString("latin1", 0, 4) !== "RIFF" || webp.toString("latin1", 8, 16) !== "WEBPVP8L") {
     problems.push(`${rel}: lossless の WebP でない (VP8L で始まらない)`);
+  } else if (manifest.shots[name].wide !== true) {
+    // 幅は絵そのものから読む (VP8L の頭: 署名 0x2f の後の 14 bit が幅 − 1)。shots.json の申告は使わない
+    const width = (webp.readUInt32LE(21) & 0x3fff) + 1;
+    if (width > COLUMN)
+      problems.push(`${rel}: 幅 ${String(width)}px —— 本文の ${String(COLUMN)}px まで (縮めて載せる表は wide)`);
+  }
   if (webp.length > BUDGET.one)
     problems.push(`${rel}: ${kb(webp.length)} —— 1 枚 ${kb(BUDGET.one)} まで`);
 }

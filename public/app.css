@@ -230,7 +230,10 @@ tr.detail .tally li {
   color: var(--ink);
 }
 
+/* 落とした物の表は中身の幅に（table の既定の 100%・720px を継ぐと、例の URL が数から離れて右へ押された） */
 tr.detail .drops {
+  width: auto;
+  min-width: 0;
   border-collapse: collapse;
   margin: 0 0 6px;
 }
@@ -296,9 +299,13 @@ body[data-face="start"] main {
   color: var(--muted);
 }
 
-/* 右の列: タブと、その下の中身 1 つ（その場の JS か読む窓）。中身が残りの高さを全部使う */
+/*
+ * 右の列: タブと、その下の中身 1 つ（その場の JS か読む窓）。中身が残りの高さを全部使う。列は右の列の幅に
+ * 留める —— 既定の auto の列は読む窓の長い行の幅まで伸び、本文が横に流れず窓の右端で切れた
+ */
 .start-code {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   gap: 6px;
   min-width: 0;
@@ -377,8 +384,13 @@ body[data-face="start"] main {
   outline-offset: 1px;
 }
 
+/*
+ * 規則の表は右の列に入る（窓 996 で 614px）。全体の表の min-width（720px）を引き継ぐと欄からはみ出し、
+ * 行の右端の ↑↓× が欄の外に出る
+ */
 .rules {
   width: 100%;
+  min-width: 0;
   border-collapse: collapse;
   font-size: 13px;
 }
@@ -397,9 +409,9 @@ body[data-face="start"] main {
   vertical-align: middle;
 }
 
-/* 当てる物は URL が入るので、残りの幅を全部 */
+/* 当てる物は URL が入るので広く。印（台帳の確かめ）が窓 996 で 2 行に収まる所まで（55% だと 5 行） */
 .rules td:nth-child(3) {
-  width: 55%;
+  width: 40%;
 }
 
 .rules td input[type="text"] {
@@ -408,8 +420,10 @@ body[data-face="start"] main {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/* 印の文は長い（「3 行目に覆われて当たりません。上へ移してください」）。th, td の nowrap を外して折り返す */
 .rules td.mark {
   font-size: 12px;
+  white-space: normal;
 }
 
 .rules td.mark.muted {

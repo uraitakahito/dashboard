@@ -1,15 +1,22 @@
 /**
- * docs の「画面」の絵が古くなったかを測る物差し。撮る側（`docs-site/scripts/docs-shots.mjs`）と
- * 見張る側（`scripts/check-doc-refs.mjs` の規則 7）が、同じこの関数を使う —— 2 か所に書くと、片方だけが
- * 変わった日に、撮り直しても緑にならない（または、古いのに緑になる）。
+ * docs の「画面」の絵の物差し。撮る側（`docs-site/scripts/docs-shots.mjs`）と見張る側
+ * （`scripts/check-doc-refs.mjs` の規則 7）が、同じこの 2 つを使う —— 2 か所に書くと、片方だけが変わった日に、
+ * 撮り直しても緑にならない（または、古いのに緑になる）。
  *
- * 見るのは、絵の中身を決めるファイル: dashboard（`public/`）・代役（`sandbox/`）・撮る道具。git が追跡する
- * 物だけを、path の順に読む（作業中の、追跡していないファイルは数えない）。
+ *   - `COLUMN`: 読ませる絵の幅の上限
+ *   - `shotsSource`: 絵が古くなったか。絵の中身を決めるファイル（dashboard の `public/`・代役の `sandbox/`・
+ *     撮る道具）の、git が追跡する物だけを path の順に読む（作業中の、追跡していないファイルは数えない）
  */
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+
+/**
+ * docs の本文の幅。窓 1280 の Starlight（右に目次あり）で測った。読ませる絵はこれ以内 —— 窓 964〜1151 と
+ * 1280 以上で実寸、目次が出る 1152〜1279 でも 8 割までしか縮まない
+ */
+export const COLUMN = 632;
 
 /** 絵の中身を決めるファイル（repo の根からの path）。 */
 export const SHOT_SOURCES = ["public", "sandbox", "docs-site/scripts/docs-shots.mjs"];

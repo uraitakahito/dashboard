@@ -2,35 +2,49 @@
   "//": "npm run docs:shots の生成物。手で直さない —— source を直して緑にすると、絵は古いまま残る",
   "chrome": "152.0.7977.54",
   "dpr": 1,
-  "source": "844d8b93838bebfef6d6abf9694a83af761d40fd7f334c2a483607190b7abef8",
+  "source": "4bf80d0d4ee94238d0ee49f85b0bea093ed04814dc47b1aa6762fad3a1e56fce",
   "shots": {
     "tabs": {
       "width": 507,
       "height": 53
     },
     "crawls": {
-      "width": 960,
-      "height": 700
+      "width": 956,
+      "height": 369,
+      "wide": true
+    },
+    "crawl-detail": {
+      "width": 632,
+      "height": 374
     },
     "start": {
-      "width": 760,
-      "height": 319
+      "width": 300,
+      "height": 308
+    },
+    "start-js": {
+      "width": 614,
+      "height": 301
     },
     "start-rules": {
-      "width": 718,
-      "height": 380
+      "width": 614,
+      "height": 414
     },
     "start-read": {
-      "width": 418,
-      "height": 412
+      "width": 614,
+      "height": 297
     },
     "archives": {
-      "width": 960,
-      "height": 307
+      "width": 956,
+      "height": 307,
+      "wide": true
     },
-    "catalog": {
-      "width": 760,
-      "height": 412
+    "scripts": {
+      "width": 300,
+      "height": 212
+    },
+    "script-read": {
+      "width": 632,
+      "height": 294
     }
   }
 }
