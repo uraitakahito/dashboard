@@ -87,7 +87,7 @@ dashboard が読む設定は `sandbox/sandbox.env` だけで、あなたの `.en
 | --- | --- |
 | 見せるものを変える | 台本を書き換える。代役は要求のたびに読むので、起こし直さずに画面に出る |
 | 台帳にスクリプトが無いときを見る | 台本の `"emptyCatalog"` を `true` にする。スクリプトの画面には受け皿の型だけが残る |
-| スクリプトを変える | 台本の `catalog` を書き換える。1 版に 1 つで、`sandbox/catalog/` のファイル（capture-scripts v0.4.0 のスクリプトと受け皿の型の写し）を名指す。`sha256` と `bytes` は代役が台帳と同じくファイルから数え、一覧は有効な各 id の最新版。autoscroll v2 は同じファイルで `options` だけが違う版。`sites`（札）のある版はサイト用のスクリプトで、既定で走るのは起点のどれかが札のホストにあるときだけ。`egov-law-search`（札 `laws.e-gov.go.jp`）も capture-scripts の写しで、本物の台帳と同じ版。`hostTypes` は受け皿の型で、消すと型を取り込んでいない台帳になる。写しは `check:terms` から外してある（別の repo の言葉で、直すと行番号が実物とずれる） |
+| スクリプトを変える | 台本の `catalog` を書き換える。1 版に 1 つで、`sandbox/catalog/` のファイル（capture-scripts v0.5.0 のスクリプトと受け皿の型の写し）を名指す。`sha256` と `bytes` は代役が台帳と同じくファイルから数え、一覧は各 id に 1 行（有効な版の中の最新、無ければ最新版を `enabled: false` で）。autoscroll v2 は同じファイルで `options` だけが違う版。autofetch は `enabled: false` —— カタログに `"default": false` と書いたスクリプトを台帳が持つ姿で、名指したときだけ走る。`sites`（札）のある版はサイト用のスクリプトで、既定で走るのは起点のどれかが札のホストにあるときだけ。`egov-law-search`（札 `laws.e-gov.go.jp`）も capture-scripts の写しで、本物の台帳と同じ版。`hostTypes` は受け皿の型で、消すと型を取り込んでいない台帳になる。写しは `check:terms` から外してある（別の repo の言葉で、直すと行番号が実物とずれる） |
 | 別の WACZ を並べる | `SANDBOX_WACZ_DIR=<dir> npm run sandbox`（相対なら、この repo から。例: `../wacz-validator/samples`）。代役と daemon の両方に同じ置き場が入る |
 | wacz-validator の更新を daemon に入れる | `npm run sandbox:build`。`npm run sandbox` は、image が無いときにしか建てない |
 | 新しいクロールの画面を試す | 新しいクロールの画面から始める。代役は受けた行を台本の `submit.runsSeconds` 秒だけ走らせてから完走にする。走っている間にもう 1 度押すと 409、読めない URL は 400。走らせるもの（スクリプトのチェックとその場の JS）も台帳と同じ形で受け、知らないスクリプトの id・同じ id の重ね・名前の綴り・起点に合わないサイト用のスクリプトの名指し・既定が空（台帳にスクリプトが無いか、全部が別のサイト用）は台帳と同じ文で 400。行を開くと走らせたものが出る。チェックの横の「読む」は右の列に開く（代役の autoscroll は v2 で設定つき、egov-law-search は起点に laws.e-gov.go.jp が無いと押せないが読める） |

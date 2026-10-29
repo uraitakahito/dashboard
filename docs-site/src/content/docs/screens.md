@@ -104,7 +104,7 @@ page only) or リンクを辿る (follow links), and press 始める. The right 
 a window for reading a registered script, and, while リンクを辿る is chosen, to 辿り方 (how to
 follow).
 
-![The left column of the new crawl view: the seed URL (e-Gov Law Search), script checkboxes including the site script egov-law-search, this page only or follow links, and 始める](../../assets/screens/start.webp)
+![The left column of the new crawl view: the seed URL (e-Gov Law Search), script checkboxes including autofetch left unticked as 既定では走らない and the site script egov-law-search, this page only or follow links, and 始める](../../assets/screens/start.webp)
 
 ① seed URLs\
 ② スクリプト (scripts): the checkboxes and 読む (read)\
@@ -118,8 +118,8 @@ follow).
 
 - **It sends the seed URLs, whether the depth is 0, and what runs — the last only when it differs
   from the default.** このページだけ sends `maxDepth: 0`; リンクを辿る sends the rules, and the depth
-  and the page limit only when they are written (empty, they are the ledger's defaults). With the default set the seeds decide (the scripts
-  without sites, and the site scripts for a seed's host) ticked and no script of your own, the form
+  and the page limit only when they are written (empty, they are the ledger's defaults). With the default set the seeds decide (of the scripts in
+  the default, those without sites and the site scripts for a seed's host) ticked and no script of your own, the form
   sends no `scripts`, and the ledger picks the same set from the seeds. A ledger with no scripts is still a
   400, and so, with its own message, is one in which no script fits the seeds. Otherwise it
   sends `scripts`: your script first, then the ticked registered scripts in the ledger's
@@ -135,6 +135,12 @@ follow).
   The example is `egov-law-search` from capture-scripts (sites `laws.e-gov.go.jp`), which searches law titles
   for 「セキュリティ」 within [e-Gov Law Search](https://laws.e-gov.go.jp/); seed `https://laws.e-gov.go.jp/` to
   choose it, as in the picture above.
+- **A script left out of the default is listed unticked.** It reads 既定では走らない (does not run
+  by default) beside its name, as autofetch does in the picture above: a script whose entry in the
+  `catalog.json` of [capture-scripts](https://github.com/uraitakahito/capture-scripts) says
+  `"default": false`, every version of which the ledger keeps disabled. A crawl that names no
+  scripts does not run it. Tick it and the form names it, and the ledger runs its newest version. A
+  box you ticked is remembered like one you unticked, and a fetch does not reset it.
 - **It shows the size before sending.** Under the box are the number of lines, the size of the body
   it will send (UTF-8 bytes) and how much of the limit that is. The limit is the one the writing
   route enforces, handed out by the server as `writeLimit` in `/healthz`. Over it, the line turns
@@ -250,15 +256,17 @@ The WACZ files you can see, newest capture first.
 ## Scripts
 
 The scripts that run inside the pages being captured, to read before writing one of your own, or
-to see exactly what a crawl ran. On the left is a list in three groups: the scripts that run by
+to see exactly what a crawl ran. On the left is a list in four groups: the scripts that run by
 default (the newest enabled version of each id without sites, which is what a crawl runs when it
-names none), the site scripts (those with sites, which run only when a seed is on their site), and,
-under 書くための型 (types to write against), `host.d.ts`, the types of `__bh`, the object the
-capture server puts in the page for scripts to use. The default scripts and the site scripts also
-appear as checkboxes under スクリプト (scripts) in the [new crawl view](#start-a-crawl), where 読む
-(read) next to one opens it in the right column.
+names none), the site scripts (those with sites, which run only when a seed is on their site), the
+scripts that do not run by default (under 既定では走らない, those with no enabled version, whose
+newest version runs when a crawl names them), and, under 書くための型 (types to write against),
+`host.d.ts`, the types of `__bh`, the object the capture server puts in the page for scripts to
+use. All but `host.d.ts` also appear as checkboxes under スクリプト (scripts) in the
+[new crawl view](#start-a-crawl) (those that do not run by default unticked), where 読む (read)
+next to one opens it in the right column.
 
-![The list on the left of the scripts view: autofetch and autoscroll (open) run by default, the site script egov-law-search with its chip laws.e-gov.go.jp, and host.d.ts under 書くための型](../../assets/screens/scripts.webp)
+![The list on the left of the scripts view: autoscroll (open) runs by default, the site script egov-law-search with its chip laws.e-gov.go.jp, autofetch under 既定では走らない, and host.d.ts under 書くための型](../../assets/screens/scripts.webp)
 
 On the right is the TypeScript as it was written, with line numbers.
 
@@ -267,17 +275,18 @@ On the right is the TypeScript as it was written, with line numbers.
 | URL | Opens |
 | --- | --- |
 | `#scripts` | the first script in the list (the URL changes to name it) |
-| `#scripts/autoscroll` | the version that runs by default |
+| `#scripts/autoscroll` | the version that runs by default (for a script that does not, the newest) |
 | `#scripts/autoscroll@1` | version 1, enabled or not |
 | `#scripts/autoscroll@1:33` | version 1, with line 33 marked and scrolled into the middle |
 | `#scripts/types/host.d.ts` | the types of `__bh` |
 
 - **The heading says which version you are reading.** Chips list every version of the id, the
-  default one marked 既定. Under them are the line count, the size, the start of the sha256, the day
+  default one marked 既定 and disabled ones 無効. Under them are the line count, the size, the start of the sha256, the day
   it was imported, the options it is given (`{}` means the defaults written in the code), and
   whether it is the version that runs by default. A site script has its sites beside its name, and
   its default version reads 起点に laws.e-gov.go.jp があれば既定で走る版 (runs by default when a seed
-  is on laws.e-gov.go.jp).
+  is on laws.e-gov.go.jp). A disabled version reads 無効（既定では走らない） (disabled; does not run
+  by default).
 - **Sites mark a script that only makes sense on certain sites.** The sites (`sites`) are a list
   of hostnames, written in the `catalog.json` of
   [capture-scripts](https://github.com/uraitakahito/capture-scripts) and kept by the ledger with
@@ -305,7 +314,8 @@ On the right is the TypeScript as it was written, with line numbers.
   it changes. The versions and the source of a script are fetched when you open it, and the types
   of `__bh` once, when you first open the view. The routes are capture-ledger's
   `GET /api/scripts/:id/versions`, `GET /api/scripts/:id/versions/:version` and
-  `GET /api/host-types` (from v0.60.0; the sites from v0.61.0), passed through as in
+  `GET /api/host-types` (from v0.60.0; the sites from v0.61.0; the list, `GET /api/scripts`,
+  carries the scripts that do not run by default, with `enabled: false`, from v0.64.0), passed through as in
   [Routes](/routes/).
 
 **A ledger with no scripts is shown in red.** The capture server (BrowserHive) does not bring any scripts

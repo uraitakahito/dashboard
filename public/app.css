@@ -659,6 +659,12 @@ body[data-face="start"] main {
   color: var(--muted);
 }
 
+/* 既定に入らないスクリプト（autofetch など）。チェックは外れた状態で出るが、付ければ走る */
+.start-row .pick .off {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 /* チェックの横の「読む」。押せないチェック（起点に合わないサイト用のスクリプト）の上でも、押せる見た目に */
 .start-row .pick .read {
   font-size: 12px;

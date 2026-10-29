@@ -80,7 +80,16 @@ export const optionsText = (options) =>
     : `設定 ${JSON.stringify(options)}`;
 
 /**
- * この版と既定の顔ぶれの関係。`defaultVersion` は `GET /api/scripts` がその id に言う版（無ければ
+ * その id で既定の顔ぶれに入る版。`latest` は `GET /api/scripts` の答え（id ごとに 1 行。既定に入らない id も
+ * `enabled: false` で載る）。既定に入らない id と、載っていない id は undefined。
+ */
+export const defaultVersionOf = (latest, id) => {
+  const script = latest.find((s) => s.id === id);
+  return script?.enabled ? script.version : undefined;
+};
+
+/**
+ * この版と既定の顔ぶれの関係。`defaultVersion` は `defaultVersionOf` の答え（既定に入らない id なら
  * undefined）。無効な版は、名指せば走るが、既定では走らない。サイト用のスクリプト（札のある版）が既定で
  * 走るのは、起点のどれかが札のホストにあるときだけ。
  */
