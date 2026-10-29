@@ -386,7 +386,8 @@ const resolveRun = (scripts, versions, hosts) => {
   if (twice.length > 0) {
     return { status: 400, body: { error: "duplicate script ids", ids: twice } };
   }
-  const catalog = latestEnabled(versions);
+  // 名指しは有効かどうかを見ない（台帳 v0.64.0 の resolveScripts）—— 既定に入らないスクリプトも、名指せば最新版が走る
+  const catalog = latestOf(versions);
   const missing = [
     ...new Set(
       scripts
@@ -470,12 +471,24 @@ export const catalogOf = (s, read = readBeside) =>
     };
   });
 
-/** 有効な各 id の最新版を id 順で。サイト用のスクリプトも入る（台帳の enabledLatest。`GET /api/scripts` の答え）。 */
-export const latestEnabled = (versions) =>
-  [...new Set(versions.map((v) => v.id))].sort().flatMap((id) => {
-    const mine = versions.filter((v) => v.id === id && v.enabled);
-    return mine.length === 0 ? [] : [mine.reduce((a, b) => (b.version > a.version ? b : a))];
-  });
+/** 各 id の最新版を id 順で。有効かどうかは見ない（台帳の resolveScripts の名指しの側）。 */
+export const latestOf = (versions) =>
+  [...new Set(versions.map((v) => v.id))]
+    .sort()
+    .map((id) => versions.filter((v) => v.id === id).reduce((a, b) => (b.version > a.version ? b : a)));
+
+/** 有効な各 id の最新版を id 順で。サイト用のスクリプトも入る（台帳の enabledLatest。既定の顔ぶれの元）。 */
+export const latestEnabled = (versions) => latestOf(versions.filter((v) => v.enabled));
+
+/**
+ * 一覧の口（`GET /api/scripts`）の顔ぶれ。各 id に 1 行で、既定で走る版（有効な版の中の最新）があればそれ、
+ * 無ければ最新版を `enabled: false` で（台帳 v0.64.0 の pickable）。既定に入らないスクリプトも、名指せば
+ * 走るので載せる。
+ */
+export const pickable = (versions) => {
+  const enabled = latestEnabled(versions);
+  return latestOf(versions).map((v) => enabled.find((e) => e.id === v.id) ?? v);
+};
 
 /** 札の無いスクリプトはいつでも、サイト用のスクリプトは札のどれかが起点のホストにあるとき（台帳の onSeed）。 */
 const onSeed = (sites, hosts) => sites.length === 0 || sites.some((site) => hosts.has(site));
@@ -733,13 +746,14 @@ const handle = (req, res, raw) => {
     return;
   }
   if (req.method === "GET" && pathname === "/api/scripts") {
-    // 有効な各 id の最新版を全部、札つきで（台帳 v0.61.0。既定で走るのは、札の無い物と起点に合う物）
-    const scripts = latestEnabled(versionsIn(s)).map(({ id, version, phase, sha256, sites }) => ({
+    // 各 id に 1 行、札と enabled つきで（台帳 v0.64.0。既定で走るのは、enabled の物のうち札の無い物と起点に合う物）
+    const scripts = pickable(versionsIn(s)).map(({ id, version, phase, sha256, sites, enabled }) => ({
       id,
       version,
       phase,
       sha256,
       sites,
+      enabled,
     }));
     send(res, 200, { scripts });
     return;

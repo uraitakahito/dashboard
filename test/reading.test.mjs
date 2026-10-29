@@ -7,6 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  defaultVersionOf,
   labelOf,
   linesOf,
   metaOf,
@@ -93,6 +94,16 @@ test("渡す値が空なら「既定のまま」と言い、あればそのま�
   assert.equal(optionsText({}), "設定 {}（既定のまま。値はコードの中）");
   assert.equal(optionsText(undefined), "設定 {}（既定のまま。値はコードの中）");
   assert.equal(optionsText({ maxSteps: 60 }), '設定 {"maxSteps":60}');
+});
+
+test("既定の版は、台帳の一覧で既定に入る物の版。既定に入らない id と載っていない id は無い", () => {
+  const latest = [
+    { id: "autoscroll", version: 2, enabled: true, sites: [] },
+    { id: "autofetch", version: 1, enabled: false, sites: [] },
+  ];
+  assert.equal(defaultVersionOf(latest, "autoscroll"), 2);
+  assert.equal(defaultVersionOf(latest, "autofetch"), undefined);
+  assert.equal(defaultVersionOf(latest, "nothing"), undefined);
 });
 
 test("既定の顔ぶれとの関係を 3 通りに言う（既定の版・ほかの版が既定・無効）", () => {

@@ -44,9 +44,12 @@ export const onSeed = (script, hosts) =>
 export const plainClick = (event) =>
   event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
 
-/** 起点だけで決まる顔ぶれ —— 台帳が `scripts` を省いた頼みに選ぶ物と同じ。並びは台帳の並び。 */
+/**
+ * 起点と台帳の既定（`enabled`）で決まる顔ぶれ —— 台帳が `scripts` を省いた頼みに選ぶ物と同じ。並びは台帳の並び。
+ * 既定に入らないスクリプト（`enabled: false`。カタログの `default: false`）は、起点に合っても入らない。
+ */
 export const defaultIds = (scripts, hosts) =>
-  scripts.filter((script) => onSeed(script, hosts)).map((script) => script.id);
+  scripts.filter((script) => script.enabled && onSeed(script, hosts)).map((script) => script.id);
 
 /**
  * 走らせるもの（台帳の `scripts`）。**既定のまま —— 選んだ物が既定の顔ぶれ（`defaultIds`）と同じで、

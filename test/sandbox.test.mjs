@@ -4,7 +4,8 @@
  * 欄の集合を台帳の応答と揃えておくことと、同梱の台本が画面の状態を全部出せることを固定する。
  * 台帳の欄は capture-ledger v0.57.4 から写した —— 台帳が欄を足したら、ここと代役を直す。
  * スクリプトを読む口（版の一覧・1 版・受け皿の型）は v0.60.0 から、札（`sites`）と起点で選ぶ既定は v0.61.0 から。
- * 規則の並び（`rules`・400 の 3 つ・確かめの口・判断の口）は v0.62.0 から。
+ * 規則の並び（`rules`・400 の 3 つ・確かめの口・判断の口）は v0.62.0 から。既定に入らないスクリプト（一覧の
+ * `enabled`・名指しは有効かどうかを見ない）は v0.64.0 から。
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -24,6 +25,7 @@ import {
   idOf,
   inlineSource,
   latestEnabled,
+  pickable,
   readingLastGood,
   signedUrlOf,
   submitCrawl,
@@ -318,32 +320,44 @@ test("scripts を省くと、起点で選んだ既定を走らせたものとし
     submitCrawl(rows, { seeds: [seed] }, NOW, RUNS, versions);
     return crawlDetail(submittedRow(rows[0], NOW), rows[0].scripts).scripts;
   };
-  assert.deepEqual(at(ranFrom("https://example.org/")), ["autofetch@1", "autoscroll@2"]);
+  assert.deepEqual(at(ranFrom("https://example.org/")), ["autoscroll@2"]);
   const onSite = ranFrom("https://laws.e-gov.go.jp/");
-  assert.deepEqual(at(onSite), ["autofetch@1", "autoscroll@2", "egov-law-search@1"]);
+  assert.deepEqual(at(onSite), ["autoscroll@2", "egov-law-search@1"]);
   // 札は台帳 v0.61.0 と同じく詳しい所に出る。札の無い物は空の並び
   assert.deepEqual(
     onSite.map((s) => s.sites),
-    [[], [], ["laws.e-gov.go.jp"]],
+    [[], ["laws.e-gov.go.jp"]],
   );
 });
 
-test("一覧の口（有効な各 id の最新版）は、サイト用のスクリプトも札つきで返す（無効な版は飛ばす）", () => {
-  assert.deepEqual(at(latestEnabled(versions)), ["autofetch@1", "autoscroll@2", "egov-law-search@1"]);
-  assert.deepEqual(latestEnabled(versions)[2].sites, ["laws.e-gov.go.jp"]);
+/** 版を `id@版:enabled` で並べる（一覧の口の 1 行が既定に入るかまで比べる）。 */
+const atOn = (list) => list.map((v) => `${v.id}@${String(v.version)}:${String(v.enabled)}`);
+
+test("一覧の口は各 id に 1 行 —— 有効な版の中の最新、無ければ最新版を enabled: false で。サイト用も札つきで", () => {
+  assert.deepEqual(atOn(pickable(versions)), ["autofetch@1:false", "autoscroll@2:true", "egov-law-search@1:true"]);
+  assert.deepEqual(pickable(versions)[2].sites, ["laws.e-gov.go.jp"]);
+  // 新しい版だけを無効にすると、有効な古い版が出る（版ごとの巻き戻し）
   const off = versions.map((v) => (v.id === "autoscroll" && v.version === 2 ? { ...v, enabled: false } : v));
-  assert.deepEqual(at(latestEnabled(off)), ["autofetch@1", "autoscroll@1", "egov-law-search@1"]);
+  assert.deepEqual(atOn(pickable(off)), ["autofetch@1:false", "autoscroll@1:true", "egov-law-search@1:true"]);
+  // 全部の版を無効にすると、消えずに最新版が enabled: false で出る
+  const allOff = versions.map((v) => (v.id === "autoscroll" ? { ...v, enabled: false } : v));
+  assert.deepEqual(atOn(pickable(allOff)), ["autofetch@1:false", "autoscroll@2:false", "egov-law-search@1:true"]);
 });
 
-test("既定の顔ぶれは、札の無い物と、起点に合うサイト用の物 —— ポートは見ない", () => {
-  assert.deepEqual(at(defaultSet(versions, new Set())), ["autofetch@1", "autoscroll@2"]);
+test("既定の元（有効な各 id の最新版）は、既定に入らない id を飛ばす", () => {
+  assert.deepEqual(at(latestEnabled(versions)), ["autoscroll@2", "egov-law-search@1"]);
+  const off = versions.map((v) => (v.id === "autoscroll" && v.version === 2 ? { ...v, enabled: false } : v));
+  assert.deepEqual(at(latestEnabled(off)), ["autoscroll@1", "egov-law-search@1"]);
+});
+
+test("既定の顔ぶれは、有効な物のうち札の無い物と、起点に合うサイト用の物 —— autofetch は入らず、ポートは見ない", () => {
+  assert.deepEqual(at(defaultSet(versions, new Set())), ["autoscroll@2"]);
   assert.deepEqual(at(defaultSet(versions, seedHosts("https://laws.e-gov.go.jp:8443/a"))), [
-    "autofetch@1",
     "autoscroll@2",
     "egov-law-search@1",
   ]);
   // 完全一致。同じ e-Gov でも別のホスト（www.e-gov.go.jp）は合わない
-  assert.deepEqual(at(defaultSet(versions, seedHosts("https://www.e-gov.go.jp/"))), ["autofetch@1", "autoscroll@2"]);
+  assert.deepEqual(at(defaultSet(versions, seedHosts("https://www.e-gov.go.jp/"))), ["autoscroll@2"]);
 });
 
 test("既定は最新版を選んでから札で絞る —— 札を付け直した id の、札の無い古い版は出てこない", () => {
@@ -353,11 +367,14 @@ test("既定は最新版を選んでから札で絞る —— 札を付け直し
     { ...versions[0], id: "google-results", version: 1, sites: [] },
     { ...versions[0], id: "google-results", version: 2, sites: ["www.google.com"] },
   ];
-  assert.deepEqual(at(defaultSet(resited, seedHosts("https://example.org/"))), ["autofetch@1", "autoscroll@2"]);
+  assert.deepEqual(at(defaultSet(resited, seedHosts("https://example.org/"))), ["autoscroll@2"]);
 });
 
 test("代役の既定と、新しいクロールの画面の既定（public/start.js）は、同じ起点に同じ顔ぶれを出す", () => {
-  // 決まりの正は台帳。2 つの写しが食い違えば、dashboard が「省いても同じ」と送った頼みで別の物が走る
+  // 決まりの正は台帳。2 つの写しが食い違えば、dashboard が「省いても同じ」と送った頼みで別の物が走る。
+  // dashboard が持つのは一覧の口の答え（pickable）だけ —— 版ごとに無効にした台帳でも、それで同じ顔ぶれになる
+  const off = versions.map((v) => (v.id === "autoscroll" && v.version === 2 ? { ...v, enabled: false } : v));
+  const allOff = versions.map((v) => (v.id === "autoscroll" ? { ...v, enabled: false } : v));
   const seeds = [
     "",
     "https://example.org/",
@@ -366,14 +383,23 @@ test("代役の既定と、新しいクロールの画面の既定（public/star
     "https://www.e-gov.go.jp/",
     "not a url\nHTTPS://LAWS.E-GOV.GO.JP/",
   ];
-  for (const text of seeds) {
-    const hosts = seedHosts(text);
-    assert.deepEqual(
-      defaultSet(versions, hosts).map((v) => v.id),
-      defaultIds(latestEnabled(versions), hosts),
-      JSON.stringify(text),
-    );
+  for (const list of [versions, off, allOff]) {
+    for (const text of seeds) {
+      const hosts = seedHosts(text);
+      assert.deepEqual(
+        defaultSet(list, hosts).map((v) => v.id),
+        defaultIds(pickable(list), hosts),
+        JSON.stringify(text),
+      );
+    }
   }
+});
+
+test("既定に入らないスクリプトも、名指せば最新版が走る（台帳 v0.64.0）", () => {
+  const rows = [];
+  const answer = submitCrawl(rows, { seeds: ["https://example.org/"], scripts: [{ catalog: "autofetch" }] }, NOW, RUNS, versions);
+  assert.equal(answer.status, 202);
+  assert.deepEqual(at(crawlDetail(submittedRow(rows[0], NOW), rows[0].scripts).scripts), ["autofetch@1"]);
 });
 
 test("起点に合わないサイト用のスクリプトを名指すと、台帳と同じ文で 400 —— 走行中でも 409 より先", () => {

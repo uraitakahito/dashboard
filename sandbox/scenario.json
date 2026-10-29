@@ -14,9 +14,11 @@
     "        頼まれた要素 inline (name・phase・source) を付ける (台帳は、その場の物にだけ返す)。",
     "        台帳のスクリプトの sha256 は、台帳のその版と同じ値にする。**5b0c0008 の autoscroll だけはわざと違う** ——",
     "        読む所が「このクロールが走らせた v1 とは中身が違う」と言うのを見る場 (版の番号は使い回される)。",
-    "catalog: スクリプトの版の並び。source は file (sandbox/catalog の写し・capture-scripts v0.4.0) から読み、",
+    "catalog: スクリプトの版の並び。source は file (sandbox/catalog の写し・capture-scripts v0.5.0) から読み、",
     "         sha256 と bytes は代役が source から数える。options と enabled は省けば {} と true。",
-    "         /api/scripts は有効な各 id の最新版。autoscroll v2 は中身が同じで設定だけ違う版。",
+    "         /api/scripts は各 id に 1 行 (有効な版の中の最新、無ければ最新版を enabled: false で)。",
+    "         autoscroll v2 は中身が同じで設定だけ違う版。autofetch は enabled: false —— capture-scripts の",
+    "         カタログの default: false を台帳が写した姿 (既定では走らず、名指せば走る)。",
     "         sites (札) のある版はサイト用のスクリプト —— 既定で走るのは、起点のどれかが札のホストにあるときだけ。",
     "         egov-law-search は札が laws.e-gov.go.jp のサイト用のスクリプトで、本物の台帳と同じ版。",
     "hostTypes: 受け皿の型 (/api/host-types)。消すと、型を取り込んでいない台帳の 404 になる。"
@@ -171,7 +173,14 @@
   },
   "hidden": ["ghost.wacz"],
   "catalog": [
-    { "id": "autofetch", "version": 1, "phase": "behavior", "file": "catalog/autofetch.ts", "createdAt": "2026-10-14T12:26:38.668Z" },
+    {
+      "id": "autofetch",
+      "version": 1,
+      "phase": "behavior",
+      "file": "catalog/autofetch.ts",
+      "createdAt": "2026-10-14T12:26:38.668Z",
+      "enabled": false
+    },
     { "id": "autoscroll", "version": 1, "phase": "behavior", "file": "catalog/autoscroll.ts", "createdAt": "2026-10-14T12:26:38.656Z" },
     {
       "id": "autoscroll",
