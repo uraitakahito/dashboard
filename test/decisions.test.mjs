@@ -9,7 +9,7 @@ import { dropsOf, inspectHref, ruleTallies } from "../public/decisions.js";
 
 const RULES = [
   { skip: "skipped.invalid" },
-  { skip: "tracker.example.net" },
+  { skip: "tracker.third-site.test" },
   { follow: "same-host" },
   { capture: "any" },
 ];
@@ -32,7 +32,7 @@ const DECIDED = [
 test("規則ごとの数は段を跨いで足し、0 回の規則も行にし、どれにも当たらない物を最後に置く", () => {
   assert.deepEqual(ruleTallies(RULES, DECIDED), [
     { rule: 1, action: "skip", pattern: "skipped.invalid", links: 3 },
-    { rule: 2, action: "skip", pattern: "tracker.example.net", links: 0 },
+    { rule: 2, action: "skip", pattern: "tracker.third-site.test", links: 0 },
     { rule: 3, action: "follow", pattern: "same-host", links: 1 },
     { rule: 4, action: "capture", pattern: "any", links: 1 },
     { rule: 0, action: "skip", pattern: "", links: 1 },

@@ -119,8 +119,8 @@ test("既定の顔ぶれとの関係を 3 通りに言う（既定の版・ほ�
 });
 
 test("サイト用のスクリプトの既定の版は、起点が札のホストにあるときだけ既定で走ると言う", () => {
-  assert.deepEqual(standingOf({ version: 1, enabled: true, sites: ["example.com", "www.example.com"] }, 1), {
-    text: "起点に example.com・www.example.com があれば既定で走る版",
+  assert.deepEqual(standingOf({ version: 1, enabled: true, sites: ["site.test", "www.site.test"] }, 1), {
+    text: "起点に site.test・www.site.test があれば既定で走る版",
     kind: "ok",
   });
 });

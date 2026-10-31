@@ -137,7 +137,7 @@ export const archiveRows = (names, s) =>
   [...names, ...(s.hidden ?? [])].map((name) => ({
     id: idOf(name),
     taskId: idOf(`task:${name}`),
-    sourceUrl: `https://sandbox.example/${name}`,
+    sourceUrl: `https://sandbox.test/${name}`,
     labels: ["sandbox"],
     waczComplete: true,
     capturedAt: s.capturedAt,

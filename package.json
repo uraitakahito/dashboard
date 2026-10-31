@@ -18,8 +18,8 @@
   },
   "scripts": {
     "dev": "node --env-file-if-exists=.env --env-file-if-exists=.env.local src/server.mjs",
-    "test": "node --test",
-    "check": "node --check src/server.mjs && node --check src/lib.mjs && node --check src/wacz.mjs && node --check public/highlight-worker.js && ! grep -rq --include='*.js' innerHTML public && node --test && npm run check:terms",
+    "test": "node --import ./test/no-dns.ts --test \"test/*.test.mjs\"",
+    "check": "node --check src/server.mjs && node --check src/lib.mjs && node --check src/wacz.mjs && node --check public/highlight-worker.js && ! grep -rq --include='*.js' innerHTML public && npm test && npm run check:terms && npm run check:test-hosts",
     "check:terms": "node scripts/check-terms.mjs",
     "vendor": "npm ci --prefix highlighter && npm run build --prefix highlighter",
     "vendor:check": "npm run vendor && git diff --exit-code -- public/vendor",
@@ -30,6 +30,7 @@
     "site:build": "npm --prefix docs-site run build",
     "site:preview": "npm --prefix docs-site run preview",
     "site:check": "npm run site:build && node scripts/check-doc-refs.mjs",
-    "docs:shots": "node docs-site/scripts/docs-shots.mjs"
+    "docs:shots": "node docs-site/scripts/docs-shots.mjs",
+    "check:test-hosts": "node scripts/check-test-hosts.mjs"
   }
 }
