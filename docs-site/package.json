@@ -28,16 +28,16 @@
     "preview": "astro preview"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.42.5",
-    "astro": "^7.3.8",
-    "astro-mermaid": "^2.0.2",
+    "@astrojs/starlight": "^0.42.7",
+    "astro": "^7.4.3",
+    "astro-mermaid": "^2.2.0",
     "mermaid": "^11.17.2"
   },
   "devDependencies": {
-    "@astrojs/markdown-satteri": "^0.4.3",
-    "@puppeteer/browsers": "^3.2.4",
-    "puppeteer-core": "^25.13.0",
-    "satteri": "^0.10.5",
+    "@astrojs/markdown-satteri": "^0.4.6",
+    "@puppeteer/browsers": "^3.2.6",
+    "puppeteer-core": "^25.16.0",
+    "satteri": "^0.11.6",
     "sharp": "^0.35.5"
   },
   "overrides": {
