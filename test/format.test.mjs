@@ -94,8 +94,8 @@ test("stats の無い報告でも、行を落とさない", async () => {
   const { statsOf } = await import("../public/format.js");
   assert.deepEqual(statsOf({}), []);
   assert.deepEqual(
-    statsOf({ stats: { warcRecordCount: 3, hosts: ["a.example", "b.example"] } }),
-    ["WARC 3 レコード", "a.example, b.example"],
+    statsOf({ stats: { warcRecordCount: 3, hosts: ["a.test", "b.test"] } }),
+    ["WARC 3 レコード", "a.test, b.test"],
   );
   assert.deepEqual(statsOf({ stats: { warcRecordCount: 0 } }), ["WARC 0 レコード"]);
 });
